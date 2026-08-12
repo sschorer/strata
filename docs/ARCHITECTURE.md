@@ -146,8 +146,13 @@ lets that user's approvals unblock others' PRs.
 | CI | same image / `make analyze` | headless report, threshold gating (roadmap) |
 | Desktop | Tauri Linux bundles (`.AppImage`/`.deb`) | macOS/Windows deferred |
 
-Releases are cut by **release-please** from conventional commits; a tag triggers
-the multi-arch Docker publish and the Linux desktop build.
+Releases are triggered by hand from the Actions tab (**Release** workflow) —
+nothing publishes on a merge to main. Pick `nightly` for a throwaway
+`ghcr.io/sschorer/strata:nightly` image, or `normal` to drive **release-please**:
+the first run opens the version-bump/CHANGELOG PR, and a second run after
+merging it cuts the tag + GitHub Release, which triggers the multi-arch Docker
+publish. The Linux desktop job is still a stub — it produces no bundle until
+`apps/desktop` exists and `tauri-action` is enabled.
 
 ## 8. Cross-cutting Concepts
 
