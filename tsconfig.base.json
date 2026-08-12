@@ -14,6 +14,10 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
+    // TS >=6 no longer walks up to an ancestor `node_modules/@types`, so under
+    // pnpm's isolated layout the Node globals must be requested explicitly.
+    // Every package that compiles therefore declares `@types/node` itself.
+    "types": ["node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   }

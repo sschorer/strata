@@ -15,6 +15,44 @@ make check      # build + typecheck + lint + test
 docker, release-check, …). Prefer the Makefile over raw pnpm so everyone runs
 the same commands.
 
+Requires **Node 24 LTS** (see `engines`); CI and the Docker image track the
+same baseline, and `@types/node` is deliberately pinned to that major rather
+than to the newest release.
+
+## Toolchain — two TypeScript versions on purpose
+
+Every package builds with **TypeScript 7** (the native compiler), while the
+name `typescript` is deliberately aliased to the TS 6 compatibility package:
+
+```jsonc
+// root
+"@typescript/native": "npm:typescript@^7.0.2",        // gives you `tsc`  (7.x)
+"typescript": "npm:@typescript/typescript6@^6.0.2",   // gives you `tsc6` (6.x)
+// packages/* and plugins/* — the build compiler
+"typescript": "^7.0.2"
+```
+
+This is not an accident, and it follows the [documented side-by-side
+layout](https://nx.dev/docs/kb/typescript-7). typescript-eslint does not
+support the TS 7 API yet and *hard-errors* on it (`typescript-eslint does not
+support TS 7.0`), so anything importing the `typescript` API programmatically
+gets 6.x, while the compiler that actually builds the code is 7.x. Sanity-check
+a fresh checkout with:
+
+```bash
+npx tsc --version    # Version 7.0.2
+npx tsc6 --version   # Version 6.0.3
+```
+
+Once typescript-eslint ships TS 7 support
+([#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940))
+both aliases can be dropped and `typescript` unified on 7.
+
+One consequence worth knowing: TS >=6 no longer walks up to an ancestor
+`node_modules/@types`, so under pnpm's isolated layout each compiling package
+declares its own `@types/node`, and `tsconfig.base.json` sets `"types":
+["node"]`. A new package that uses Node globals needs both.
+
 ## Commits — Conventional Commits (required)
 
 Commit messages **must** follow [Conventional Commits](https://www.conventionalcommits.org/).

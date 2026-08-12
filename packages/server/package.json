@@ -1,7 +1,7 @@
 {
   "name": "@strata/server",
   "version": "0.1.0",
-  "description": "Strata HTTP API — exposes the analysis pipeline over REST for the web UI and CI.",
+  "description": "Strata HTTP API \u2014 exposes the analysis pipeline over REST for the web UI and CI.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,9 +17,10 @@
   "dependencies": {
     "@strata/core": "workspace:*",
     "@strata/sdk": "workspace:*",
-    "fastify": "^5.0.0"
+    "fastify": "^5.11.3"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "@types/node": "^24.13.3",
+    "typescript": "^7.0.2"
   }
 }
