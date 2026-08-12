@@ -1,8 +1,12 @@
 # Strata — Backlog
 
 Features and technical work, grouped by area. Rough priority: **P0** = next,
-**P1** = soon, **P2** = later. Check items off as they ship; graduate large ones
-into GitHub issues.
+**P1** = soon, **P2** = later. Check items off as they ship.
+
+Turn open items into GitHub issues with `make backlog-issues DRY=1` to preview,
+then `make backlog-issues` (needs `GITHUB_TOKEN`) — or run the **Backlog →
+issues** workflow from the Actions tab. It's idempotent: re-running only adds
+items that don't already exist as issues, and skips `[x]` done items.
 
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
