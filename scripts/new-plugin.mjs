@@ -64,7 +64,7 @@ await writeFile(
     {
       name: pkg,
       version: '0.1.0',
-      license: 'MIT',
+      license: 'Apache-2.0',
       type: 'module',
       main: './dist/index.js',
       files: ['dist', 'strata.plugin.json'],

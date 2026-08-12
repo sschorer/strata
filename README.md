@@ -109,4 +109,4 @@ See [BACKLOG.md](BACKLOG.md). Contributions welcome — but note the repo uses a
 
 ## License
 
-MIT © Stephan Schorer
+Apache-2.0 © Stephan Schorer

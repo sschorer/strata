@@ -2,10 +2,12 @@
   "name": "@strata/server",
   "version": "0.1.0",
   "description": "Strata HTTP API — exposes the analysis pipeline over REST for the web UI and CI.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch & node --watch dist/index.js",
