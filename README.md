@@ -38,13 +38,24 @@ place and build. The web UI and richer analyzers are next — see
 
 ## Quick start (dev)
 
+Everything a dev does is a `make` target (`make help` lists them):
+
 ```bash
 corepack enable
-pnpm install
-pnpm build
-pnpm dev            # starts @strata/server on :4000
+make install        # pnpm install
+make check          # build + typecheck + lint + test (the full local gate)
+make dev            # start @strata/server on :4000
 
-# analyse a repo
+# analyse any repo straight from the CLI (no server needed)
+make analyze REPO=/absolute/path/to/a/repo LIMIT=500
+
+# scaffold a new plugin
+make new-plugin NAME=python KIND=language
+```
+
+Or hit the API directly:
+
+```bash
 curl -X POST localhost:4000/analyze \
   -H 'content-type: application/json' \
   -d '{"root":"/absolute/path/to/a/repo","historyLimit":500}'
@@ -80,16 +91,20 @@ docs/                      architecture, plugin authoring, ops
 
 ## Docs
 
-- [Architecture](docs/ARCHITECTURE.md)
+- [Architecture (arc42)](docs/ARCHITECTURE.md) — full project structure & decisions
+- [Backlog](BACKLOG.md) — planned features, prioritised
 - [Writing a plugin](docs/PLUGINS.md)
 - [Branch protection & governance](docs/BRANCH_PROTECTION.md)
 - [The vouch system](docs/VOUCH.md)
 - [Contributing](CONTRIBUTING.md)
 
+Every module also carries its own `ARCHITECTURE.md` (same arc42 format) — see
+`packages/*/ARCHITECTURE.md` and `plugins/*/ARCHITECTURE.md`.
+
 ## Roadmap
 
-See open issues. Contributions welcome — but note the repo uses a **vouch**
-model: non-owner PRs merge once a vouched reviewer approves. See
+See [BACKLOG.md](BACKLOG.md). Contributions welcome — but note the repo uses a
+**vouch** model: non-owner PRs merge once a vouched reviewer approves. See
 [docs/VOUCH.md](docs/VOUCH.md).
 
 ## License

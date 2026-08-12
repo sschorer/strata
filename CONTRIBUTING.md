@@ -7,14 +7,19 @@ automatic.
 
 ```bash
 corepack enable
-pnpm install
-pnpm build && pnpm test
+make install
+make check      # build + typecheck + lint + test
 ```
 
-## Commits — Conventional Commits
+`make help` lists every developer action (build, dev, analyze, new-plugin,
+docker, release-check, …). Prefer the Makefile over raw pnpm so everyone runs
+the same commands.
 
-Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/)
-(`commitlint` enforces this via a git hook). Examples:
+## Commits — Conventional Commits (required)
+
+Commit messages **must** follow [Conventional Commits](https://www.conventionalcommits.org/).
+This is enforced twice: locally by a husky `commit-msg` hook, and on every PR by
+the `commitlint` CI check — non-conforming commits cannot merge. Examples:
 
 ```
 feat(core): add incremental cache
@@ -22,8 +27,17 @@ fix(plugin-typescript): resolve index.ts barrels
 docs: explain the vouch flow
 ```
 
-The release tooling (`release-please`) reads these to bump the version and
-write the changelog, so the type/scope you pick matters.
+Check your branch before pushing with `make commitlint`. The release tooling
+(`release-please`) reads these to bump the version and write the changelog, so
+the type/scope you pick matters.
+
+## Architecture docs (arc42)
+
+The project architecture is documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+using the [arc42](https://arc42.org/) template. **Every module** (each package
+and plugin) has its own `ARCHITECTURE.md` in the same trimmed arc42 format —
+when you add or significantly change a module, add/update its doc. New plugins
+scaffolded with `make new-plugin` should get one too.
 
 ## Pull requests
 
