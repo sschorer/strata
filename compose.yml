@@ -1,0 +1,22 @@
+services:
+  strata:
+    image: ghcr.io/sschorer/strata:latest
+    # For local development build instead of pulling:
+    # build: .
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      # AI provider (optional) — see .env.example.
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+    volumes:
+      # Mount a repo you want to analyse (read-only) at /repos.
+      - ${STRATA_REPOS_DIR:-./repos}:/repos:ro
+      # Persist the analysis cache across restarts.
+      - strata-data:/app/.strata
+    restart: unless-stopped
+
+volumes:
+  strata-data:

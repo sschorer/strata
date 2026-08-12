@@ -1,0 +1,23 @@
+{
+  "name": "@strata/server",
+  "version": "0.1.0",
+  "description": "Strata HTTP API — exposes the analysis pipeline over REST for the web UI and CI.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch & node --watch dist/index.js",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@strata/core": "workspace:*",
+    "@strata/sdk": "workspace:*",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

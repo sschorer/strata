@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "bootstrap-sha": "HEAD",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "strata",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

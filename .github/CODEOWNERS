@@ -1,0 +1,7 @@
+# Default owner for everything — you are requested on every PR and your review
+# satisfies "require review from Code Owners" in branch protection.
+* @sschorer
+
+# Governance files that define who can merge and who is trusted.
+/.github/ @sschorer
+/.github/vouched.json @sschorer

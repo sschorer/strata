@@ -1,0 +1,10 @@
+{
+  "id": "strata-ai-provider-template",
+  "name": "AI Provider (template)",
+  "kind": "ai-provider",
+  "version": "0.1.0",
+  "sdk": "0.1.0",
+  "main": "./dist/index.js",
+  "description": "Copy-me template for adding an AI provider (OpenAI, Anthropic, Ollama, …).",
+  "author": "Strata"
+}

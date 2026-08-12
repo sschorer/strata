@@ -1,0 +1,10 @@
+{
+  "id": "strata-commit-conventional",
+  "name": "Conventional Commits",
+  "kind": "commit-convention",
+  "version": "0.1.0",
+  "sdk": "0.1.0",
+  "main": "./dist/index.js",
+  "description": "Parses commit messages following the Conventional Commits spec.",
+  "author": "Strata"
+}

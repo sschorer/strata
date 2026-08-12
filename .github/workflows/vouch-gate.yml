@@ -1,0 +1,58 @@
+name: Vouch gate
+
+# Produces the required "vouch-gate" status check. A PR passes when either:
+#   - the PR author is an owner (owner bypass), or
+#   - at least one approving review comes from an owner or a vouched reviewer.
+# Mark this check as required in branch protection to enforce the vouch system.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owners = [], vouched = [] } =
+              JSON.parse(fs.readFileSync('.github/vouched.json', 'utf8'));
+            const trusted = new Set([...owners, ...vouched].map((s) => s.toLowerCase()));
+
+            const pr = context.payload.pull_request;
+            const author = (pr.user.login || '').toLowerCase();
+
+            if (owners.map((s) => s.toLowerCase()).includes(author)) {
+              core.info(`Author @${author} is an owner — bypassing.`);
+              return;
+            }
+
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews,
+              { ...context.repo, pull_number: pr.number },
+            );
+            // Keep only the latest review state per reviewer.
+            const latest = new Map();
+            for (const r of reviews) latest.set((r.user?.login || '').toLowerCase(), r.state);
+
+            const approver = [...latest].find(
+              ([login, state]) => state === 'APPROVED' && trusted.has(login),
+            );
+
+            if (!approver) {
+              core.setFailed(
+                'Awaiting an approving review from an owner or a vouched reviewer. ' +
+                  'A maintainer can grant trust with `/vouch @user`.',
+              );
+            } else {
+              core.info(`Vouched approval from @${approver[0]}.`);
+            }
