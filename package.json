@@ -1,6 +1,6 @@
 {
   "name": "strata",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "A modular git & code-analysis workbench: hotspots, commit analytics, per-language dependency/dead-code modules, and pluggable AI providers.",
   "license": "Apache-2.0",
