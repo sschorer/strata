@@ -1,0 +1,130 @@
+version: 2
+
+# Grouping strategy
+#
+#   Packages that share a peer-dependency contract must move in one PR, or the
+#   bump lands broken. TypeScript is the sharp edge here: typescript-eslint
+#   pins a `typescript` peer range and hard-errors outside it, so those two
+#   travel together in the `typescript` group. The same reasoning gives us the
+#   eslint, vitest, and commit-tooling groups.
+#
+#   Everything else is swept into the two catch-all minor/patch groups so the
+#   weekly noise stays at a handful of PRs. Majors deliberately fall outside
+#   those groups and arrive as individual PRs, because a major is a change you
+#   want to read on its own.
+#
+#   Dependabot applies the FIRST group whose patterns match, so the specific
+#   groups must stay above the catch-alls below.
+
+updates:
+  # ── npm (pnpm workspace: root + packages/* + plugins/* + apps/*) ──────────
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 10
+    versioning-strategy: increase-if-necessary
+    labels:
+      - dependencies
+    commit-message:
+      # Yields `chore(deps):` / `chore(deps-dev):`, which satisfies the
+      # conventional-commit type-enum in commitlint.config.mjs.
+      prefix: chore
+      include: scope
+    ignore:
+      # @types/node deliberately tracks the runtime baseline (Node 24 LTS in
+      # engines, ci.yml, and the Dockerfile) rather than the newest release.
+      # Moving it to the next major is a decision to bump Node, not a chore.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+    groups:
+      # typescript-eslint's `typescript` peer range is the binding constraint,
+      # so the compiler and the lint plugin have to land in the same PR.
+      # `@typescript/typescript6` is the side-by-side TS 6 API that
+      # typescript-eslint loads while the packages build with TS 7.
+      typescript:
+        patterns:
+          - typescript
+          - "@typescript/*"
+          - typescript-eslint
+          - "@typescript-eslint/*"
+      eslint:
+        patterns:
+          - eslint
+          - "@eslint/*"
+          - globals
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
+      commit-tooling:
+        patterns:
+          - "@commitlint/*"
+          - husky
+      fastify:
+        patterns:
+          - fastify
+          - "@fastify/*"
+      # Catch-alls — keep last.
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      # Action majors are usually a runner-runtime bump but occasionally drop
+      # inputs or change an API (github-script v9 made `@actions/github`
+      # ESM-only), so only minor/patch are batched and majors land alone.
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # ── Docker base images ───────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: build
+      include: scope
+    ignore:
+      # Same reasoning as @types/node: the base image follows the supported
+      # Node baseline, so majors are a deliberate bump.
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

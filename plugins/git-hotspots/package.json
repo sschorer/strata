@@ -1,7 +1,7 @@
 {
   "name": "@strata/plugin-git-hotspots",
   "version": "0.1.0",
-  "description": "Hotspot (churn × complexity) git-metric plugin for Strata.",
+  "description": "Hotspot (churn \u00d7 complexity) git-metric plugin for Strata.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,6 +17,7 @@
     "@strata/sdk": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "@types/node": "^24.13.3",
+    "typescript": "^7.0.2"
   }
 }

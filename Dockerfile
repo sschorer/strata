@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- build stage -----------------------------------------------------------
-FROM node:20-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 RUN corepack enable
 
@@ -18,7 +18,7 @@ RUN pnpm -r build
 RUN pnpm --filter @strata/server deploy --prod /out
 
 # --- runtime stage ---------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production PORT=4000
 
