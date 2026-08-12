@@ -151,7 +151,8 @@ nothing publishes on a merge to main. Pick `nightly` for a throwaway
 `ghcr.io/sschorer/strata:nightly` image, or `normal` to drive **release-please**:
 the first run opens the version-bump/CHANGELOG PR, and a second run after
 merging it cuts the tag + GitHub Release, which triggers the multi-arch Docker
-publish and the Linux desktop build.
+publish. The Linux desktop job is still a stub — it produces no bundle until
+`apps/desktop` exists and `tauri-action` is enabled.
 
 ## 8. Cross-cutting Concepts
 

@@ -89,14 +89,21 @@ jobs:
 
   # Build the Linux desktop bundles and attach them to the Release.
   # macOS/Windows intentionally skipped for now — add runners to re-enable.
+  #
+  # NOTE: this job is still a stub — it installs dependencies and stops, because
+  # apps/desktop does not exist yet. A normal release currently produces no
+  # desktop bundle. Restore `contents: write` when uncommenting tauri-action,
+  # which needs it to upload assets to the Release.
   desktop-linux:
     needs: release-please
     if: needs.release-please.outputs.released == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       # Version comes from "packageManager" in package.json.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -122,6 +129,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -153,13 +162,15 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Summary
+        # Values go through env, never straight into the shell source — a ref
+        # name is attacker-influenced text and would otherwise be evaluated.
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
           {
-            echo "### Nightly image pushed"
-            echo
-            echo '```'
-            echo "${{ steps.meta.outputs.tags }}"
-            echo '```'
-            echo
-            echo "Built from \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`."
+            printf '### Nightly image pushed\n\n'
+            printf '```\n%s\n```\n\n' "$TAGS"
+            printf 'Built from `%s` @ `%s`.\n' "$REF" "$SHA"
           } >> "$GITHUB_STEP_SUMMARY"
