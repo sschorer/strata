@@ -58,10 +58,6 @@ new-plugin: ## Scaffold a plugin: make new-plugin NAME=python KIND=language
 	@test -n "$(NAME)" -a -n "$(KIND)" || (echo "NAME=... KIND=language|commit-convention|git-metric|ai-provider required" && exit 1)
 	node scripts/new-plugin.mjs "$(NAME)" "$(KIND)"
 
-.PHONY: backlog-issues
-backlog-issues: ## Create GitHub issues from BACKLOG.md (DRY=1 to preview; needs GITHUB_TOKEN)
-	node scripts/backlog-to-issues.mjs $(if $(DRY),--dry-run,)
-
 ## ────────────────────────────── Quality ─────────────────────────────
 
 .PHONY: lint
