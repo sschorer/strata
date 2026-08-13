@@ -25,17 +25,31 @@ to plugins. This is the only module that knows about all four plugin kinds.
 
 | File | Responsibility |
 |------|----------------|
-| `git.ts` | `resolveRev`, `listFiles` (with blob shas), `history`, `churn`. |
-| `registry.ts` | `PluginRegistry` — load manifests, SDK-major check, `byKind()`. |
-| `index.ts` | `Strata` orchestrator + `AnalyzeOptions` / `AnalysisReport`. |
+| `index.ts` | Barrel — the package's public surface, no logic. |
+| `strata.ts` | The `Strata` orchestrator. |
+| `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `CacheReport`. |
+| `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
+| `registry.ts` | `PluginRegistry` — load manifests, SDK-major check, `byKind()` / `loadedByKind()`. |
+| `git/exec.ts` | Run a read-only git command. |
+| `git/rev.ts` | `resolveRev` — revision → sha. |
+| `git/files.ts` | `listFiles` — tracked files with blob shas. |
+| `git/history.ts` | `history` — structured commit records. |
+| `git/churn.ts` | `churn` — per-file change counts. |
+| `cache/types.ts` | `AnalysisCache`, `CacheOptions`, `CacheStats`. |
+| `cache/open.ts` | `openAnalysisCache()` — resolve location, degrade safely. |
+| `cache/sqlite.ts` | The SQLite implementation. |
+| `cache/null.ts` | The pass-through implementation. |
+| `cache/schema.ts` | Tables, pragmas, schema migration. |
+| `cache/keys.ts`, `cache/digest.ts`, `cache/json.ts`, `cache/stats.ts` | Entry keys, run-key digests, JSON round-trip, counter arithmetic. |
 
 ## 5. Runtime
 
 `analyze()`:
 1. `resolveRev` → sha; `listFiles` → `RepoFile[]` (blob-keyed).
-2. Build `RepoContext`.
-3. Route files to `language` plugins by extension.
-4. Stream `history`; run `git-metric` plugins.
+2. Build `RepoContext`, one `cache` scope per plugin.
+3. Route files to `language` plugins by extension — skipping any plugin whose
+   input digest already has a stored result.
+4. Stream `history`; run `git-metric` plugins (same skip).
 5. Parse commits with the first `commit-convention` plugin.
 6. Merge into `AnalysisReport`.
 
@@ -43,12 +57,28 @@ to plugins. This is the only module that knows about all four plugin kinds.
 
 - **Extension-based routing** for language plugins (simple, fast).
 - **First-registered commit convention wins** (single active convention).
-- **Blob sha on every file** now, so the planned `(pluginId, blob)` cache is a
-  drop-in — no plugin changes required.
+- **Blob sha on every file**, so the cache keys on content, not on paths or
+  timestamps.
+- **Two cache levels** — a plugin whose entire input digest is unchanged is
+  skipped outright; otherwise it re-reads only the blobs that changed, through
+  `RepoContext.cache`. Graph-shaped results are not per-file, so the per-file
+  level alone would not make a rerun free.
+- **The plugin version is part of every key**, so shipping a new plugin build
+  invalidates exactly that plugin's entries.
+- **`node:sqlite`** over `better-sqlite3` — Node ≥ 24 is already a constraint,
+  and the cache stays dependency- and native-build-free.
+- **The cache never fails an analysis** — a database that cannot be opened,
+  read or written degrades to a pass-through with one warning per run. A failed
+  write costs a recomputation on the next run, nothing more.
 
 ## 7. Quality & Risks
 
 - **Risk:** unbounded history/churn on huge repos. **Mitigation:** `historyLimit`
-  option today; SQLite cache + worker queue on the roadmap.
+  option and the incremental cache; worker queue on the roadmap.
+- **Risk:** a plugin caches a value that depends on more than one file's
+  contents, and serves it stale. **Mitigation:** the purity contract is in the
+  SDK docs; `analyze({cache: false})` and `DELETE /cache` recover.
+- **Risk:** the cache file grows without bound. **Mitigation:** entries carry a
+  last-used stamp and are pruned after 30 days on open.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.

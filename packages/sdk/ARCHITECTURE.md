@@ -27,13 +27,22 @@ Goals: a minimal, strongly-typed, SemVer-stable surface.
 
 ## 4. Building Blocks
 
-| Area | Contents |
+One module per concern; `index.ts` is a barrel and the only supported import
+path (`@strata/sdk`).
+
+| File | Contents |
 |------|----------|
-| Shared types | `PluginManifest`, `RepoFile`, `RepoContext`, `Logger`, graph types |
-| Language | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
-| Commit | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
-| Git metric | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
-| AI | `AIProvider`, `ChatMessage`, `ChatOptions` |
+| `version.ts` | `SDK_VERSION` |
+| `manifest.ts` | `PluginKind`, `PluginManifest` |
+| `logger.ts` | `Logger` |
+| `repo.ts` | `RepoFile`, `RepoContext` |
+| `cache.ts` | `PluginCache` — the blob-keyed incremental cache contract |
+| `graph.ts` | `GraphNode`, `GraphEdge`, `DependencyGraph` |
+| `language.ts` | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
+| `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
+| `metric.ts` | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
+| `ai.ts` | `AIProvider`, `ChatMessage`, `ChatOptions` |
+| `plugin.ts` | `StrataPlugin` — the discriminated union |
 
 ## 5. Runtime
 
@@ -46,6 +55,8 @@ discriminant so the core can route a plugin without reflection.
   inference and set `kind` centrally.
 - **Discriminated union (`StrataPlugin`)** — lets the registry switch on `kind`
   type-safely.
+- **`RepoContext.cache` is always present** — the core injects a pass-through
+  when caching is off, so plugins never branch on cache availability.
 
 ## 7. Quality & Risks
 

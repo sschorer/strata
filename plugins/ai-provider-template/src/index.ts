@@ -3,6 +3,7 @@ import {
   type ChatMessage,
   type ChatOptions,
 } from '@strata/sdk';
+import { BASE_URL, DEFAULT_MODEL, authHeaders } from './config.js';
 
 /**
  * AI-provider template.
@@ -10,18 +11,9 @@ import {
  * Copy this folder to add a provider (OpenAI, Anthropic, Ollama, Azure, …).
  * Strata calls `chat()` for features like "explain this hotspot" and
  * "generate architecture docs", and the optional `embed()` for repo-wide
- * semantic search (RAG over the analysis DB).
- *
- * Read config from the environment (see .env.example) so no keys are committed:
- *   AI_BASE_URL, AI_API_KEY, AI_MODEL
- *
- * For a fully-local setup, point AI_BASE_URL at an Ollama server
- * (http://localhost:11434/v1) and leave AI_API_KEY blank.
+ * semantic search (RAG over the analysis DB). Configuration lives in
+ * `config.ts`.
  */
-const BASE_URL = process.env.AI_BASE_URL ?? '';
-const API_KEY = process.env.AI_API_KEY ?? '';
-const DEFAULT_MODEL = process.env.AI_MODEL ?? '';
-
 export default defineAIProvider({
   id: 'template',
 
@@ -40,10 +32,7 @@ export default defineAIProvider({
     // Example OpenAI-compatible shape — adjust per provider.
     const res = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(API_KEY ? { authorization: `Bearer ${API_KEY}` } : {}),
-      },
+      headers: { 'content-type': 'application/json', ...authHeaders() },
       body: JSON.stringify({
         model: opts.model ?? DEFAULT_MODEL,
         temperature: opts.temperature ?? 0.2,

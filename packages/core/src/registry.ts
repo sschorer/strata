@@ -43,9 +43,20 @@ export class PluginRegistry {
   byKind<K extends StrataPlugin['kind']>(
     kind: K,
   ): Extract<StrataPlugin, { kind: K }>[] {
-    return this.plugins
-      .map((l) => l.plugin)
-      .filter((p): p is Extract<StrataPlugin, { kind: K }> => p.kind === kind);
+    return this.loadedByKind(kind).map((l) => l.plugin);
+  }
+
+  /**
+   * Like `byKind`, but keeps each plugin's manifest attached — the orchestrator
+   * needs the id and version to key cache entries.
+   */
+  loadedByKind<K extends StrataPlugin['kind']>(
+    kind: K,
+  ): (LoadedPlugin & { plugin: Extract<StrataPlugin, { kind: K }> })[] {
+    return this.plugins.filter(
+      (l): l is LoadedPlugin & { plugin: Extract<StrataPlugin, { kind: K }> } =>
+        l.plugin.kind === kind,
+    );
   }
 
   all(): readonly LoadedPlugin[] {

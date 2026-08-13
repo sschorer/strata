@@ -24,9 +24,10 @@ the repo, and auto-generated architecture docs.
 
 ## 4. Building Blocks
 
-- `listModels()` — advertise available models to the settings UI.
-- `chat()` — OpenAI-compatible `POST /chat/completions` example.
-- `embed()` (optional) — for repo-wide semantic search / RAG.
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | The provider: `listModels()`, `chat()` (OpenAI-compatible `POST /chat/completions`), optional `embed()`. |
+| `config.ts` | Credentials and model from the environment; auth header assembly. |
 
 ## 5. Runtime
 
