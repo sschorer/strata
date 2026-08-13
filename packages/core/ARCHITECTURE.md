@@ -11,7 +11,9 @@ to plugins. This is the only module that knows about all four plugin kinds.
 ## 2. Constraints
 
 - Reads git by shelling out to the `git` binary (must be on PATH).
-- Hands plugins nothing but a `RepoContext` — no direct fs/network leakage.
+- Hands plugins nothing but a `RepoContext` — the core injects no fs or network
+  APIs. That is an interface contract, **not a sandbox**: a plugin runs
+  in-process and can import `node:fs` itself (see §7).
 - Pure in → out per file, so results stay cacheable/incremental.
 
 ## 3. Interfaces (Context)
@@ -19,7 +21,7 @@ to plugins. This is the only module that knows about all four plugin kinds.
 - **Depends on:** `@strata/sdk` (contracts), `git` CLI.
 - **Consumed by:** `@strata/server` (and `scripts/analyze.mjs`).
 - **Public API:** `Strata.analyze(opts) → AnalysisReport`, `PluginRegistry`,
-  `gitUtil` helpers.
+  `discoverPlugins()` / `userPluginsDir()`, `gitUtil` helpers.
 
 ## 4. Building Blocks
 
@@ -29,7 +31,11 @@ to plugins. This is the only module that knows about all four plugin kinds.
 | `strata.ts` | The `Strata` orchestrator. |
 | `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `CacheReport`. |
 | `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
-| `registry.ts` | `PluginRegistry` — load manifests, SDK-major check, `byKind()` / `loadedByKind()`. |
+| `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
+| `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
+| `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
+| `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
+| `plugins-dir.ts` | `userPluginsDir()` — where drop-in plugins live (`STRATA_PLUGINS_DIR`). |
 | `git/exec.ts` | Run a read-only git command. |
 | `git/rev.ts` | `resolveRev` — revision → sha. |
 | `git/files.ts` | `listFiles` — tracked files with blob shas. |
@@ -56,6 +62,15 @@ to plugins. This is the only module that knows about all four plugin kinds.
 ## 6. Decisions
 
 - **Extension-based routing** for language plugins (simple, fast).
+- **Third-party plugins are drop-in, and nothing about them is trusted** — one
+  directory per plugin under `userPluginsDir()`, every manifest field validated,
+  `main` confined to the plugin's own directory, the export checked both for the
+  kind it claims and for the members that kind must implement — a plugin that
+  would throw mid-analysis never registers. Built-ins load first and ids are
+  first-one-wins, so a drop-in cannot shadow one. A plugin that fails any check
+  is recorded in
+  `registry.failures()` rather than thrown: a broken third-party plugin must
+  cost only itself, not the process.
 - **First-registered commit convention wins** (single active convention).
 - **Blob sha on every file**, so the cache keys on content, not on paths or
   timestamps.
@@ -82,3 +97,9 @@ to plugins. This is the only module that knows about all four plugin kinds.
   last-used stamp and are pruned after 30 days on open.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
+- **Risk:** a plugin runs **in-process, with the server's privileges** — the
+  validation above stops a malformed or misdeclared plugin, not a malicious
+  one, and installing a plugin is as much a trust decision as installing a
+  dependency. **Mitigation:** the plugins directory is operator-controlled and
+  local-only (nothing installs plugins over the network); isolation (worker
+  threads / permissions) is a later step.

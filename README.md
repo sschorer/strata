@@ -34,6 +34,7 @@ place and build. The web UI and richer analyzers are next — see
 **Core**
 - Incremental cache — SQLite, keyed on the git blob sha, so a rerun only
   re-analyses what changed ✅
+- Drop-in third-party plugins from a user plugins directory ✅
 
 **Architecture & AI**
 - Architecture fitness rules ("`ui` may not import `db`") ⏳
@@ -69,6 +70,16 @@ curl -X POST localhost:4000/analyze -H 'content-type: application/json' \
   -d '{"root":"/absolute/path/to/a/repo","cache":false}'
 curl -X DELETE localhost:4000/cache
 ```
+
+```bash
+# what loaded, from where, and anything that was skipped
+curl -s localhost:4000/plugins
+```
+
+Third-party plugins are drop-in: one directory per plugin (with its
+`strata.plugin.json`) under `$STRATA_PLUGINS_DIR`, default
+`<cwd>/.strata/plugins`. Built-ins load first, a plugin that fails to load is
+reported rather than fatal — see [`docs/PLUGINS.md`](docs/PLUGINS.md).
 
 The cache lives in `$STRATA_CACHE_DIR` (default `<cwd>/.strata/cache.db`) —
 keep it out of the repo you analyse, which the server and container defaults

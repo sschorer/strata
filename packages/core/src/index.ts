@@ -6,7 +6,19 @@
  * package's public surface.
  */
 export { Strata } from './strata.js';
-export { PluginRegistry, type LoadedPlugin } from './registry.js';
+export {
+  PluginRegistry,
+  type LoadedPlugin,
+  type PluginLoadFailure,
+  type PluginSource,
+} from './registry.js';
+export { discoverPlugins } from './discover.js';
+export { userPluginsDir } from './plugins-dir.js';
+export {
+  readManifest,
+  resolveEntry,
+  MANIFEST_FILENAME,
+} from './manifest.js';
 export { createConsoleLogger, consoleLogger } from './logger.js';
 export type {
   AnalysisReport,

@@ -21,8 +21,11 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
 - [ ] **P0** Analysis run metadata in the `/analyze` result — branch, resolved rev,
       file count, duration, finished-at. The mockup header (`main · @ 4c1249e ·
       analyzed 2 min ago · 1.82s`) and the overview stat cards read this directly.
-- [ ] **P0** Third-party plugin discovery — load a user plugins directory, not just
-      built-ins. Surfaced as *Settings → Plugins & engine → Plugins directory*.
+- [x] Third-party plugin discovery (API) — `STRATA_PLUGINS_DIR` is scanned for
+      drop-in plugins alongside the built-ins; `/plugins` reports the directory,
+      each plugin's source, and anything skipped. The *Settings → Plugins &
+      engine → Plugins directory* screen that renders it is still to build
+      (*mockup*), with the UI work below.
 - [ ] **P0** Path allow-listing / sandbox for the `root` a request may analyse —
       a prerequisite now that the UI lets a user register arbitrary project roots.
 - [ ] **P1** Worker queue for heavy analyses (BullMQ / worker_threads); progress

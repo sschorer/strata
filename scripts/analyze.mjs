@@ -15,10 +15,10 @@ if (!target) {
   process.exit(1);
 }
 
-const { PluginRegistry, Strata } = await loadCore(repoRoot);
-const registry = await builtinRegistry(repoRoot, PluginRegistry);
+const core = await loadCore(repoRoot);
+const registry = await builtinRegistry(repoRoot, core);
 
-const strata = new Strata(registry);
+const strata = new core.Strata(registry);
 let report;
 try {
   report = await strata.analyze({ root: resolve(target), historyLimit });
