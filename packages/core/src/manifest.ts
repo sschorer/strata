@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { PLUGIN_KINDS, SDK_VERSION, type PluginManifest } from '@strata/sdk';
 
 /** The file that marks a directory as a plugin. */
@@ -69,8 +69,9 @@ export function resolveEntry(
 ): string {
   const dir = dirname(resolve(manifestPath));
   const entry = resolve(dir, manifest.main);
+  // Only a leading `..` *segment* escapes; a child named `..lib` does not.
   const rel = relative(dir, entry);
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+  if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
     throw new Error(
       `Plugin "${manifest.id}" has a "main" (${manifest.main}) outside its own directory.`,
     );

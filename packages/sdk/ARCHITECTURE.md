@@ -46,8 +46,12 @@ path (`@strata/sdk`).
 
 ## 5. Runtime
 
-None — compile-time only. The `define*` helpers merely stamp the `kind`
-discriminant so the core can route a plugin without reflection.
+Almost none, but not zero: the `define*` helpers merely stamp the `kind`
+discriminant so the core can route a plugin without reflection, and
+`PLUGIN_KINDS` is the kind list as a value, for loaders validating a manifest.
+Both survive compilation, so a built plugin still imports `@strata/sdk` at
+runtime — it must be resolvable from the plugin (see
+[`docs/PLUGINS.md`](../../docs/PLUGINS.md)).
 
 ## 6. Decisions
 

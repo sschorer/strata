@@ -135,16 +135,19 @@ What the loader enforces, because a drop-in plugin is not first-party code:
 - Every manifest field is validated, and the `kind` must be one of the four.
 - `main` is resolved **inside the plugin's own directory** — it may not point
   anywhere else on the host.
-- The exported `kind` must match the manifest's.
+- The exported `kind` must match the manifest's, and the export must actually
+  implement that kind (a `language` plugin without `analyze()` is refused at
+  load rather than throwing mid-analysis).
 - Ids are unique and **first one wins**; built-ins load first, so a drop-in can
   never take over an id Strata ships with.
 - A plugin that trips any of these is skipped, not fatal. It shows up in
   `failures[]` on `GET /plugins` (and as a warning on startup) with the reason.
 
-Imports are resolved from the plugin's own directory, so ship it built, with
-its runtime dependencies bundled or vendored next to it. `@strata/sdk`'s
-`define*` helpers are compile-time only — nothing in a built plugin needs to
-import the SDK at runtime.
+Imports are resolved from the plugin's own directory, so ship the plugin built,
+with its dependencies resolvable from there — its own `node_modules`, or bundled
+into the entry. That includes **`@strata/sdk`**: the `define*` helpers are
+ordinary functions that survive compilation, so a plugin built with `tsc` still
+imports the SDK at runtime.
 
 `GET /plugins` also tags each entry with `source: "builtin" | "user"`, which is
 what *Settings → Plugins & engine* renders.
@@ -155,8 +158,9 @@ what *Settings → Plugins & engine* renders.
 pnpm --filter @strata/plugin-<name> build
 ```
 
-First-party plugins in this repo are auto-discovered by `@strata/server`. To
-test a plugin developed elsewhere, symlink its directory into the plugins
+First-party plugins are loaded from the `BUILTINS` manifest list in
+`packages/server/src/registry.ts` — a new one in this repo needs a line there.
+To test a plugin developed elsewhere, symlink its directory into the plugins
 directory and restart — discovery follows symlinks, so a rebuild is all that is
 needed between runs. Discovery happens once at startup.
 

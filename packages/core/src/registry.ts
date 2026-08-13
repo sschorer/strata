@@ -4,6 +4,7 @@ import type { Logger, PluginManifest, StrataPlugin } from '@strata/sdk';
 import { discoverPlugins } from './discover.js';
 import { createConsoleLogger } from './logger.js';
 import { readManifest, resolveEntry } from './manifest.js';
+import { pluginShapeError } from './plugin-shape.js';
 
 /** Where a plugin came from: shipped with Strata, or dropped in by the user. */
 export type PluginSource = 'builtin' | 'user';
@@ -78,6 +79,10 @@ export class PluginRegistry {
         `Plugin "${manifest.id}" is declared as kind "${manifest.kind}" ` +
           `but exports kind "${plugin.kind}".`,
       );
+    }
+    const shapeError = pluginShapeError(manifest.kind, plugin);
+    if (shapeError) {
+      throw new Error(`Plugin "${manifest.id}" (${entry}) ${shapeError}.`);
     }
 
     const loaded: LoadedPlugin = {

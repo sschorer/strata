@@ -171,6 +171,16 @@ describe('rejected plugins', () => {
     ]);
   });
 
+  it('allows an entry in a child directory whose name starts with ..', async () => {
+    const pluginDir = writePlugin('alpha', { main: './..lib/index.js' });
+    mkdirSync(join(pluginDir, '..lib'));
+    writeFileSync(join(pluginDir, '..lib', 'index.js'), PLUGIN_SOURCE('language'));
+
+    const registry = new PluginRegistry(silent);
+
+    expect(await registry.loadDirectory(dir)).toHaveLength(1);
+  });
+
   it('rejects a module whose exported kind contradicts its manifest', async () => {
     const pluginDir = writePlugin('alpha');
     writeFileSync(join(pluginDir, 'index.js'), PLUGIN_SOURCE('ai-provider'));
@@ -182,6 +192,23 @@ describe('rejected plugins', () => {
       expect.stringMatching(
         /declared as kind "language" but exports kind "ai-provider"/,
       ),
+    ]);
+  });
+
+  it('rejects a plugin that is missing what its kind must implement', async () => {
+    const pluginDir = writePlugin('alpha');
+    // Passes the manifest and the kind check, but would throw mid-analysis.
+    writeFileSync(
+      join(pluginDir, 'index.js'),
+      'export default { kind: "language", extensions: ["ts"] };',
+    );
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/is missing analyze\(\)/),
     ]);
   });
 
