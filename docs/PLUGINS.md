@@ -1,13 +1,14 @@
 # Writing a plugin
 
-A plugin is a workspace package with:
+A plugin is a package with:
 
 1. a `strata.plugin.json` manifest, and
 2. a module whose **default export** is built with one of the `define*` helpers
    from `@strata/sdk`.
 
 The core loads the manifest, checks the `sdk` major matches, imports `main`,
-and registers the default export by its `kind`.
+and registers the default export by its `kind`. It does not have to live in
+this repo — see [Installing a plugin](#installing-a-plugin).
 
 ## Manifest
 
@@ -106,15 +107,58 @@ Rules of the road:
 The core also caches whole plugin results, so if nothing in your input changed
 you won't be called at all.
 
+## Installing a plugin
+
+Third-party plugins are **drop-in**: one directory per plugin under the user
+plugins directory, each holding its `strata.plugin.json`.
+
+```
+~/.strata/plugins/            # $STRATA_PLUGINS_DIR
+├── strata-language-python/
+│   ├── strata.plugin.json
+│   └── dist/index.js
+└── strata-metric-coupling/   # a symlink to a checkout works too
+```
+
+```bash
+STRATA_PLUGINS_DIR=~/.strata/plugins pnpm --filter @strata/server start
+curl -s localhost:4000/plugins   # → { directory, plugins[], failures[] }
+```
+
+The directory defaults to `<cwd>/.strata/plugins` (in the container,
+`/app/.strata/plugins` — mount a volume there). A directory that does not exist
+means "nothing installed", not an error. Only the immediate subdirectories are
+scanned; nesting is not searched.
+
+What the loader enforces, because a drop-in plugin is not first-party code:
+
+- Every manifest field is validated, and the `kind` must be one of the four.
+- `main` is resolved **inside the plugin's own directory** — it may not point
+  anywhere else on the host.
+- The exported `kind` must match the manifest's.
+- Ids are unique and **first one wins**; built-ins load first, so a drop-in can
+  never take over an id Strata ships with.
+- A plugin that trips any of these is skipped, not fatal. It shows up in
+  `failures[]` on `GET /plugins` (and as a warning on startup) with the reason.
+
+Imports are resolved from the plugin's own directory, so ship it built, with
+its runtime dependencies bundled or vendored next to it. `@strata/sdk`'s
+`define*` helpers are compile-time only — nothing in a built plugin needs to
+import the SDK at runtime.
+
+`GET /plugins` also tags each entry with `source: "builtin" | "user"`, which is
+what *Settings → Plugins & engine* renders.
+
 ## Local development
 
 ```bash
 pnpm --filter @strata/plugin-<name> build
 ```
 
-First-party plugins are auto-discovered by `@strata/server`. A user plugins
-directory (drop-in third-party plugins) is on the roadmap — the loader
-(`PluginRegistry.loadFrom`) already takes an arbitrary manifest path.
+First-party plugins in this repo are auto-discovered by `@strata/server`. To
+test a plugin developed elsewhere, symlink its directory into the plugins
+directory and restart — discovery follows symlinks, so a rebuild is all that is
+needed between runs. Discovery happens once at startup.
 
 ## Versioning
 

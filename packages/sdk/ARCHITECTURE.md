@@ -33,7 +33,7 @@ path (`@strata/sdk`).
 | File | Contents |
 |------|----------|
 | `version.ts` | `SDK_VERSION` |
-| `manifest.ts` | `PluginKind`, `PluginManifest` |
+| `manifest.ts` | `PluginKind`, `PLUGIN_KINDS` (the same list as a value, for loaders), `PluginManifest` |
 | `logger.ts` | `Logger` |
 | `repo.ts` | `RepoFile`, `RepoContext` |
 | `cache.ts` | `PluginCache` — the blob-keyed incremental cache contract |

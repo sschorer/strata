@@ -19,11 +19,15 @@ export async function loadCore(repoRoot) {
   }
 }
 
-/** A registry with every built-in plugin loaded. */
-export async function builtinRegistry(repoRoot, PluginRegistry) {
+/**
+ * A registry with every built-in plugin loaded, plus whatever is installed in
+ * the user plugins directory — the CLI sees the same plugins as the server.
+ */
+export async function builtinRegistry(repoRoot, { PluginRegistry, userPluginsDir }) {
   const registry = new PluginRegistry();
   for (const rel of BUILTIN_PLUGINS) {
-    await registry.loadFrom(resolve(repoRoot, rel));
+    await registry.load(resolve(repoRoot, rel), 'builtin');
   }
+  await registry.loadDirectory(userPluginsDir(), 'user');
   return registry;
 }

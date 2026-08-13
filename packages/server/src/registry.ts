@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { PluginRegistry } from '@strata/core';
+import { PluginRegistry, userPluginsDir } from '@strata/core';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -12,17 +12,18 @@ const BUILTINS = [
 ];
 
 /**
- * Discover and load the built-in plugins. In a real deployment this also scans
- * a user plugins directory (see docs/PLUGINS.md).
+ * Discover and load plugins: the built-ins that ship here, then every plugin
+ * installed in the user plugins directory (see docs/PLUGINS.md). Built-ins go
+ * first, so a drop-in plugin can never take over an id Strata ships with.
+ *
+ * Neither step can fail startup — a plugin that will not load is recorded in
+ * `registry.failures()` and served on `GET /plugins`.
  */
 export async function buildRegistry(): Promise<PluginRegistry> {
   const registry = new PluginRegistry();
   for (const rel of BUILTINS) {
-    try {
-      await registry.loadFrom(resolve(REPO_ROOT, rel));
-    } catch (err) {
-      console.warn(`skip plugin ${rel}:`, (err as Error).message);
-    }
+    await registry.load(resolve(REPO_ROOT, rel), 'builtin');
   }
+  await registry.loadDirectory(userPluginsDir(), 'user');
   return registry;
 }

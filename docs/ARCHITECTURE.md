@@ -69,7 +69,7 @@ the analysed repo.
 
 | Challenge | Decision |
 |-----------|----------|
-| Extensibility | Four small plugin contracts in `@strata/sdk`; a registry loads them by manifest. |
+| Extensibility | Four small plugin contracts in `@strata/sdk`; a registry loads them by manifest — the built-ins, plus drop-in third-party plugins from `STRATA_PLUGINS_DIR`. |
 | One tool, many languages | Parsing standardised on **tree-sitter** grammars (roadmap); analyzers return a common shape. |
 | Big-repo performance | Blob-sha-keyed incremental cache (SQLite) in the core. |
 | Portability | Web frontend + thin API, packaged as a Docker image now and Tauri desktop later. |
@@ -87,6 +87,7 @@ strata/
 │   │              language, commit, metric, ai, cache, manifest, logger)
 │   ├── core/     @strata/core    Orchestrator: git ingest, registry, pipeline
 │   │              strata.ts · types.ts · logger.ts · registry.ts ·
+│   │              manifest.ts · discover.ts · plugins-dir.ts ·
 │   │              git/ (exec, rev, files, history, churn) ·
 │   │              cache/ (types, schema, sqlite, null, open, keys, digest, …)
 │   └── server/   @strata/server  Fastify HTTP API over the core
@@ -212,7 +213,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 
 | Quality | Scenario | Target |
 |---------|----------|--------|
-| Extensibility | Add a Python language plugin | No core change; only a new `plugins/*` package. |
+| Extensibility | Add a Python language plugin | No core change; only a new `plugins/*` package — or, from outside this repo, a directory dropped into `STRATA_PLUGINS_DIR`. |
 | Performance | Re-analyse a 50k-file repo after a 1-file change | Only that file re-parsed; an unchanged repo skips the plugins entirely. |
 | Correctness | Import cycles in TS | All SCCs > 1 node reported. |
 | Portability | Fresh machine with Docker | `docker run` yields a working API. |
@@ -225,6 +226,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | Cache is only as pure as its plugins | A `cache.file()` value that depends on more than the file's contents goes stale | Contract documented in the SDK; plugin version is part of the key, `DELETE /cache` is the escape hatch. |
 | Complexity proxy is indentation-based | Rough hotspot scores | Feed real cyclomatic complexity from language plugins. |
 | Web UI not scaffolded | No visual output yet | Build `apps/web` (see backlog). |
+| Third-party plugins run in-process | A plugin has the server's privileges | Manifest/entry validation and id protection on load; installing one is a trust decision, and the plugins directory is operator-controlled. Isolation is a later step. |
 | Vouch-bot needs push to `main` | May hit branch protection | Bypass entry or PR-mode fallback (documented). |
 
 ## 12. Glossary
