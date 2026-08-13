@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RepoFile } from '@strata/sdk';
-import { digest, filesDigest, nullCache, openAnalysisCache } from './cache.js';
+import { digest, filesDigest, nullCache, openAnalysisCache } from './index.js';
 
 function file(path: string, blob: string, body = ''): RepoFile {
   return { path, blob, read: async () => body };

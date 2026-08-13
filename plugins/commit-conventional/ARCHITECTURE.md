@@ -22,9 +22,11 @@ The default, dogfooded convention — Strata's own commits are conventional.
 
 ## 4. Building Blocks
 
-- `HEADER` regex — `type(scope)!: subject`.
-- Footer/marker detection — `!` and `BREAKING CHANGE:` → `breaking`.
-- `tags` extraction — issue refs (`#123`) and `Co-authored-by` trailers.
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | The plugin: compose header + tags into a `ParsedCommit`. |
+| `header.ts` | The `type(scope)!: subject` regex and its result. |
+| `tags.ts` | Issue refs (`#123`), `Co-authored-by` trailers, `BREAKING CHANGE:` footer. |
 
 ## 5. Runtime
 

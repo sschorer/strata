@@ -95,3 +95,24 @@ metrics, and AI providers are all plugins — please add tests and a
 
 TypeScript, ESM, strict mode. Keep the `@strata/sdk` contract stable; breaking
 it is a major version bump with a migration note.
+
+### One responsibility per file
+
+A file holds **one** concern: an implementation, its types, a helper, an
+alternate implementation and a process entry point each live in their own
+module. `index.ts` is a **barrel** — it re-exports the public surface and
+contains no logic — so consumers keep importing `@strata/core` or
+`./routes/index.js` while the internals stay small and movable.
+
+```
+packages/core/src/
+  index.ts        barrel: re-exports only
+  strata.ts       the orchestrator
+  types.ts        report / option types
+  logger.ts       console logger
+  git/            exec · rev · files · history · churn
+  cache/          types · schema · sqlite · null · open · keys · digest · json · stats
+```
+
+Tests sit next to what they test (`cache/cache.test.ts`). When a file starts
+answering two questions, split it rather than adding a section comment.

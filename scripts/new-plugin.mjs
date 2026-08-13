@@ -5,28 +5,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  KINDS,
+  entryModule,
+  packageJson,
+  pluginManifest,
+  tsconfig,
+} from './lib/templates.mjs';
 
-const KINDS = {
-  language: {
-    helper: 'defineLanguagePlugin',
-    body: `  extensions: ['CHANGE_ME'],\n  async analyze(ctx) {\n    return { graph: { nodes: [], edges: [], cycles: [] }, deadCode: [], metrics: [] };\n  },`,
-  },
-  'commit-convention': {
-    helper: 'defineCommitConventionPlugin',
-    body: `  convention: 'CHANGE_ME',\n  parse(commit) {\n    return { type: null, scope: null, breaking: false, subject: commit.message.split('\\n')[0], tags: {}, valid: false };\n  },`,
-  },
-  'git-metric': {
-    helper: 'defineGitMetricPlugin',
-    body: `  id: 'CHANGE_ME',\n  async compute(ctx, history) {\n    return { id: 'CHANGE_ME', label: 'CHANGE_ME', points: [] };\n  },`,
-  },
-  'ai-provider': {
-    helper: 'defineAIProvider',
-    body: `  id: 'CHANGE_ME',\n  async listModels() { return []; },\n  async chat(messages, opts) { throw new Error('not implemented'); },`,
-  },
-};
-
-const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, '..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const name = process.argv[2];
 const kind = process.argv[3];
 
@@ -38,56 +25,13 @@ if (!name || !KINDS[kind]) {
 }
 
 const dir = resolve(root, 'plugins', name);
-const { helper, body } = KINDS[kind];
-const pkg = `@strata/plugin-${name}`;
-const id = `strata-${name}`;
+const json = (value) => JSON.stringify(value, null, 2) + '\n';
 
 await mkdir(resolve(dir, 'src'), { recursive: true });
-
-await writeFile(
-  resolve(dir, 'src/index.ts'),
-  `import { ${helper} } from '@strata/sdk';\n\nexport default ${helper}({\n${body}\n});\n`,
-);
-
-await writeFile(
-  resolve(dir, 'strata.plugin.json'),
-  JSON.stringify(
-    { id, name, kind, version: '0.1.0', sdk: '0.1.0', main: './dist/index.js', description: 'TODO', author: 'Strata' },
-    null,
-    2,
-  ) + '\n',
-);
-
-await writeFile(
-  resolve(dir, 'package.json'),
-  JSON.stringify(
-    {
-      name: pkg,
-      version: '0.1.0',
-      license: 'Apache-2.0',
-      type: 'module',
-      main: './dist/index.js',
-      files: ['dist', 'strata.plugin.json'],
-      scripts: {
-        build: 'tsc -p tsconfig.json',
-        typecheck: 'tsc -p tsconfig.json --noEmit',
-      },
-      dependencies: { '@strata/sdk': 'workspace:*' },
-      devDependencies: { typescript: '^5.6.3' },
-    },
-    null,
-    2,
-  ) + '\n',
-);
-
-await writeFile(
-  resolve(dir, 'tsconfig.json'),
-  JSON.stringify(
-    { extends: '../../tsconfig.base.json', compilerOptions: { rootDir: 'src', outDir: 'dist' }, include: ['src'] },
-    null,
-    2,
-  ) + '\n',
-);
+await writeFile(resolve(dir, 'src/index.ts'), entryModule(KINDS[kind]));
+await writeFile(resolve(dir, 'strata.plugin.json'), json(pluginManifest(name, kind)));
+await writeFile(resolve(dir, 'package.json'), json(packageJson(name)));
+await writeFile(resolve(dir, 'tsconfig.json'), json(tsconfig()));
 
 console.log(`Created plugins/${name} (${kind}). Next:`);
 console.log('  1. pnpm install   # link the new workspace package');

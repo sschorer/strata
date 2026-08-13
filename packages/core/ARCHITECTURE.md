@@ -25,10 +25,22 @@ to plugins. This is the only module that knows about all four plugin kinds.
 
 | File | Responsibility |
 |------|----------------|
-| `git.ts` | `resolveRev`, `listFiles` (with blob shas), `history`, `churn`. |
+| `index.ts` | Barrel — the package's public surface, no logic. |
+| `strata.ts` | The `Strata` orchestrator. |
+| `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `CacheReport`. |
+| `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
 | `registry.ts` | `PluginRegistry` — load manifests, SDK-major check, `byKind()` / `loadedByKind()`. |
-| `cache.ts` | `openAnalysisCache()` — the SQLite incremental cache + key digests. |
-| `index.ts` | `Strata` orchestrator + `AnalyzeOptions` / `AnalysisReport`. |
+| `git/exec.ts` | Run a read-only git command. |
+| `git/rev.ts` | `resolveRev` — revision → sha. |
+| `git/files.ts` | `listFiles` — tracked files with blob shas. |
+| `git/history.ts` | `history` — structured commit records. |
+| `git/churn.ts` | `churn` — per-file change counts. |
+| `cache/types.ts` | `AnalysisCache`, `CacheOptions`, `CacheStats`. |
+| `cache/open.ts` | `openAnalysisCache()` — resolve location, degrade safely. |
+| `cache/sqlite.ts` | The SQLite implementation. |
+| `cache/null.ts` | The pass-through implementation. |
+| `cache/schema.ts` | Tables, pragmas, schema migration. |
+| `cache/keys.ts`, `cache/digest.ts`, `cache/json.ts`, `cache/stats.ts` | Entry keys, run-key digests, JSON round-trip, counter arithmetic. |
 
 ## 5. Runtime
 

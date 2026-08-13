@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Strata } from './index.js';
 import { PluginRegistry } from './registry.js';
+import { Strata } from './strata.js';
 
 const exec = promisify(execFile);
 

@@ -29,11 +29,14 @@ UI and CI. Keeps transport concerns out of the core.
 
 ## 4. Building Blocks
 
-| Piece | Responsibility |
-|-------|----------------|
-| `buildRegistry()` | Load the built-in plugin manifests (extend for user plugins). |
-| `createServer()` | Construct the Fastify app + routes. |
-| entry guard | Start listening when run directly (`node dist/index.js`). |
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | Barrel — the package's public surface. |
+| `app.ts` | `createServer()` — registry, one `Strata`, routes, shutdown hook. |
+| `main.ts` | Process entry point (`node dist/main.js`). |
+| `registry.ts` | `buildRegistry()` — load the built-in plugin manifests. |
+| `routes/health.ts` … `routes/cache.ts` | One module per endpoint. |
+| `routes/index.ts` | `registerRoutes()` + the `RouteContext` they share. |
 
 ## 5. Runtime
 

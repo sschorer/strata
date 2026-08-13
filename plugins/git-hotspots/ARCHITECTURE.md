@@ -22,11 +22,11 @@ git metric.
 
 ## 4. Building Blocks
 
-- **Churn** — walk back exactly the analysed commits from the newest sha
-  (`git log -n <N> <sha>`), counting touches per path. Root-commit safe.
-- **Complexity proxy** — indentation-weighted non-blank line count, memoised
-  per blob via `ctx.cache`, so a rerun reads only changed files.
-- **Score** — `churn × complexity`, sorted descending, with `meta`.
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | The plugin: `churn × complexity`, sorted descending, with `meta`. |
+| `churn.ts` | Walk back exactly the analysed commits from the newest sha (`git log -n <N> <sha>`), counting touches per path. Root-commit safe. |
+| `complexity.ts` | Indentation-weighted non-blank line count, memoised per blob via `ctx.cache`. |
 
 ## 5. Runtime
 

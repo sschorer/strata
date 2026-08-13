@@ -83,8 +83,14 @@ the analysed repo.
 strata/
 ├── packages/
 │   ├── sdk/      @strata/sdk     Plugin contracts (the public API surface)
+│   │              index.ts barrel · one module per contract (repo, graph,
+│   │              language, commit, metric, ai, cache, manifest, logger)
 │   ├── core/     @strata/core    Orchestrator: git ingest, registry, pipeline
+│   │              strata.ts · types.ts · logger.ts · registry.ts ·
+│   │              git/ (exec, rev, files, history, churn) ·
+│   │              cache/ (types, schema, sqlite, null, open, keys, digest, …)
 │   └── server/   @strata/server  Fastify HTTP API over the core
+│                  app.ts · main.ts (entry) · registry.ts · routes/*
 ├── plugins/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-hotspots/             churn × complexity metric      (git-metric)
@@ -177,6 +183,10 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   inside it. `STRATA_CACHE=0`, `analyze({cache: false})` or `DELETE /cache` turn
   it off or empty it. A cache that cannot be opened, read or written degrades to
   a pass-through with one warning — it never fails an analysis.
+- **One responsibility per file** — implementation, types, helpers and
+  alternate implementations live in separate modules; every `index.ts` is a
+  barrel that only re-exports. Public import paths (`@strata/core`,
+  `@strata/sdk`) therefore stay stable as internals move. See CONTRIBUTING.
 - **Configuration** — `.env` (see `.env.example`); AI creds never committed.
 - **Logging** — structured logger injected via `RepoContext.log`.
 - **Security** — analysed repos mounted read-only; AI is opt-in. The HTTP API

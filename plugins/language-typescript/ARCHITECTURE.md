@@ -23,11 +23,12 @@ language plugin — Angular and other TS-based analyzers build on its shape.
 
 ## 4. Building Blocks
 
-- **Import scan** — regex over `import/export … from` and `require()`; the
-  per-file result (`{ loc, specs }`) is cached per blob via `ctx.cache`.
-- **Local resolver** — maps relative specifiers to known files (`.ts`, `.tsx`,
-  `/index.ts`, …); bare/package imports are ignored.
-- **Cycle detection** — Tarjan's SCC; components with > 1 node are cycles.
+| File | Responsibility |
+|------|----------------|
+| `index.ts` | The plugin: assemble nodes/edges, return `LanguageAnalysis`. |
+| `scan.ts` | Regex scan of one file → `{ loc, specs }`, cached per blob via `ctx.cache`. |
+| `resolve.ts` | Map a relative specifier to a known file (`.ts`, `/index.ts`, …); bare imports ignored. |
+| `cycles.ts` | Tarjan's SCC; components with > 1 node are cycles. |
 
 ## 5. Runtime
 

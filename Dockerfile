@@ -35,4 +35,4 @@ RUN mkdir -p /app/.strata && chown node:node /app/.strata
 
 EXPOSE 4000
 USER node
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/main.js"]
