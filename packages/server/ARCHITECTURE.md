@@ -50,7 +50,13 @@ happens once at startup.
 
 ## 7. Quality & Risks
 
-- **Risk:** `root` points anywhere on disk. **Mitigation:** deployments mount
-  repos read-only under a fixed prefix; add path allow-listing (backlog).
+- **Risk:** `root` points anywhere on disk, and the API is unauthenticated —
+  `DELETE /cache` is reachable by anyone who can reach the port (cost: a
+  recomputation). **Mitigation:** the API assumes a trusted network and
+  deployments mount repos read-only under a fixed prefix; path allow-listing and
+  auth are on the backlog. Do not expose the port publicly.
+- **Risk:** malformed request bodies. **Mitigation:** `/analyze` carries a JSON
+  schema, so a wrong-typed field (`"cache": "false"`) is a 400 rather than a
+  silently ignored option.
 - **Risk:** long analyses block the event loop. **Mitigation:** move heavy runs
   to a worker queue (backlog).

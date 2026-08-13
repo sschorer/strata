@@ -33,11 +33,13 @@ for (const rel of [
 }
 
 const strata = new Strata(registry);
-const report = await strata.analyze({
-  root: resolve(target),
-  historyLimit,
-});
-strata.close();
+let report;
+try {
+  report = await strata.analyze({ root: resolve(target), historyLimit });
+} finally {
+  // Flushes pending cache writes even when the analysis threw.
+  strata.close();
+}
 
 const hot = report.metrics.find((m) => m.id === 'hotspots');
 console.log(`\nStrata — ${resolve(target)} @ ${report.rev.slice(0, 8)}\n`);

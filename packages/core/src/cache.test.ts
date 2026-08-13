@@ -131,6 +131,32 @@ describe('analysis cache', () => {
     off.close();
   });
 
+  it('keeps working when the database fails mid-run', async () => {
+    const warnings: string[] = [];
+    const log = {
+      debug: () => {},
+      info: () => {},
+      warn: (m: string) => warnings.push(m),
+      error: () => {},
+    };
+    const cache = openAnalysisCache({ dir, log });
+    // Closing the database makes every later statement throw — the same shape
+    // as a full disk or a write lock we never win.
+    cache.close();
+
+    let calls = 0;
+    const value = await cache
+      .scope('plugin-a', '1.0.0')
+      .file(file('a.ts', 'blob1'), async () => ++calls);
+
+    expect(value).toBe(1); // the read failure was a miss, not an error
+    expect(() => cache.flush()).not.toThrow();
+    expect(() => cache.close()).not.toThrow();
+    expect(cache.getRun('plugin-a', '1.0.0', 'key')).toBeUndefined();
+    // One warning for the whole degraded run, not one per statement.
+    expect(warnings).toHaveLength(1);
+  });
+
   it('degrades to a pass-through when the database cannot be opened', () => {
     const warnings: string[] = [];
     const log = {

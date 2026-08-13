@@ -125,7 +125,7 @@ export function openAnalysisCache(opts: CacheOptions = {}): AnalysisCache {
     opts.path ??
     resolve(opts.dir ?? process.env.STRATA_CACHE_DIR ?? '.strata', 'cache.db');
   try {
-    return new SqliteAnalysisCache(file, opts.maxAgeDays ?? 30);
+    return new SqliteAnalysisCache(file, opts.maxAgeDays ?? 30, log);
   } catch (err) {
     log.warn(
       `disabled — could not open ${file}: ${(err as Error).message}`,
@@ -201,7 +201,14 @@ class SqliteAnalysisCache implements AnalysisCache {
     writes: 0,
   };
 
-  constructor(path: string, maxAgeDays: number) {
+  /** Set once the database has failed; keeps the warning to one per run. */
+  private degraded = false;
+
+  constructor(
+    path: string,
+    maxAgeDays: number,
+    private readonly log: Logger,
+  ) {
     this.path = resolve(path);
     mkdirSync(dirname(this.path), { recursive: true });
     this.db = new DatabaseSync(this.path);
@@ -298,12 +305,31 @@ class SqliteAnalysisCache implements AnalysisCache {
     const pending = this.pendingFiles.get(key);
     if (pending) return parse(pending.value);
 
-    const row = this.selectFile.get(pluginId, version, blob) as
+    const row = this.read(() => this.selectFile.get(pluginId, version, blob)) as
       | { value: string }
       | undefined;
     if (row === undefined) return undefined;
     this.touched.files.add(key);
     return parse(row.value);
+  }
+
+  /** A read that fails is a miss — never an error the analysis has to handle. */
+  private read(query: () => unknown): unknown {
+    try {
+      return query();
+    } catch (err) {
+      this.degrade('read', err);
+      return undefined;
+    }
+  }
+
+  private degrade(op: string, err: unknown): void {
+    if (this.degraded) return;
+    this.degraded = true;
+    this.log.warn(
+      `${op} failed on ${this.path}; continuing without the cache: ` +
+        (err as Error).message,
+    );
   }
 
   getRun<T>(pluginId: string, version: string, runKey: string): T | undefined {
@@ -314,9 +340,9 @@ class SqliteAnalysisCache implements AnalysisCache {
         ? parse(pending.value)
         : parse(
             (
-              this.selectRun.get(pluginId, version, runKey) as
-                | { value: string }
-                | undefined
+              this.read(() =>
+                this.selectRun.get(pluginId, version, runKey),
+              ) as { value: string } | undefined
             )?.value,
           );
 
@@ -353,8 +379,8 @@ class SqliteAnalysisCache implements AnalysisCache {
     if (pending === 0) return;
 
     const now = Date.now();
-    this.db.exec('BEGIN IMMEDIATE');
     try {
+      this.db.exec('BEGIN IMMEDIATE');
       for (const w of this.pendingFiles.values()) {
         this.insertFile.run(w.pluginId, w.version, w.key, w.value, now);
       }
@@ -372,13 +398,20 @@ class SqliteAnalysisCache implements AnalysisCache {
       }
       this.db.exec('COMMIT');
     } catch (err) {
-      this.db.exec('ROLLBACK');
-      throw err;
+      // A write that fails (SQLITE_BUSY past the timeout, a full or read-only
+      // disk) costs a recomputation next run — it must not fail this analysis.
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // Already rolled back; the original error is the interesting one.
+      }
+      this.degrade(`write of ${pending} entries`, err);
+    } finally {
+      this.pendingFiles.clear();
+      this.pendingRuns.clear();
+      this.touched.files.clear();
+      this.touched.runs.clear();
     }
-    this.pendingFiles.clear();
-    this.pendingRuns.clear();
-    this.touched.files.clear();
-    this.touched.runs.clear();
   }
 
   /** Drop entries untouched for `maxAgeMs`; `prune(0)` empties the cache. */
@@ -405,7 +438,11 @@ class SqliteAnalysisCache implements AnalysisCache {
     try {
       this.flush();
     } finally {
-      this.db.close();
+      try {
+        this.db.close();
+      } catch (err) {
+        this.degrade('close', err);
+      }
     }
   }
 }

@@ -77,8 +77,11 @@ at any OpenAI-compatible endpoint, or a native SDK for other providers.
 ## Incremental analysis
 
 Every `RepoContext` carries a `cache` scoped to your plugin and keyed on
-`(pluginId, blob)` — a git blob sha is a content hash, so an entry stays valid
-until the file itself changes. Wrap the expensive per-file work in it:
+`(pluginId, pluginVersion, blob)` — a git blob sha is a content hash, so an
+entry stays valid until the file itself changes, and bumping your version
+invalidates your own entries. Using it is **opt-in**: a plugin that never calls
+`cache.file()` recomputes every file on every run. Wrap the expensive per-file
+work in it:
 
 ```ts
 const scanned = await ctx.cache.file(file, async (f) => {

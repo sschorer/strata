@@ -70,8 +70,9 @@ curl -X POST localhost:4000/analyze -H 'content-type: application/json' \
 curl -X DELETE localhost:4000/cache
 ```
 
-The cache lives in `$STRATA_CACHE_DIR` (default `.strata/cache.db`, never inside
-the analysed repo); `STRATA_CACHE=0` disables it globally.
+The cache lives in `$STRATA_CACHE_DIR` (default `<cwd>/.strata/cache.db`) —
+keep it out of the repo you analyse, which the server and container defaults
+already do; `STRATA_CACHE=0` disables it globally.
 
 ## Run with Docker
 

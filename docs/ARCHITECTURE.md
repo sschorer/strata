@@ -132,9 +132,11 @@ builds a `RepoContext` and fans work out.
 4. The active `commit-convention` plugin parses each commit.
 5. Results merge into an `AnalysisReport`, returned by the API.
 
-Steps 2 and 3 go through the cache: a plugin whose inputs digest to a stored
-result is skipped, and one that does run only recomputes the blobs that changed.
-The report carries the run's cache counters.
+Steps 2 and 3 go through the cache. The core skips any plugin whose inputs
+digest to a stored result — that part needs no cooperation. Per-file reuse
+inside a plugin that does run is opt-in: only plugins that route their per-file
+work through `ctx.cache.file()` skip unchanged blobs; one that ignores the
+helper recomputes everything. The report carries the run's cache counters.
 
 ### Grant merge trust (governance runtime)
 
@@ -163,19 +165,25 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 - **Plugin model** — `define*` helpers stamp the `kind` discriminant; the
   registry refuses a plugin whose manifest `sdk` major mismatches.
 - **RepoContext** — the single immutable surface plugins are allowed to touch
-  (`root`, `rev`, `files`, `git()`, `log`).
+  (`root`, `rev`, `files`, `git()`, `log`, `cache`).
 - **Incremental cache** — two levels in one SQLite file (`node:sqlite`, no
-  dependency): per-file results keyed on `(pluginId, blob)` and handed to
-  plugins as `RepoContext.cache`, plus whole-plugin-run results keyed on a
-  digest of every input. A git blob sha is a content hash, so an entry survives
-  across revisions, branches and repositories. Lives outside the analysed repo
-  (`$STRATA_CACHE_DIR`, else `<cwd>/.strata/cache.db`) because repos are mounted
-  read-only; `STRATA_CACHE=0`, `analyze({cache: false})` or `DELETE /cache` turn
-  it off or empty it. An unopenable cache degrades to a pass-through, never an
-  error.
+  dependency): per-file results keyed on `(pluginId, pluginVersion, blob)` and
+  offered to plugins as `RepoContext.cache`, plus whole-plugin-run results keyed
+  on a digest of every input. A git blob sha is a content hash, so an entry
+  survives across revisions, branches and repositories; the plugin version in
+  the key means a new plugin build invalidates its own entries. Stored in
+  `$STRATA_CACHE_DIR`, else `<cwd>/.strata/cache.db` — the server and image put
+  that outside the analysed repo, and the core warns if the resolved path lands
+  inside it. `STRATA_CACHE=0`, `analyze({cache: false})` or `DELETE /cache` turn
+  it off or empty it. A cache that cannot be opened, read or written degrades to
+  a pass-through with one warning — it never fails an analysis.
 - **Configuration** — `.env` (see `.env.example`); AI creds never committed.
 - **Logging** — structured logger injected via `RepoContext.log`.
-- **Security** — analysed repos mounted read-only; AI is opt-in.
+- **Security** — analysed repos mounted read-only; AI is opt-in. The HTTP API
+  is unauthenticated and assumes a trusted network: `/analyze` takes any `root`
+  on disk and `DELETE /cache` discards cached results (cost: a recomputation).
+  Path allow-listing and an auth story are on the backlog; until then, do not
+  expose the port beyond a trusted network.
 
 ## 9. Architecture Decisions
 

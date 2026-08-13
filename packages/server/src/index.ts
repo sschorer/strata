@@ -38,11 +38,26 @@ export async function createServer() {
     registry.all().map((l) => l.manifest),
   );
 
+  // The schema rejects wrong types outright — `"cache": "false"` is a string,
+  // and silently caching anyway would be worse than a 400.
+  const analyzeSchema = {
+    body: {
+      type: 'object',
+      required: ['root'],
+      additionalProperties: false,
+      properties: {
+        root: { type: 'string', minLength: 1 },
+        rev: { type: 'string' },
+        historyLimit: { type: 'integer', minimum: 1 },
+        cache: { type: 'boolean' },
+      },
+    },
+  };
+
   app.post<{
     Body: { root: string; rev?: string; historyLimit?: number; cache?: boolean };
-  }>('/analyze', async (req, reply) => {
-    const { root, rev, historyLimit, cache } = req.body ?? {};
-    if (!root) return reply.status(400).send({ error: 'root is required' });
+  }>('/analyze', { schema: analyzeSchema }, async (req) => {
+    const { root, rev, historyLimit, cache } = req.body;
     return strata.analyze({ root, rev, historyLimit, cache });
   });
 

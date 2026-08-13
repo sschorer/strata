@@ -55,8 +55,9 @@ to plugins. This is the only module that knows about all four plugin kinds.
   invalidates exactly that plugin's entries.
 - **`node:sqlite`** over `better-sqlite3` — Node ≥ 24 is already a constraint,
   and the cache stays dependency- and native-build-free.
-- **The cache never fails an analysis** — an unwritable database degrades to a
-  pass-through with a warning.
+- **The cache never fails an analysis** — a database that cannot be opened,
+  read or written degrades to a pass-through with one warning per run. A failed
+  write costs a recomputation on the next run, nothing more.
 
 ## 7. Quality & Risks
 

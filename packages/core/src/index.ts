@@ -1,4 +1,4 @@
-import { extname } from 'node:path';
+import { extname, relative, resolve, isAbsolute } from 'node:path';
 import type {
   LanguageAnalysis,
   Logger,
@@ -82,6 +82,7 @@ export class Strata {
 
   async analyze(opts: AnalyzeOptions): Promise<AnalysisReport> {
     const cache = opts.cache === false ? nullCache() : this.openCache();
+    warnIfCacheInsideRepo(cache.path, opts.root);
     // Counters live as long as the cache does; report this run's delta.
     const before = cache.stats();
     const rev = await resolveRev(opts.root, opts.rev);
@@ -198,6 +199,26 @@ export class Strata {
     if (this.options.cache === false) return (this.cache ??= nullCache());
     return (this.cache ??= openAnalysisCache(this.options.cache));
   }
+}
+
+/** Repos we have already warned about, so a server warns once per repo. */
+const warnedRoots = new Set<string>();
+
+/**
+ * The default cache directory is relative to the working directory, so running
+ * an analysis from inside the repo being analysed would write `cache.db` into
+ * it. Harmless for results (analysis reads from git, not the worktree) but it
+ * litters someone else's repository, so say so once.
+ */
+function warnIfCacheInsideRepo(cachePath: string | null, root: string): void {
+  if (!cachePath) return;
+  const rel = relative(resolve(root), cachePath);
+  if (rel.startsWith('..') || isAbsolute(rel) || warnedRoots.has(root)) return;
+  warnedRoots.add(root);
+  consoleLogger.warn(
+    `cache database lives inside the analysed repo (${cachePath}). ` +
+      'Set STRATA_CACHE_DIR to keep it elsewhere.',
+  );
 }
 
 /** What one analysis did, derived from the cache's cumulative counters. */
