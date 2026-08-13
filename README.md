@@ -31,6 +31,10 @@ place and build. The web UI and richer analyzers are next — see
 - Angular module: component/DI graph, lazy boundaries ⏳
 - PHP module ⏳
 
+**Core**
+- Incremental cache — SQLite, keyed on the git blob sha, so a rerun only
+  re-analyses what changed ✅
+
 **Architecture & AI**
 - Architecture fitness rules ("`ui` may not import `db`") ⏳
 - AI: explain a hotspot, NL query over the repo, auto architecture docs ⏳
@@ -59,7 +63,15 @@ Or hit the API directly:
 curl -X POST localhost:4000/analyze \
   -H 'content-type: application/json' \
   -d '{"root":"/absolute/path/to/a/repo","historyLimit":500}'
+
+# analyses are cached per git blob; force a cold run, or empty the cache
+curl -X POST localhost:4000/analyze -H 'content-type: application/json' \
+  -d '{"root":"/absolute/path/to/a/repo","cache":false}'
+curl -X DELETE localhost:4000/cache
 ```
+
+The cache lives in `$STRATA_CACHE_DIR` (default `.strata/cache.db`, never inside
+the analysed repo); `STRATA_CACHE=0` disables it globally.
 
 ## Run with Docker
 

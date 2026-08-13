@@ -4,6 +4,7 @@ import {
   type MetricSeries,
   type RawCommit,
   type RepoContext,
+  type RepoFile,
 } from '@strata/sdk';
 
 /**
@@ -42,7 +43,9 @@ export default defineGitMetricPlugin({
     for (const file of ctx.files) {
       const changes = churn.get(file.path);
       if (!changes) continue; // only score files that actually churn
-      const complexity = await indentComplexity(file);
+      // Complexity depends on the file's contents only — cache it per blob so a
+      // rerun re-reads nothing but the files that actually changed.
+      const complexity = await ctx.cache.file(file, indentComplexity);
       points.push({
         subject: file.path,
         value: changes * complexity,
@@ -60,9 +63,7 @@ export default defineGitMetricPlugin({
 });
 
 /** Sum of leading-whitespace depth per non-blank line — a fast complexity proxy. */
-async function indentComplexity(file: {
-  read(): Promise<string>;
-}): Promise<number> {
+async function indentComplexity(file: RepoFile): Promise<number> {
   const text = await file.read();
   let score = 0;
   for (const line of text.split('\n')) {

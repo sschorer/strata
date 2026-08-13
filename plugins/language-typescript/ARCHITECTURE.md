@@ -23,7 +23,8 @@ language plugin — Angular and other TS-based analyzers build on its shape.
 
 ## 4. Building Blocks
 
-- **Import scan** — regex over `import/export … from` and `require()`.
+- **Import scan** — regex over `import/export … from` and `require()`; the
+  per-file result (`{ loc, specs }`) is cached per blob via `ctx.cache`.
 - **Local resolver** — maps relative specifiers to known files (`.ts`, `.tsx`,
   `/index.ts`, …); bare/package imports are ignored.
 - **Cycle detection** — Tarjan's SCC; components with > 1 node are cycles.
@@ -38,6 +39,8 @@ returns `{ graph, deadCode, metrics }`.
 - **Regex now, tree-sitter next** — accurate module resolution, dead-code via
   real export-usage, and per-symbol edges come with the parser upgrade; the
   returned shape won't change.
+- **Cache the scan, not the resolution** — specifier resolution depends on the
+  whole file set, so only the contents-derived half is cacheable per blob.
 
 ## 7. Quality & Risks
 

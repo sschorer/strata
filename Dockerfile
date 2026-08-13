@@ -27,6 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /out ./
+
+# The incremental cache is written at runtime as `node` — mount a volume here
+# (see compose.yml) to keep it across restarts.
+ENV STRATA_CACHE_DIR=/app/.strata
+RUN mkdir -p /app/.strata && chown node:node /app/.strata
+
 EXPOSE 4000
 USER node
 CMD ["node", "dist/index.js"]

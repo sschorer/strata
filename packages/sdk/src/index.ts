@@ -50,6 +50,27 @@ export interface RepoFile {
   read(): Promise<string>;
 }
 
+/**
+ * Per-file memoisation, keyed on `(pluginId, blob)` — the incremental cache.
+ *
+ * The core scopes an instance to the plugin it hands the `RepoContext` to, so
+ * a plugin never sees another plugin's entries and never passes its own id.
+ * Wrap the expensive per-file part of an analysis in `file()`: on a rerun,
+ * every file whose blob is unchanged returns from the cache and `compute`
+ * never runs.
+ */
+export interface PluginCache {
+  /**
+   * Return the cached value for `file`, or run `compute` and store its result.
+   *
+   * `compute` must be pure in the file's contents — anything else (other files,
+   * history, the clock) makes the entry wrong on the next hit. The value is
+   * persisted as JSON, so it must be JSON-serialisable; `undefined` round-trips
+   * as `null`.
+   */
+  file<T>(file: RepoFile, compute: (file: RepoFile) => Promise<T>): Promise<T>;
+}
+
 /** Immutable view of the repository handed to plugins. */
 export interface RepoContext {
   /** Absolute path to the working tree root. */
@@ -62,6 +83,11 @@ export interface RepoContext {
   git(args: string[]): Promise<string>;
   /** Structured logger scoped to the current plugin. */
   log: Logger;
+  /**
+   * Blob-keyed cache scoped to this plugin. Always present — when caching is
+   * switched off the core injects a pass-through that just calls `compute`.
+   */
+  cache: PluginCache;
 }
 
 export interface Logger {

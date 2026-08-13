@@ -24,7 +24,8 @@ git metric.
 
 - **Churn** — walk back exactly the analysed commits from the newest sha
   (`git log -n <N> <sha>`), counting touches per path. Root-commit safe.
-- **Complexity proxy** — indentation-weighted non-blank line count.
+- **Complexity proxy** — indentation-weighted non-blank line count, memoised
+  per blob via `ctx.cache`, so a rerun reads only changed files.
 - **Score** — `churn × complexity`, sorted descending, with `meta`.
 
 ## 5. Runtime

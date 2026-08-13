@@ -12,7 +12,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [x] Plugin SDK contracts (language / commit-convention / git-metric / ai-provider)
 - [x] Orchestrator + git ingest + plugin registry
 - [x] HTTP API (`/health`, `/plugins`, `/analyze`)
-- [ ] **P0** Incremental cache — SQLite, keyed on `(pluginId, blob)`; skip unchanged files
+- [x] Incremental cache — SQLite, keyed on `(pluginId, blob)`; skip unchanged files
 - [ ] **P0** Third-party plugin discovery — load a user plugins directory, not just built-ins
 - [ ] **P1** Worker queue for heavy analyses (BullMQ / worker_threads); progress events
 - [ ] **P1** Analyse a bare/remote repo (clone-on-demand) and a specific `rev` range

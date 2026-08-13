@@ -38,14 +38,23 @@ export async function createServer() {
     registry.all().map((l) => l.manifest),
   );
 
-  app.post<{ Body: { root: string; rev?: string; historyLimit?: number } }>(
-    '/analyze',
-    async (req, reply) => {
-      const { root, rev, historyLimit } = req.body ?? {};
-      if (!root) return reply.status(400).send({ error: 'root is required' });
-      return strata.analyze({ root, rev, historyLimit });
-    },
-  );
+  app.post<{
+    Body: { root: string; rev?: string; historyLimit?: number; cache?: boolean };
+  }>('/analyze', async (req, reply) => {
+    const { root, rev, historyLimit, cache } = req.body ?? {};
+    if (!root) return reply.status(400).send({ error: 'root is required' });
+    return strata.analyze({ root, rev, historyLimit, cache });
+  });
+
+  // Escape hatch: drop every cached result (e.g. after upgrading a plugin
+  // in place without bumping its version).
+  app.delete('/cache', async () => {
+    strata.clearCache();
+    return { cleared: true };
+  });
+
+  // Flush and close the cache with the server.
+  app.addHook('onClose', async () => strata.close());
 
   return app;
 }

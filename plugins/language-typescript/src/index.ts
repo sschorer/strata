@@ -21,6 +21,13 @@ import {
 const IMPORT_RE =
   /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g;
 
+/** What we extract from one file — cached per blob, so unchanged files are free. */
+interface FileScan {
+  loc: number;
+  /** Relative import specifiers, unresolved (resolution needs the whole set). */
+  specs: string[];
+}
+
 export default defineLanguagePlugin({
   extensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'],
   async analyze(ctx: RepoContext): Promise<LanguageAnalysis> {
@@ -29,17 +36,18 @@ export default defineLanguagePlugin({
     const edges: GraphEdge[] = [];
 
     for (const file of ctx.files) {
-      const text = await file.read();
+      // Reading and scanning is the expensive half and depends only on the
+      // file's contents; resolving specifiers depends on the whole file set,
+      // so it stays out of the cached value.
+      const { loc, specs } = await ctx.cache.file(file, scan);
       nodes.push({
         id: file.path,
         label: file.path,
         kind: 'file',
-        meta: { loc: text.split('\n').length },
+        meta: { loc },
       });
 
-      for (const match of text.matchAll(IMPORT_RE)) {
-        const spec = match[1] ?? match[2];
-        if (!spec || !spec.startsWith('.')) continue; // skip bare/pkg imports
+      for (const spec of specs) {
         const target = resolveLocal(file, spec, byPath);
         if (target) edges.push({ from: file.path, to: target, kind: 'import' });
       }
@@ -56,6 +64,17 @@ export default defineLanguagePlugin({
     };
   },
 });
+
+/** Read a file once and pull out everything that depends on its contents alone. */
+async function scan(file: RepoFile): Promise<FileScan> {
+  const text = await file.read();
+  const specs: string[] = [];
+  for (const match of text.matchAll(IMPORT_RE)) {
+    const spec = match[1] ?? match[2];
+    if (spec?.startsWith('.')) specs.push(spec); // skip bare/pkg imports
+  }
+  return { loc: text.split('\n').length, specs };
+}
 
 /** Resolve a relative import specifier to a known file path. */
 function resolveLocal(

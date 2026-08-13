@@ -24,7 +24,8 @@ UI and CI. Keeps transport concerns out of the core.
 |--------|------|---------|
 | GET | `/health` | Liveness. |
 | GET | `/plugins` | List loaded plugin manifests. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit? }` → `AnalysisReport`. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. cache stats). |
+| DELETE | `/cache` | Empty the incremental cache. |
 
 ## 4. Building Blocks
 
@@ -44,6 +45,8 @@ happens once at startup.
 - **Fastify** for schema-friendly, fast HTTP with low overhead.
 - **Built-ins discovered from manifests** (not hard-wired imports), so adding a
   first-party plugin is a one-line list change; third-party dir loading is next.
+- **One long-lived `Strata`**, so the cache is opened once and closed with the
+  server (`onClose`), not per request.
 
 ## 7. Quality & Risks
 

@@ -74,6 +74,35 @@ Copy `plugins/ai-provider-template`. Implement `listModels()` and `chat()`
 (and optionally `embed()`), reading credentials from the environment. Point it
 at any OpenAI-compatible endpoint, or a native SDK for other providers.
 
+## Incremental analysis
+
+Every `RepoContext` carries a `cache` scoped to your plugin and keyed on
+`(pluginId, blob)` — a git blob sha is a content hash, so an entry stays valid
+until the file itself changes. Wrap the expensive per-file work in it:
+
+```ts
+const scanned = await ctx.cache.file(file, async (f) => {
+  const text = await f.read();
+  return { loc: text.split('\n').length, imports: scan(text) };
+});
+```
+
+Rules of the road:
+
+- `compute` must depend on **that file's contents only**. Anything else — other
+  files, git history, the clock, env vars — will be served stale on the next
+  run. Keep whole-set work (resolving an import to a path, cycle detection)
+  outside the cached value.
+- The value is stored as JSON, so it must be JSON-serialisable.
+- Bump your plugin's `version` when its analysis changes: the version is part of
+  the key, so a bump invalidates exactly your entries. (`DELETE /cache` or
+  `STRATA_CACHE=0` are the manual escape hatches during development.)
+- Don't branch on availability — when caching is off, `ctx.cache.file()` is a
+  pass-through that just calls `compute`.
+
+The core also caches whole plugin results, so if nothing in your input changed
+you won't be called at all.
+
 ## Local development
 
 ```bash

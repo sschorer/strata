@@ -32,10 +32,12 @@ for (const rel of [
   await registry.loadFrom(resolve(repoRoot, rel));
 }
 
-const report = await new Strata(registry).analyze({
+const strata = new Strata(registry);
+const report = await strata.analyze({
   root: resolve(target),
   historyLimit,
 });
+strata.close();
 
 const hot = report.metrics.find((m) => m.id === 'hotspots');
 console.log(`\nStrata — ${resolve(target)} @ ${report.rev.slice(0, 8)}\n`);
@@ -52,6 +54,14 @@ const valid = report.commits.filter((c) => c.valid).length;
 console.log(
   `\nCommits: ${report.commits.length} analysed, ${valid} conventional, ` +
     `${report.commits.filter((c) => c.breaking).length} breaking`,
+);
+
+const c = report.cache;
+console.log(
+  c.enabled
+    ? `\nCache: ${c.hits} file hits / ${c.misses} computed, ` +
+        `${c.runHits} plugin runs skipped (${c.path})`
+    : '\nCache: disabled',
 );
 
 for (const [langs, a] of Object.entries(report.languages)) {

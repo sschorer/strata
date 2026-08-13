@@ -29,7 +29,7 @@ Goals: a minimal, strongly-typed, SemVer-stable surface.
 
 | Area | Contents |
 |------|----------|
-| Shared types | `PluginManifest`, `RepoFile`, `RepoContext`, `Logger`, graph types |
+| Shared types | `PluginManifest`, `RepoFile`, `RepoContext`, `PluginCache`, `Logger`, graph types |
 | Language | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
 | Commit | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
 | Git metric | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
@@ -46,6 +46,8 @@ discriminant so the core can route a plugin without reflection.
   inference and set `kind` centrally.
 - **Discriminated union (`StrataPlugin`)** — lets the registry switch on `kind`
   type-safely.
+- **`RepoContext.cache` is always present** — the core injects a pass-through
+  when caching is off, so plugins never branch on cache availability.
 
 ## 7. Quality & Risks
 

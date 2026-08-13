@@ -71,7 +71,7 @@ the analysed repo.
 |-----------|----------|
 | Extensibility | Four small plugin contracts in `@strata/sdk`; a registry loads them by manifest. |
 | One tool, many languages | Parsing standardised on **tree-sitter** grammars (roadmap); analyzers return a common shape. |
-| Big-repo performance | Blob-sha-keyed incremental cache (SQLite, roadmap) in the core. |
+| Big-repo performance | Blob-sha-keyed incremental cache (SQLite) in the core. |
 | Portability | Web frontend + thin API, packaged as a Docker image now and Tauri desktop later. |
 | Governance | Conventional Commits + release-please automate versioning/releases. |
 
@@ -132,6 +132,10 @@ builds a `RepoContext` and fans work out.
 4. The active `commit-convention` plugin parses each commit.
 5. Results merge into an `AnalysisReport`, returned by the API.
 
+Steps 2 and 3 go through the cache: a plugin whose inputs digest to a stored
+result is skipped, and one that does run only recomputes the blobs that changed.
+The report carries the run's cache counters.
+
 ### Grant merge trust (governance runtime)
 
 `/vouch @user` (issue comment) → `vouch-command` workflow validates the actor is
@@ -160,7 +164,15 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   registry refuses a plugin whose manifest `sdk` major mismatches.
 - **RepoContext** — the single immutable surface plugins are allowed to touch
   (`root`, `rev`, `files`, `git()`, `log`).
-- **Incremental cache (roadmap)** — analysis keyed on `(pluginId, blob)`.
+- **Incremental cache** — two levels in one SQLite file (`node:sqlite`, no
+  dependency): per-file results keyed on `(pluginId, blob)` and handed to
+  plugins as `RepoContext.cache`, plus whole-plugin-run results keyed on a
+  digest of every input. A git blob sha is a content hash, so an entry survives
+  across revisions, branches and repositories. Lives outside the analysed repo
+  (`$STRATA_CACHE_DIR`, else `<cwd>/.strata/cache.db`) because repos are mounted
+  read-only; `STRATA_CACHE=0`, `analyze({cache: false})` or `DELETE /cache` turn
+  it off or empty it. An unopenable cache degrades to a pass-through, never an
+  error.
 - **Configuration** — `.env` (see `.env.example`); AI creds never committed.
 - **Logging** — structured logger injected via `RepoContext.log`.
 - **Security** — analysed repos mounted read-only; AI is opt-in.
@@ -172,7 +184,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ADR-1 | TypeScript core (not Rust) | One language end-to-end; easy plugin authoring. Revisit if profiling demands. |
 | ADR-2 | tree-sitter for parsing | One framework, many grammars, uniform AST. |
 | ADR-3 | Shell out to `git` | Fastest and most complete; avoids reimplementing git. |
-| ADR-4 | SQLite blob-keyed cache | Cheap incremental analysis for large repos. |
+| ADR-4 | SQLite blob-keyed cache (`node:sqlite`) | Cheap incremental analysis for large repos, with no runtime dependency. |
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
 | ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
 
@@ -183,7 +195,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | Quality | Scenario | Target |
 |---------|----------|--------|
 | Extensibility | Add a Python language plugin | No core change; only a new `plugins/*` package. |
-| Performance | Re-analyse a 50k-file repo after a 1-file change | Only that file re-parsed (with cache). |
+| Performance | Re-analyse a 50k-file repo after a 1-file change | Only that file re-parsed; an unchanged repo skips the plugins entirely. |
 | Correctness | Import cycles in TS | All SCCs > 1 node reported. |
 | Portability | Fresh machine with Docker | `docker run` yields a working API. |
 
@@ -192,7 +204,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | Risk / debt | Impact | Mitigation |
 |-------------|--------|-----------|
 | Regex-based TS import scan (starter) | Misses/false edges | Replace with tree-sitter / TS compiler API. |
-| No cache yet | Slow on large repos | Implement the blob-keyed SQLite cache (ADR-4). |
+| Cache is only as pure as its plugins | A `cache.file()` value that depends on more than the file's contents goes stale | Contract documented in the SDK; plugin version is part of the key, `DELETE /cache` is the escape hatch. |
 | Complexity proxy is indentation-based | Rough hotspot scores | Feed real cyclomatic complexity from language plugins. |
 | Web UI not scaffolded | No visual output yet | Build `apps/web` (see backlog). |
 | Vouch-bot needs push to `main` | May hit branch protection | Bypass entry or PR-mode fallback (documented). |
