@@ -1,5 +1,6 @@
 import { dirname, extname, join, normalize } from 'node:path';
 import type { RepoFile } from '@strata/sdk';
+import { aliasBases, type AliasScope } from './aliases.js';
 import type { FileScan } from './scan.js';
 
 /** Extensions this module claims, in the order a resolver should try them. */
@@ -31,18 +32,31 @@ export function candidatePaths(base: string): string[] {
 }
 
 /**
- * Resolve a relative import specifier to a known file path. Anything else is a
- * package: `utils/helper` names a dependency, never the `utils/helper.ts` next
- * door, so bare specifiers are not tried against the file set.
+ * Resolve an import specifier to a known file path.
+ *
+ * A relative specifier is read from the importing file's directory. Anything
+ * else is a package — `utils/helper` names a dependency, never the
+ * `utils/helper.ts` next door — *unless* the project declares otherwise:
+ * `compilerOptions.paths` and `baseUrl` are how a repository says that
+ * `@app/user` is one of its own files, so those are tried before giving up.
  */
 export function resolveLocal(
   from: RepoFile,
   spec: string,
   byPath: Map<string, RepoFile>,
+  scopes: readonly AliasScope[] = [],
 ): string | undefined {
-  if (!spec.startsWith('.')) return undefined;
-  const base = normalize(join(dirname(from.path), spec)).replaceAll('\\', '/');
-  return candidatePaths(base).find((c) => byPath.has(c));
+  const bases = spec.startsWith('.')
+    ? [join(dirname(from.path), spec)]
+    : aliasBases(scopes, from.path, spec);
+
+  for (const base of bases) {
+    const found = candidatePaths(
+      normalize(base).replaceAll('\\', '/'),
+    ).find((c) => byPath.has(c));
+    if (found) return found;
+  }
+  return undefined;
 }
 
 /** A local module a file takes names from, with the specifier resolved away. */
@@ -69,16 +83,17 @@ export function resolveImports(
   file: RepoFile,
   scan: FileScan,
   byPath: Map<string, RepoFile>,
+  scopes: readonly AliasScope[] = [],
 ): ResolvedImports {
   const uses: ResolvedUse[] = [];
   for (const site of scan.imports) {
-    const to = resolveLocal(file, site.spec, byPath);
+    const to = resolveLocal(file, site.spec, byPath, scopes);
     if (to) uses.push({ to, names: site.names, namespace: site.namespace });
   }
 
   const stars: string[] = [];
   for (const spec of scan.stars) {
-    const to = resolveLocal(file, spec, byPath);
+    const to = resolveLocal(file, spec, byPath, scopes);
     if (to) stars.push(to);
   }
 

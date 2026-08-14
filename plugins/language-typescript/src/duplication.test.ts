@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { duplicationByPath } from './duplication.js';
+import { blankComments } from './comments.js';
+import { duplicationByPath, type FilePrints } from './duplication.js';
 import { CLONE_WINDOW, fingerprint } from './fingerprint.js';
-import { stripComments } from './strip.js';
+import { withSyntaxTree } from './parser.js';
 
 /** A block of `n` distinct, long-enough-to-count lines. */
 const block = (tag: string, n: number): string =>
@@ -10,10 +11,11 @@ const block = (tag: string, n: number): string =>
   );
 
 /** Fingerprint the way `scan.ts` does, so the tests exercise the real input. */
-const prints = (path: string, code: string) => ({
-  path,
-  ...fingerprint(stripComments(code)),
-});
+const prints = (path: string, code: string): Promise<FilePrints> =>
+  withSyntaxTree(path, code, (root) => ({
+    path,
+    ...fingerprint(blankComments(root, code)),
+  }));
 
 describe('fingerprint', () => {
   it('needs a full window before it emits anything', () => {
@@ -40,29 +42,32 @@ describe('fingerprint', () => {
 });
 
 describe('duplicationByPath', () => {
-  it('is 0 when nothing is shared', () => {
+  it('is 0 when nothing is shared', async () => {
     const files = [
-      prints('a.ts', block('a', 20)),
-      prints('b.ts', block('b', 20)),
+      await prints('a.ts', block('a', 20)),
+      await prints('b.ts', block('b', 20)),
     ];
 
     expect(duplicationByPath(files).get('a.ts')).toBe(0);
     expect(duplicationByPath(files).get('b.ts')).toBe(0);
   });
 
-  it('is 1 for a file copied wholesale', () => {
+  it('is 1 for a file copied wholesale', async () => {
     const body = block('a', 12);
-    const dup = duplicationByPath([prints('a.ts', body), prints('b.ts', body)]);
+    const dup = duplicationByPath([
+      await prints('a.ts', body),
+      await prints('b.ts', body),
+    ]);
 
     expect(dup.get('a.ts')).toBe(1);
     expect(dup.get('b.ts')).toBe(1);
   });
 
-  it('reports the duplicated share of a partly copied file', () => {
+  it('reports the duplicated share of a partly copied file', async () => {
     const shared = block('s', CLONE_WINDOW);
     const dup = duplicationByPath([
-      prints('a.ts', `${shared}\n${block('a', CLONE_WINDOW)}`),
-      prints('b.ts', shared),
+      await prints('a.ts', `${shared}\n${block('a', CLONE_WINDOW)}`),
+      await prints('b.ts', shared),
     ]);
 
     // The shared half matches; the file's own half does not.
@@ -70,31 +75,31 @@ describe('duplicationByPath', () => {
     expect(dup.get('b.ts')).toBe(1);
   });
 
-  it('counts a block a file repeats within itself', () => {
+  it('counts a block a file repeats within itself', async () => {
     const body = block('a', CLONE_WINDOW);
-    const dup = duplicationByPath([prints('a.ts', `${body}\n${body}`)]);
+    const dup = duplicationByPath([await prints('a.ts', `${body}\n${body}`)]);
 
     expect(dup.get('a.ts')).toBe(1);
   });
 
-  it('does not call a barrel of re-exports a clone of itself', () => {
+  it('does not call a barrel of re-exports a clone of itself', async () => {
     const barrel = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
       .map((m) => `export * from './${m}.js';`)
       .join('\n');
 
-    expect(duplicationByPath([prints('index.ts', barrel)]).get('index.ts')).toBe(
-      0,
-    );
+    const dup = duplicationByPath([await prints('index.ts', barrel)]);
+
+    expect(dup.get('index.ts')).toBe(0);
   });
 
-  it('sees through rewritten comments but not through different literals', () => {
+  it('sees through rewritten comments but not through different literals', async () => {
     const body = block('a', CLONE_WINDOW);
     const recommented = `// a different comment\n${body}`;
     const relabelled = body.replaceAll('value(', 'other(');
     const dup = duplicationByPath([
-      prints('a.ts', body),
-      prints('b.ts', recommented),
-      prints('c.ts', relabelled),
+      await prints('a.ts', body),
+      await prints('b.ts', recommented),
+      await prints('c.ts', relabelled),
     ]);
 
     expect(dup.get('a.ts')).toBe(1);
@@ -102,8 +107,8 @@ describe('duplicationByPath', () => {
     expect(dup.get('c.ts')).toBe(0);
   });
 
-  it('reports 0 for a file with no windows at all', () => {
-    const dup = duplicationByPath([prints('tiny.ts', 'export {};')]);
+  it('reports 0 for a file with no windows at all', async () => {
+    const dup = duplicationByPath([await prints('tiny.ts', 'export {};')]);
 
     expect(dup.get('tiny.ts')).toBe(0);
   });

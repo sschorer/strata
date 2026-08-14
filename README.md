@@ -25,7 +25,8 @@ place and build. The web UI and richer analyzers are next — see
 - Commit-convention analytics — Conventional Commits ✅, gitmoji/custom via plugin ⏳
 
 **Per-language analysis** (one plugin per language)
-- Dependency graph + import-cycle detection ✅ (TS/JS starter)
+- Dependency graph + import-cycle detection ✅ (TS/JS, parsed with tree-sitter,
+  resolving `tsconfig.json` path aliases and dynamic imports)
 - Dead code — unreferenced exports, unreachable files, unused dependencies ✅ (TS/JS)
 - Metrics: LOC, cyclomatic complexity, nesting, duplication ✅ (TS/JS)
 - Angular module: component/DI graph, lazy boundaries ⏳

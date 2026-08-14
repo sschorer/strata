@@ -46,4 +46,41 @@ describe('scan', () => {
     expect(scanned.complexity).toBe(1);
     expect(scanned.nesting).toBe(0);
   });
+
+  it('collects re-exports and lazy imports alongside the static ones', async () => {
+    const scanned = await scan(
+      file(
+        'c.ts',
+        [
+          `export { helper } from './helper.js';`,
+          `export * from './barrel.js';`,
+          `export const load = () => import('./lazy.js');`,
+        ].join('\n'),
+      ),
+    );
+
+    expect(scanned.imports).toEqual([
+      { spec: './lazy.js', names: [], namespace: true },
+      { spec: './helper.js', names: ['helper'], namespace: false },
+    ]);
+    expect(scanned.stars).toEqual(['./barrel.js']);
+  });
+
+  it('parses a file whose syntax is broken without losing the rest', async () => {
+    const scanned = await scan(
+      file(
+        'd.ts',
+        [
+          `import { A } from './a.js';`,
+          'export function broken() { return }}',
+          'export const after = 1;',
+        ].join('\n'),
+      ),
+    );
+
+    expect(scanned.imports).toEqual([
+      { spec: './a.js', names: ['A'], namespace: false },
+    ]);
+    expect(scanned.exports.map((e) => e.name)).toContain('after');
+  });
 });

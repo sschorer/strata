@@ -70,7 +70,7 @@ the analysed repo.
 | Challenge | Decision |
 |-----------|----------|
 | Extensibility | Four small plugin contracts in `@strata/sdk`; a registry loads them by manifest — the built-ins, plus drop-in third-party plugins from `STRATA_PLUGINS_DIR`. |
-| One tool, many languages | Parsing standardised on **tree-sitter** grammars (roadmap); analyzers return a common shape. |
+| One tool, many languages | Parsing standardised on **tree-sitter** grammars (WASM, so no native build step); analyzers return a common shape. |
 | Big-repo performance | Blob-sha-keyed incremental cache (SQLite) in the core. |
 | Portability | Web frontend + thin API, packaged as a Docker image now and Tauri desktop later. |
 | Governance | Conventional Commits + release-please automate versioning/releases. |
@@ -203,7 +203,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ID | Decision | Rationale |
 |----|----------|-----------|
 | ADR-1 | TypeScript core (not Rust) | One language end-to-end; easy plugin authoring. Revisit if profiling demands. |
-| ADR-2 | tree-sitter for parsing | One framework, many grammars, uniform AST. |
+| ADR-2 | tree-sitter for parsing | One framework, many grammars, uniform AST. Grammars are loaded as **WebAssembly** (`web-tree-sitter` + pre-built `.wasm`), so a language plugin installs without a compiler. |
 | ADR-3 | Shell out to `git` | Fastest and most complete; avoids reimplementing git. |
 | ADR-4 | SQLite blob-keyed cache (`node:sqlite`) | Cheap incremental analysis for large repos, with no runtime dependency. |
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
@@ -224,7 +224,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 
 | Risk / debt | Impact | Mitigation |
 |-------------|--------|-----------|
-| Regex-based TS import scan (starter) | Misses/false edges | Replace with tree-sitter / TS compiler API. |
+| TS resolution is not the compiler's | An import resolved through neither a relative path nor a `tsconfig` alias (a bundler's own aliases, `package.json` `imports`, a workspace package name) draws no edge | tree-sitter parses every file and `tsconfig.json` `paths`/`baseUrl` are honoured; the remaining schemes are per-project settings on the backlog. |
 | Cache is only as pure as its plugins | A `cache.file()` value that depends on more than the file's contents goes stale | Contract documented in the SDK; plugin version is part of the key, `DELETE /cache` is the escape hatch. |
 | Complexity proxy is indentation-based | Rough hotspot scores | Feed real cyclomatic complexity from language plugins. |
 | Web UI not scaffolded | No visual output yet | Build `apps/web` (see backlog). |

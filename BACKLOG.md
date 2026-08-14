@@ -77,14 +77,16 @@ here exists yet.
 ## Language modules
 
 - [x] TypeScript/JavaScript starter (import graph + cycles)
-- [ ] **P0** Replace regex scan with **tree-sitter** (accurate resolution, aliases, dynamic imports)
+- [x] **tree-sitter** instead of the regex scan — every file is parsed
+      (WASM grammars, no native build), so imports, exports, dynamic `import()`
+      and `require()` are read from the tree, and specifiers resolve through the
+      project's own `tsconfig.json` `paths`/`baseUrl` aliases.
 - [x] Real dead code — unreferenced exports, unreachable files, unused deps,
       in the mockup's shape (path, symbol, reason, line). Entry points are
       inferred (published `package.json` fields, npm scripts, tests, tool
       config); user-declared ones wait for per-project plugin settings.
 - [x] Real metrics — cyclomatic complexity, max nesting depth and cross-file
-      duplication per file, counted over lexed source (comments and literals
-      blanked) rather than raw text. Exact once tree-sitter replaces the lexer.
+      duplication per file, counted over the syntax tree rather than raw text.
 - [ ] **P0** Graph summary in the language result — node/edge counts, cycle count,
       and fan-in/fan-out ranking (the mockup's *Max fan-in · sdk · 7* panel).
 - [ ] **P1** Emit each SCC as an ordered path so the UI can print the cycle as

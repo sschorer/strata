@@ -1,6 +1,6 @@
 {
   "name": "@strata/plugin-language-typescript",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "TypeScript/JavaScript language-analysis plugin for Strata.",
   "license": "Apache-2.0",
   "type": "module",
@@ -14,7 +14,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@strata/sdk": "workspace:*"
+    "@strata/sdk": "workspace:*",
+    "@vscode/tree-sitter-wasm": "^0.3.1",
+    "web-tree-sitter": "^0.26.12"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
