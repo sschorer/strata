@@ -14,13 +14,15 @@ exports, unreachable files, unused dependencies). The reference language plugin
 ## 2. Constraints
 
 - Emits the standard `LanguageAnalysis` shape so the UI renders it for free.
-- Ships **dependency-free** today (regex scan) so the scaffold runs out of the box.
+- Parsing is **tree-sitter**, loaded as WebAssembly, so installing the plugin
+  never needs a compiler or a platform-specific build.
 
 ## 3. Interfaces (Context)
 
-- **Depends on:** `@strata/sdk`.
+- **Depends on:** `@strata/sdk`, `web-tree-sitter`, `@vscode/tree-sitter-wasm`
+  (the pre-built `typescript` and `tsx` grammars).
 - **Consumed by:** the core's language step, routed by extensions
-  `ts,tsx,js,jsx,mjs,cjs`.
+  `ts,tsx,mts,cts,js,jsx,mjs,cjs`.
 - **Manifest:** `strata.plugin.json` (`kind: language`).
 
 ## 4. Building Blocks
@@ -28,16 +30,20 @@ exports, unreachable files, unused dependencies). The reference language plugin
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | The plugin: assemble nodes/edges/metrics, return `LanguageAnalysis`. |
+| `parser.ts` | Load the grammars once; parse one file and lend out its syntax tree. |
 | `scan.ts` | Everything derivable from one file → `{ loc, imports, exports, stars, complexity, nesting, fingerprint }`, cached per blob via `ctx.cache`. |
-| `strip.ts` | The lexer: `stripNonCode` blanks comments, literals and regexes; `stripComments` blanks comments only. |
-| `imports.ts` | Parse `import` / `require` / `import()` → specifier + the names taken. |
-| `exports.ts` | Parse `export` → the names offered, their lines, and re-exports. |
-| `clause.ts` | Split a braced `{ a, b as c }` list — shared by both parsers. |
-| `complexity.ts` | McCabe cyclomatic complexity — 1 + decision points. |
-| `nesting.ts` | Deepest nesting of control-flow blocks. |
+| `imports.ts` | Read `import` / `require` / `import()` off the tree → specifier + the names taken. |
+| `exports.ts` | Read `export` off the tree → the names offered, their lines, and re-exports. |
+| `literal.ts` | The value of a static string node — or nothing, when only the runtime knows it. |
+| `comments.ts` | Blank every comment, keeping the offsets — what duplication compares. |
+| `complexity.ts` | McCabe cyclomatic complexity — 1 + decision-point nodes. |
+| `nesting.ts` | Deepest nesting of control-flow structures. |
 | `fingerprint.ts` | Window hashes of one file's code — the per-file half of clone detection. |
 | `duplication.ts` | Compare fingerprints across files → duplicated share per file. |
-| `resolve.ts` | Map a relative specifier to a known file (`./x.js` → `x.ts`, `/index.ts`, …); bare imports ignored. |
+| `resolve.ts` | Map a specifier to a known file (`./x.js` → `x.ts`, `/index.ts`, an alias, …). |
+| `aliases.ts` | `paths`/`baseUrl` of the nearest `tsconfig.json` → where a bare specifier may live. |
+| `tsconfig.ts` | Parse one config → `extends`, `baseUrl`, `paths`. |
+| `jsonc.ts` | JSON with comments and trailing commas — the dialect a tsconfig is written in. |
 | `graph.ts` | Resolved imports → one `import` edge per file pair. |
 | `cycles.ts` | Tarjan's SCC; components with > 1 node are cycles. |
 | `deadcode.ts` | Run the three dead-code passes and merge them into one sorted list. |
@@ -46,14 +52,19 @@ exports, unreachable files, unused dependencies). The reference language plugin
 | `unreferenced.ts` | Exported names no other file asks for, followed through barrels. |
 | `dependencies.ts` | Declared `dependencies` no file in the package imports. |
 | `manifest.ts` | Parse one `package.json` → deps (with lines) + entry values. |
-| `workspace.ts` | Read every tracked `package.json` at the revision, via `ctx.git`. |
+| `workspace.ts` | The tracked `package.json` files, parsed. |
+| `tsconfigs.ts` | The tracked `tsconfig.json` files, parsed. |
+| `tracked.ts` | List and read files at the analysed revision, via `ctx.git`. |
 
 ## 5. Runtime
 
-`analyze(ctx)` iterates the matched files, collects each file's scan and
-resolves its specifiers into nodes/edges. It then runs the cross-file passes —
-duplication, and the three dead-code passes over the resolved graph plus the
-workspace manifests — and returns `{ graph, deadCode, metrics }`.
+`analyze(ctx)` first reads what git tracks but `ctx.files` does not — the
+manifests and the TypeScript configs — because the alias scopes have to exist
+before the first specifier is resolved. It then iterates the matched files,
+collects each file's scan (one parse per file) and resolves its specifiers into
+nodes/edges. Finally it runs the cross-file passes — duplication, and the three
+dead-code passes over the resolved graph plus the workspace manifests — and
+returns `{ graph, deadCode, metrics }`.
 
 Dead code is three questions against one graph:
 
@@ -65,12 +76,23 @@ Dead code is three questions against one graph:
 
 ## 6. Decisions
 
-- **Regex now, tree-sitter next** — exact resolution, path aliases and
-  per-symbol edges come with the parser upgrade; the returned shape won't change.
-- **Specifiers are read from comment-stripped text** — a commented-out import is
-  not an edge, but the specifier itself is a live string literal and has to
-  survive, so the import/export parsers run on `stripComments`, not the raw file
-  and not `stripNonCode`.
+- **tree-sitter, as WebAssembly** — a syntax tree ends the whole class of
+  regex mistakes (a commented-out import, an `export` inside a template
+  literal, a `case` in a string) and finds a dynamic `import()` wherever it is
+  called. The grammars ship pre-built as `.wasm` rather than as native bindings
+  because a plugin must install in a slim container without `node-gyp`.
+- **Two grammars, chosen by extension** — `.ts`/`.mts`/`.cts` parse with the
+  JSX-free grammar, where `<T>x` is a type assertion; everything else parses
+  with `tsx`, where it opens an element.
+- **The tree never outlives the scan** — it lives in the WebAssembly heap, which
+  the JavaScript garbage collector cannot reach, so `parser.ts` lends the root
+  out for the length of one call and releases it afterwards.
+- **Only the module's top level exports** — a name declared inside `namespace N`
+  is reached as `N.x` and is not an export any importer can name.
+- **Aliases come from the project's own `tsconfig.json`** — `@app/user` is not a
+  package but whatever `compilerOptions.paths` says, resolved with the nearest
+  config's rules (`extends` chain included). Without it, every file behind an
+  alias reads as unreachable.
 - **`./x.js` resolves to `x.ts`** — a NodeNext codebase imports the output and
   ships the input. Without that mapping a correctly written ESM + TypeScript
   project resolves to no edges at all, and everything downstream of the graph
@@ -92,35 +114,39 @@ Dead code is three questions against one graph:
 - **Cache the scan, not the resolution** — specifier resolution and fingerprint
   matching depend on the whole file set, so only the contents-derived half is
   cacheable per blob.
-- **Lex before counting** — metrics measure stripped text, never raw source, so
-  an `if` in a doc comment or a brace in a string cannot skew them.
-- **Strip differently per metric** — complexity and nesting count syntax, so
-  literals go; duplication compares code, so literals stay (otherwise every
-  barrel of `export * from './x.js'` reads as a wholesale clone).
+- **Count nodes, not tokens** — a decision point is an `if_statement` or a
+  short-circuiting operator, so a `case` in a string, an `&&` in a comment and
+  the `?` of an optional parameter cannot inflate the number, and a conditional
+  *type* branches the type checker rather than the program.
+- **Blank comments for duplication, keep literals** — two files that differ only
+  in a header comment are copies; two lines that differ only in a string
+  (`export * from './a.js'` and `'./b.js'`) are not, or every barrel in the
+  repository would read as a wholesale clone.
 - **Whole-file metrics** — the file is the unit the graph, the hotspot map and
-  the dead-code table already address; per-function numbers wait for the parser.
+  the dead-code table already address; per-function numbers are the next step
+  now that the tree makes them cheap.
 
 ## 7. Quality & Risks
 
-- **Risk:** regex misses dynamic imports / path aliases → missing or false edges.
-  **Mitigation:** replace with tree-sitter / the TS compiler API (backlog).
-- **Risk:** the lexer's `/` heuristic can read a regex after `)` as division.
-  **Mitigation:** it only mis-blanks a literal, never a control keyword; gone
-  with the parser upgrade.
-- **Risk:** a file that *generates* code — an `export` inside a template literal
-  — registers phantom exports, because literals survive `stripComments`.
-  **Mitigation:** rare, and gone with the parser upgrade.
+- **Risk:** a specifier resolved by a scheme this plugin does not read — a
+  bundler's own aliases, `package.json` `imports` (`#internal/x`), a workspace
+  package name — draws no edge, so its target can read as unreachable.
+  **Mitigation:** `tsconfig.json` aliases cover the common case; the rest waits
+  for per-project plugin settings (backlog).
 - **Risk:** an inferred entry point that is wrong accuses live files of being
-  dead. A file reached only through a path alias, a bundler config, or a
-  Makefile has no edge the scan can see. **Mitigation:** the rules err towards
-  more roots; user-declared entry points arrive with the per-project plugin
-  settings on the backlog.
+  dead. A file reached only through a bundler config or a Makefile has no edge
+  the scan can see. **Mitigation:** the rules err towards more roots;
+  user-declared entry points arrive with the per-project plugin settings.
 - **Risk:** a dependency used only from a file this plugin never sees (a `.vue`
   template, a JSON config) reads as unused.
 - **Debt:** the core keys the cached run on the *matched* files alone, so
-  editing only a `package.json` reuses the previous run and its
-  `unused-dependency` findings until a source file changes.
-- **Debt:** `export const a = 1, b = 2` reports only `a`, and a destructured
-  `export const { a } = x` reports nothing.
-- **Debt:** complexity counts TypeScript conditional types (`T extends U ? …`)
-  as branches, and nesting only sees braced blocks.
+  editing only a `package.json` or a `tsconfig.json` reuses the previous run
+  until a source file changes.
+- **Debt:** the grammars are pinned by `@vscode/tree-sitter-wasm`, which ships
+  every grammar VS Code uses (~22 MB installed) for the two this plugin loads.
+- **Debt:** a checked-in bundle is parsed like any other file — ~0.8 s and a few
+  hundred MB for 2 MB of minified JavaScript, paid once per blob thanks to the
+  cache. The backlog's ignore-globs are the real fix.
+- **Debt:** dead code is still name-based, not per-symbol: importing *anything*
+  from a module keeps the names it re-exports with `export *` alive, and a
+  namespace import keeps all of them.

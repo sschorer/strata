@@ -90,6 +90,34 @@ describe('typescript plugin', () => {
     expect(deadCode).toEqual([]);
   });
 
+  it('follows a path alias and a lazy import', async () => {
+    const ctx = context(
+      {
+        'src/main.ts': [
+          `import { user } from '@app/user.js';`,
+          `export const open = () => import('./panel.js');`,
+        ].join('\n'),
+        'src/user.ts': 'export const user = 1;',
+        'src/panel.ts': 'export const panel = 2;',
+      },
+      {
+        'package.json': '{ "name": "demo", "main": "./dist/main.js" }',
+        'tsconfig.json': JSON.stringify({
+          compilerOptions: { paths: { '@app/*': ['src/*'] } },
+        }),
+      },
+    );
+
+    const { graph, deadCode } = await plugin.analyze(ctx);
+
+    expect(graph.edges).toEqual([
+      { from: 'src/main.ts', to: 'src/user.ts', kind: 'import' },
+      { from: 'src/main.ts', to: 'src/panel.ts', kind: 'import' },
+    ]);
+    // Both files are reached and consumed whole, so nothing is dead.
+    expect(deadCode).toEqual([]);
+  });
+
   it('says nothing about exports when no entry point can be found', async () => {
     const ctx = context({
       'src/a.ts': 'export const a = 1;',

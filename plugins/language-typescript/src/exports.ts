@@ -1,5 +1,6 @@
-import { clauseNames } from './clause.js';
+import type { Node } from 'web-tree-sitter';
 import type { ImportSite } from './imports.js';
+import { staticString } from './literal.js';
 
 /** One name a file offers to the rest of the repository. */
 export interface ExportSite {
@@ -23,95 +24,129 @@ export interface FileExports {
   stars: string[];
 }
 
-const MODIFIERS = String.raw`(?:declare\s+|abstract\s+|async\s+)*`;
-const DECLARED =
-  String.raw`(?:function\s*\*?|class|interface|type|enum|namespace|const\s+enum|const|let|var)`;
-
-/** `export function f`, `export const enum E`, `export abstract class C`, … */
-const DECLARED_RE = new RegExp(
-  String.raw`(?<![.\w$])export\s+(default\s+)?${MODIFIERS}${DECLARED}\s+([\w$]+)`,
-  'g',
-);
-
-/** Both `export default class C` and `export default someExpression`. */
-const DEFAULT_RE = /(?<![.\w$])export\s+default\b/g;
-
-/** `export { a, b as c }`, `export * from './x'`, `export * as ns from './x'`. */
-const CLAUSE_RE =
-  /(?<![.\w$])export\s+(?:type\s+)?(?:\*(?:\s+as\s+([\w$]+))?|\{([^}]*)\})\s*(?:from\s*(['"])([^'"\n]+)\3)?/g;
-
 /**
- * Every name `code` exports, and every name it re-exports from elsewhere.
+ * Every name `root` exports, and every name it re-exports from elsewhere.
  *
- * Expects text that went through `stripComments`, for the same reason the
- * import parser does — a commented-out `export` is not an export, and the
- * `from` specifier is a live string literal.
+ * Only the module's own top level is read. An `export` inside `namespace N` or
+ * `declare module 'x'` belongs to that block — importers reach it through `N`,
+ * never by its own name — so counting it would invent an export nobody can ask
+ * for, and then report it as dead.
  */
-export function parseExports(code: string): FileExports {
-  const lineOf = lineCounter(code);
-  const exports: ExportSite[] = [];
-  const uses: ImportSite[] = [];
-  const stars: string[] = [];
-
-  for (const match of code.matchAll(DECLARED_RE)) {
-    // `export default function f` is imported as the default, never as `f`,
-    // so DEFAULT_RE below is the one that records it.
-    if (!match[1]) exports.push({ name: match[2]!, line: lineOf(match.index) });
+export function parseExports(root: Node): FileExports {
+  const found: FileExports = { exports: [], uses: [], stars: [] };
+  for (const node of root.namedChildren) {
+    if (node.type === 'export_statement') readExport(node, found);
   }
-  for (const match of code.matchAll(DEFAULT_RE)) {
-    exports.push({ name: 'default', line: lineOf(match.index) });
-  }
-
-  for (const match of code.matchAll(CLAUSE_RE)) {
-    const [, alias, list, , spec] = match;
-
-    if (list !== undefined) {
-      const at = match.index + match[0].indexOf('{') + 1;
-      const names = clauseNames(list);
-      for (const name of names) {
-        exports.push({ name: name.local, line: lineOf(at + name.at) });
-      }
-      // `export { a } from './x'` is an import as much as an export: it takes
-      // `a` out of `./x` even though nothing in this file mentions it again.
-      if (spec) {
-        uses.push({
-          spec,
-          names: names.map((n) => n.source),
-          namespace: false,
-        });
-      }
-      continue;
-    }
-
-    if (!spec) continue; // `export *` without a source is not valid syntax
-    if (alias) {
-      // `export * as ns from './x'` publishes one name and consumes the whole
-      // module to build it.
-      exports.push({ name: alias, line: lineOf(match.index) });
-      uses.push({ spec, names: [], namespace: true });
-    } else {
-      stars.push(spec);
-    }
-  }
-
-  return { exports, uses, stars };
+  return found;
 }
 
-/** Index → 1-based line, by binary search over the line starts. */
-function lineCounter(code: string): (index: number) => number {
-  const starts = [0];
-  for (let i = 0; i < code.length; i++) {
-    if (code[i] === '\n') starts.push(i + 1);
+function readExport(node: Node, found: FileExports): void {
+  const spec = staticString(node.childForFieldName('source'));
+  const clause = node.namedChildren.find(
+    (child) => child.type === 'export_clause' || child.type === 'namespace_export',
+  );
+
+  if (clause?.type === 'export_clause') {
+    readClause(clause, spec, found);
+    return;
+  }
+  if (clause?.type === 'namespace_export') {
+    // `export * as ns from './x'` publishes one name and consumes the whole
+    // module to build it.
+    const alias = clause.namedChildren[0];
+    if (alias) found.exports.push(site(alias.text, alias));
+    if (spec !== undefined) found.uses.push({ spec, names: [], namespace: true });
+    return;
   }
 
-  return (index) => {
-    let low = 0;
-    let high = starts.length - 1;
-    while (low < high) {
-      const mid = Math.ceil((low + high) / 2);
-      if (starts[mid]! <= index) low = mid;
-      else high = mid - 1;
+  const declaration = node.childForFieldName('declaration');
+  // `export default …` is imported under that name whatever it declares, so a
+  // named function or class behind it never offers its own name.
+  if (isDefault(node)) {
+    found.exports.push(site('default', node));
+    return;
+  }
+  if (declaration) {
+    for (const name of declaredNames(declaration)) {
+      found.exports.push(site(name.text, name));
     }
-    return low + 1;
-  };
+    return;
+  }
+  // Nothing but a source left: `export * from './x'`. `export = x` declares no
+  // name an ESM importer can ask for and is skipped with it.
+  if (spec !== undefined) found.stars.push(spec);
+}
+
+/** `export { a, b as c }`, with or without a `from`. */
+function readClause(clause: Node, spec: string | undefined, found: FileExports): void {
+  const names: string[] = [];
+
+  for (const specifier of clause.namedChildren) {
+    const name = specifier.childForFieldName('name');
+    if (!name) continue;
+    // The two sides face opposite ways: the alias is what this file offers, the
+    // name is what it asks the other module for.
+    const alias = specifier.childForFieldName('alias') ?? name;
+    found.exports.push(site(alias.text, alias));
+    names.push(name.text);
+  }
+
+  // `export { a } from './x'` is an import as much as an export: it takes `a`
+  // out of `./x` even though nothing in this file mentions it again.
+  if (spec !== undefined) found.uses.push({ spec, names, namespace: false });
+}
+
+/** Does the statement carry the `default` keyword? */
+function isDefault(node: Node): boolean {
+  return node.children.some((child) => child.type === 'default');
+}
+
+/**
+ * The names one exported declaration introduces.
+ *
+ * A declaration can bind more than one: `export const a = 1, b = 2` offers
+ * both, and `export const { x, y: z } = obj` offers the names the pattern
+ * binds, not the object it destructures.
+ */
+function declaredNames(declaration: Node): Node[] {
+  switch (declaration.type) {
+    // `export declare const k: number` — the ambient wrapper holds the real one.
+    case 'ambient_declaration':
+      return declaration.namedChildren.flatMap(declaredNames);
+    case 'lexical_declaration':
+    case 'variable_declaration':
+      return declaration.namedChildren
+        .filter((child) => child.type === 'variable_declarator')
+        .flatMap((declarator) => boundNames(declarator.childForFieldName('name')));
+    default: {
+      const name = declaration.childForFieldName('name');
+      return name ? [name] : [];
+    }
+  }
+}
+
+/** Every identifier a binding pattern introduces. */
+function boundNames(pattern: Node | null): Node[] {
+  if (!pattern) return [];
+  switch (pattern.type) {
+    case 'identifier':
+    case 'shorthand_property_identifier_pattern':
+      return [pattern];
+    // `{ y: z }` binds `z`, `{ y = 1 }` and `[y = 1]` bind `y`.
+    case 'pair_pattern':
+      return boundNames(pattern.childForFieldName('value'));
+    case 'object_assignment_pattern':
+    case 'assignment_pattern':
+      return boundNames(pattern.childForFieldName('left'));
+    case 'object_pattern':
+    case 'array_pattern':
+    case 'rest_pattern':
+      return pattern.namedChildren.flatMap(boundNames);
+    default:
+      return [];
+  }
+}
+
+function site(name: string, at: Node): ExportSite {
+  return { name, line: at.startPosition.row + 1 };
 }

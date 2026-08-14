@@ -1,37 +1,25 @@
 import type { RepoContext } from '@strata/sdk';
 import { parseManifest, type PackageManifest } from './manifest.js';
+import { readTracked } from './tracked.js';
 
 /**
- * Read every `package.json` tracked at the analysed revision.
- *
- * They are not part of `ctx.files` — the core hands a language plugin only the
- * files matching its extensions — so they come straight from git. Reading the
- * revision rather than the working tree keeps the answer consistent with the
- * rest of the analysis.
+ * Read every `package.json` among `paths` at the analysed revision — the
+ * entry points and declared dependencies the dead-code passes hang off.
  */
 export async function readManifests(
   ctx: RepoContext,
+  paths: readonly string[],
 ): Promise<PackageManifest[]> {
-  let listing: string;
-  try {
-    // -z: NUL-separated, so paths with spaces or non-ASCII arrive unquoted.
-    listing = await ctx.git(['ls-tree', '-r', '--name-only', '-z', ctx.rev]);
-  } catch (error) {
-    ctx.log.warn('could not list files; skipping dependency analysis', error);
-    return [];
+  const manifests: PackageManifest[] = [];
+
+  for (const path of paths) {
+    if (!isManifestPath(path)) continue;
+    const text = await readTracked(ctx, path);
+    if (text === undefined) continue;
+    const manifest = parseManifest(path, text);
+    if (manifest) manifests.push(manifest);
   }
 
-  const manifests: PackageManifest[] = [];
-  for (const path of listing.split('\0')) {
-    if (!isManifestPath(path)) continue;
-    try {
-      const text = await ctx.git(['show', `${ctx.rev}:${path}`]);
-      const manifest = parseManifest(path, text);
-      if (manifest) manifests.push(manifest);
-    } catch (error) {
-      ctx.log.warn(`could not read ${path}`, error);
-    }
-  }
   return manifests;
 }
 

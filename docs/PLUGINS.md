@@ -40,7 +40,9 @@ export default defineLanguagePlugin({
 });
 ```
 
-Route real parsing through **tree-sitter** for accuracy. Return the standard
+Route real parsing through **tree-sitter** for accuracy — the TypeScript plugin
+loads `web-tree-sitter` with a pre-built WASM grammar, which keeps installation
+free of a native build step and is the pattern to copy. Return the standard
 `LanguageAnalysis` shape and the UI renders it for free.
 
 ### Commit-convention plugin
