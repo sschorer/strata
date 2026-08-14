@@ -96,7 +96,7 @@ strata/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-coupling/             change-coupling metric         (git-metric)
 │   ├── git-hotspots/             churn × complexity metric      (git-metric)
-│   ├── language-typescript/      TS/JS import graph + cycles     (language)
+│   ├── language-typescript/      TS/JS graph, metrics, dead code (language)
 │   └── ai-provider-template/     copy-me AI backend              (ai-provider)
 ├── apps/
 │   └── web/                      Web UI (dashboards) — placeholder

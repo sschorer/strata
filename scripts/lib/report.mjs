@@ -60,5 +60,24 @@ function printLanguages(report, cycleLimit = 5) {
     for (const cyc of a.graph.cycles.slice(0, cycleLimit)) {
       console.log(`  cycle: ${cyc.join(' → ')}`);
     }
+    printDeadCode(a);
+  }
+}
+
+function printDeadCode(analysis, limit = 15) {
+  if (analysis.deadCode.length === 0) return;
+  const counts = new Map();
+  for (const f of analysis.deadCode) {
+    counts.set(f.reason, (counts.get(f.reason) ?? 0) + 1);
+  }
+  const summary = [...counts].map(([r, n]) => `${n} ${r}`).join(', ');
+  console.log(`  dead code: ${summary}`);
+
+  for (const f of analysis.deadCode.slice(0, limit)) {
+    const where = f.line ? `${f.path}:${f.line}` : f.path;
+    console.log(`    ${where}${f.symbol ? `  ${f.symbol}` : ''}  (${f.reason})`);
+  }
+  if (analysis.deadCode.length > limit) {
+    console.log(`    … ${analysis.deadCode.length - limit} more`);
   }
 }

@@ -26,7 +26,7 @@ place and build. The web UI and richer analyzers are next — see
 
 **Per-language analysis** (one plugin per language)
 - Dependency graph + import-cycle detection ✅ (TS/JS starter)
-- Dead code (unreferenced exports, unreachable files) ⏳
+- Dead code — unreferenced exports, unreachable files, unused dependencies ✅ (TS/JS)
 - Metrics: LOC, cyclomatic complexity, nesting, duplication ✅ (TS/JS)
 - Angular module: component/DI graph, lazy boundaries ⏳
 - PHP module ⏳
