@@ -7,6 +7,7 @@ recommendation in the design doc is Vite + SvelteKit (or Next.js) + Tailwind,
 talking to `@strata/server` over REST. Suggested first views:
 
 - **Hotspot treemap** — from `GET/POST /analyze` → `metrics["hotspots"]`.
+- **Change coupling** — from `metrics["change-coupling"]` (pairs, degree in `%`).
 - **Dependency graph** — from `languages[*].graph` (render with Cytoscape/d3).
 - **Commit analytics** — from `commits[]` (types, scopes, breaking changes).
 - **Settings** — register AI providers and API keys.

@@ -7,6 +7,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 /** The first-party plugins that ship in this repo. */
 const BUILTINS = [
   'plugins/commit-conventional/strata.plugin.json',
+  'plugins/git-coupling/strata.plugin.json',
   'plugins/git-hotspots/strata.plugin.json',
   'plugins/language-typescript/strata.plugin.json',
 ];

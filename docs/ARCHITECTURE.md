@@ -94,6 +94,7 @@ strata/
 │                  app.ts · main.ts (entry) · registry.ts · routes/*
 ├── plugins/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
+│   ├── git-coupling/             change-coupling metric         (git-metric)
 │   ├── git-hotspots/             churn × complexity metric      (git-metric)
 │   ├── language-typescript/      TS/JS import graph + cycles     (language)
 │   └── ai-provider-template/     copy-me AI backend              (ai-provider)
@@ -111,6 +112,7 @@ Quality/Risks). Start here:
 - [`packages/core/ARCHITECTURE.md`](../packages/core/ARCHITECTURE.md)
 - [`packages/server/ARCHITECTURE.md`](../packages/server/ARCHITECTURE.md)
 - [`plugins/commit-conventional/ARCHITECTURE.md`](../plugins/commit-conventional/ARCHITECTURE.md)
+- [`plugins/git-coupling/ARCHITECTURE.md`](../plugins/git-coupling/ARCHITECTURE.md)
 - [`plugins/git-hotspots/ARCHITECTURE.md`](../plugins/git-hotspots/ARCHITECTURE.md)
 - [`plugins/language-typescript/ARCHITECTURE.md`](../plugins/language-typescript/ARCHITECTURE.md)
 - [`plugins/ai-provider-template/ARCHITECTURE.md`](../plugins/ai-provider-template/ARCHITECTURE.md)

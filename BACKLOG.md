@@ -63,8 +63,9 @@ here exists yet.
 - [ ] **P0** Commit analytics aggregates behind the *Commit analytics* screen —
       per-type and per-scope counts, convention-validity rate (`96% valid ·
       6 non-conforming`), breaking-change count, and a weekly activity series.
-- [ ] **P0** Change coupling — files that change together (temporal coupling).
-      Appears as a *planned* toggle under *Project settings → Metrics*.
+- [x] Change coupling — files that change together (temporal coupling).
+      Thresholds (min changes/shared/degree) are still fixed constants; they
+      become the *Project settings → Metrics* toggles.
 - [ ] **P1** Knowledge map / bus factor — contribution concentration per file/dir
 - [ ] **P1** Code age — stable vs. actively-churning regions
 - [ ] **P1** Ignore-globs for metrics (exclude lockfiles/generated) — shares the

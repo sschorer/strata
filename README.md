@@ -12,7 +12,7 @@ the tool grows without the core changing.
 ## Status
 
 🚧 **Early scaffold.** The plugin contracts (`@strata/sdk`), the orchestrator
-(`@strata/core`), the API (`@strata/server`) and four example plugins are in
+(`@strata/core`), the API (`@strata/server`) and five example plugins are in
 place and build. The web UI and richer analyzers are next — see
 [`BACKLOG`](#roadmap).
 
@@ -20,7 +20,7 @@ place and build. The web UI and richer analyzers are next — see
 
 **Git / history intelligence**
 - Hotspots — change frequency × complexity ✅ (starter metric)
-- Change coupling — files that change together ⏳
+- Change coupling — files that change together ✅
 - Knowledge map / bus factor ⏳
 - Commit-convention analytics — Conventional Commits ✅, gitmoji/custom via plugin ⏳
 

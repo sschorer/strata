@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 /** The first-party plugin manifests, same list the server loads. */
 export const BUILTIN_PLUGINS = [
   'plugins/commit-conventional/strata.plugin.json',
+  'plugins/git-coupling/strata.plugin.json',
   'plugins/git-hotspots/strata.plugin.json',
   'plugins/language-typescript/strata.plugin.json',
 ];

@@ -1,9 +1,10 @@
 // Render an AnalysisReport for the terminal.
 
-/** Print the whole report: hotspots, commits, cache, per-language graphs. */
+/** Print the whole report: hotspots, coupling, commits, cache, per-language graphs. */
 export function printReport(report, target) {
   console.log(`\nStrata — ${target} @ ${report.rev.slice(0, 8)}\n`);
   printHotspots(report);
+  printCoupling(report);
   printCommits(report);
   printCache(report);
   printLanguages(report);
@@ -16,6 +17,18 @@ function printHotspots(report, limit = 15) {
     console.log(
       `  ${String(p.value).padStart(7)}  ${p.subject}  ` +
         `(churn ${p.meta?.churn}, cx ${p.meta?.complexity})`,
+    );
+  }
+}
+
+function printCoupling(report, limit = 15) {
+  const coupled = report.metrics.find((m) => m.id === 'change-coupling');
+  if (!coupled) return;
+  console.log('\nTop change coupling (files that change together):');
+  for (const p of coupled.points.slice(0, limit)) {
+    console.log(
+      `  ${`${p.value}%`.padStart(7)}  ${p.subject}  ` +
+        `(${p.meta?.sharedChanges} shared of ${p.meta?.changesA}/${p.meta?.changesB})`,
     );
   }
 }
