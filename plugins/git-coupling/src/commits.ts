@@ -30,13 +30,10 @@ export async function changedFilesByCommit(
 
   const commits: string[][] = [];
   for (const chunk of out.split(SEP)) {
+    // Only empty lines are dropped, never trimmed: a leading or trailing space
+    // is part of a git path, and a trimmed one stops matching `ctx.files`.
     // A set, so a path listed twice in one commit still counts as one change.
-    const paths = new Set(
-      chunk
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean),
-    );
+    const paths = new Set(chunk.split('\n').filter((line) => line.length > 0));
     if (paths.size > 0) commits.push([...paths]);
   }
   return commits;
