@@ -15,8 +15,16 @@
     <div>
       <h1 class="text-2xl font-semibold">Strata</h1>
       <p class="text-muted mt-1 text-sm">
-        Frontend scaffold — theme layer and API client in place. The workbench
-        shell and the analysis screens come next.
+        Frontend scaffold — theme layer, API client and the first analysis
+        screen in place. The workbench shell comes next.
+      </p>
+      <p class="mt-3 text-sm">
+        <a
+          class="text-accent underline-offset-4 hover:underline"
+          href="/hotspots"
+        >
+          Hotspots →
+        </a>
       </p>
     </div>
     <ThemeSwitch />

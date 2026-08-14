@@ -10,6 +10,10 @@
  *   surfaces  bg → surface → elevated, separated by `line`
  *   text      ink → muted → subtle
  *   heat      h1 (cold) → h5 (hot), used by the hotspot treemap and legends
+ *
+ * Each heat step carries its own `-ink`: the ramp crosses from dark blue to
+ * light amber, so a single label colour cannot hold contrast across it. The
+ * inks below are the side (light or dark) that clears 4.5:1 on that step.
  */
 
 :root,
@@ -41,6 +45,13 @@
   --strata-h4: #e07a3f;
   --strata-h5: #d94a3d;
 
+  /* Only the cold end is dark enough to carry light text here. */
+  --strata-h1-ink: #eaf1f7;
+  --strata-h2-ink: #0b0e14;
+  --strata-h3-ink: #0b0e14;
+  --strata-h4-ink: #0b0e14;
+  --strata-h5-ink: #0b0e14;
+
   --strata-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.28);
 }
 
@@ -67,12 +78,19 @@
   --strata-danger: #cf222e;
 
   /* Darkened a step from the dark ramp: the same hues need more weight to
-     hold contrast against a white surface. */
+     hold contrast against a white surface — and enough weight that one light
+     ink works across the whole ramp, which keeps treemap labels consistent. */
   --strata-h1: #2a6488;
-  --strata-h2: #2f8a76;
-  --strata-h3: #a8760f;
-  --strata-h4: #c25e28;
+  --strata-h2: #237a67;
+  --strata-h3: #8f6300;
+  --strata-h4: #a94f1e;
   --strata-h5: #b3312a;
+
+  --strata-h1-ink: #ffffff;
+  --strata-h2-ink: #ffffff;
+  --strata-h3-ink: #ffffff;
+  --strata-h4-ink: #ffffff;
+  --strata-h5-ink: #ffffff;
 
   --strata-shadow: 0 1px 2px rgb(16 21 29 / 0.06), 0 8px 24px rgb(16 21 29 / 0.08);
 }
