@@ -13,7 +13,8 @@ the tool grows without the core changing.
 
 🚧 **Early scaffold.** The plugin contracts (`@strata/sdk`), the orchestrator
 (`@strata/core`), the API (`@strata/server`) and five example plugins are in
-place and build. The web UI and richer analyzers are next — see
+place and build. The web UI (`apps/web`) is scaffolded — SvelteKit + Tailwind,
+theme layer and API client wired; the analysis screens are next. See
 [`BACKLOG`](#roadmap).
 
 ## Features (built + planned)
@@ -51,6 +52,7 @@ corepack enable
 make install        # pnpm install
 make check          # build + typecheck + lint + test (the full local gate)
 make dev            # start @strata/server on :4000
+make web            # start the web UI on :5173 (proxies the API to :4000)
 
 # analyse any repo straight from the CLI (no server needed)
 make analyze REPO=/absolute/path/to/a/repo LIMIT=500
@@ -110,7 +112,7 @@ plugins/
   language-typescript/     TS/JS import graph, cycles + code metrics
   ai-provider-template/    copy-me AI backend
 apps/
-  web/                     web UI (placeholder — scaffold here)
+  web/      @strata/web    web UI — SvelteKit SPA + Tailwind (scaffold)
 docs/                      architecture, plugin authoring, ops
 ```
 

@@ -4,7 +4,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', 'apps/web/**'],
+    // `apps/web` has its own toolchain: `svelte-check` type-checks it, and
+    // linting `.svelte` files needs eslint-plugin-svelte, which this config
+    // does not carry yet.
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/.svelte-kit/**',
+      '**/node_modules/**',
+      'apps/web/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

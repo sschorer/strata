@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import './lib/theme/tokens.css';
+
+/* Theme is an attribute on <html>, set before first paint (see app.html). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * `inline` matters here: it bakes `var(--strata-*)` into each utility instead
+ * of a second indirection through `--color-*`, so a utility resolves against
+ * whichever theme block is active on <html> at render time.
+ */
+@theme inline {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --color-bg: var(--strata-bg);
+  --color-surface: var(--strata-surface);
+  --color-elevated: var(--strata-elevated);
+  --color-line: var(--strata-line);
+  --color-line-strong: var(--strata-line-strong);
+
+  --color-ink: var(--strata-ink);
+  --color-muted: var(--strata-muted);
+  --color-subtle: var(--strata-subtle);
+
+  --color-accent: var(--strata-accent);
+  --color-accent-strong: var(--strata-accent-strong);
+  --color-accent-ink: var(--strata-accent-ink);
+  --color-accent-soft: var(--strata-accent-soft);
+
+  --color-ok: var(--strata-ok);
+  --color-warn: var(--strata-warn);
+  --color-danger: var(--strata-danger);
+
+  --color-h1: var(--strata-h1);
+  --color-h2: var(--strata-h2);
+  --color-h3: var(--strata-h3);
+  --color-h4: var(--strata-h4);
+  --color-h5: var(--strata-h5);
+
+  --shadow-card: var(--strata-shadow);
+}
+
+@layer base {
+  html {
+    background-color: var(--strata-bg);
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-accent outline-2 outline-offset-2;
+  }
+}

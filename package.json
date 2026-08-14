@@ -12,6 +12,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm --filter @strata/server dev",
+    "dev:web": "pnpm --filter @strata/web dev",
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "pnpm -r typecheck",

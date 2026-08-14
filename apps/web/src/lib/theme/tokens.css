@@ -1,0 +1,78 @@
+/*
+ * Strata design tokens — the mockup's palette, in both themes.
+ *
+ * Every value is a raw `--strata-*` custom property. `app.css` maps them onto
+ * Tailwind's theme keys, so components only ever say `bg-surface` / `text-ink`
+ * and never touch a literal colour. Switching `data-theme` on <html> repaints
+ * the whole app, because the utilities resolve these variables at use time.
+ *
+ * The ramps:
+ *   surfaces  bg → surface → elevated, separated by `line`
+ *   text      ink → muted → subtle
+ *   heat      h1 (cold) → h5 (hot), used by the hotspot treemap and legends
+ */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --strata-bg: #0b0e14;
+  --strata-surface: #11151d;
+  --strata-elevated: #171c26;
+  --strata-line: #232a36;
+  --strata-line-strong: #313a4a;
+
+  --strata-ink: #e6ebf2;
+  --strata-muted: #9aa6b8;
+  --strata-subtle: #6b7789;
+
+  --strata-accent: #4da3ff;
+  --strata-accent-strong: #7bbcff;
+  --strata-accent-ink: #06121f;
+  --strata-accent-soft: #14304a;
+
+  --strata-ok: #3fb950;
+  --strata-warn: #d29922;
+  --strata-danger: #f85149;
+
+  --strata-h1: #2b6a8f;
+  --strata-h2: #3f9d8c;
+  --strata-h3: #d9b03c;
+  --strata-h4: #e07a3f;
+  --strata-h5: #d94a3d;
+
+  --strata-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.28);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --strata-bg: #f6f7f9;
+  --strata-surface: #ffffff;
+  --strata-elevated: #eef1f5;
+  --strata-line: #dfe3e9;
+  --strata-line-strong: #c3cad4;
+
+  --strata-ink: #10151d;
+  --strata-muted: #55606f;
+  --strata-subtle: #7b8695;
+
+  --strata-accent: #0a66c2;
+  --strata-accent-strong: #084e95;
+  --strata-accent-ink: #ffffff;
+  --strata-accent-soft: #dcebfa;
+
+  --strata-ok: #1a7f37;
+  --strata-warn: #9a6700;
+  --strata-danger: #cf222e;
+
+  /* Darkened a step from the dark ramp: the same hues need more weight to
+     hold contrast against a white surface. */
+  --strata-h1: #2a6488;
+  --strata-h2: #2f8a76;
+  --strata-h3: #a8760f;
+  --strata-h4: #c25e28;
+  --strata-h5: #b3312a;
+
+  --strata-shadow: 0 1px 2px rgb(16 21 29 / 0.06), 0 8px 24px rgb(16 21 29 / 0.08);
+}

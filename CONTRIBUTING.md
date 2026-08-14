@@ -116,3 +116,9 @@ packages/core/src/
 
 Tests sit next to what they test (`cache/cache.test.ts`). When a file starts
 answering two questions, split it rather than adding a section comment.
+
+`make test` runs two vitest projects from the root config: **node** for
+`packages/` and `plugins/`, and **web** for `apps/web`, which needs the Svelte
+compiler and a DOM (`apps/web/vitest.config.ts`). Frontend code is tested the
+same way as everything else — components mount through `src/lib/test/render`
+and are asserted against the DOM.
