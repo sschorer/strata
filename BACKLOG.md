@@ -78,9 +78,10 @@ here exists yet.
 
 - [x] TypeScript/JavaScript starter (import graph + cycles)
 - [ ] **P0** Replace regex scan with **tree-sitter** (accurate resolution, aliases, dynamic imports)
-- [ ] **P0** Real dead code — unreferenced exports, unreachable files, unused deps.
-      The mockup's *Dead code* table is the target shape: path, symbol, reason
-      (`unreferenced-export` / `unreachable-file` / `unused-dependency`), line.
+- [x] Real dead code — unreferenced exports, unreachable files, unused deps,
+      in the mockup's shape (path, symbol, reason, line). Entry points are
+      inferred (published `package.json` fields, npm scripts, tests, tool
+      config); user-declared ones wait for per-project plugin settings.
 - [x] Real metrics — cyclomatic complexity, max nesting depth and cross-file
       duplication per file, counted over lexed source (comments and literals
       blanked) rather than raw text. Exact once tree-sitter replaces the lexer.
@@ -157,8 +158,9 @@ Sans/Mono.
       summary (nodes, edges, cycles, max fan-in)
 - [ ] **P1** Commit analytics view — by-type bars, breaking + validity stat cards,
       8-week activity chart, recent-commits table with `BREAKING` markers
-- [ ] **P1** Dead code view — three summary cards and the findings table. Ships
-      behind the mockup's *preview* banner until tree-sitter dead code lands.
+- [ ] **P1** Dead code view — three summary cards and the findings table, now
+      backed by real findings. Keep the mockup's *preview* banner until
+      tree-sitter makes entry points and resolution exact.
 - [ ] **P2** Drill-down: click a treemap tile or graph node → file detail
       (churn history, complexity, importers/imports, dead symbols)
 

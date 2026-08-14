@@ -28,7 +28,10 @@ describe('scan', () => {
     );
 
     expect(scanned.loc).toBe(9);
-    expect(scanned.specs).toEqual(['./b.js']);
+    expect(scanned.imports).toEqual([
+      { spec: './b.js', names: ['b'], namespace: false },
+    ]);
+    expect(scanned.exports).toEqual([{ name: 'f', line: 2 }]);
     expect(scanned.complexity).toBe(4); // for + if + &&
     expect(scanned.nesting).toBe(2);
     // The two closing braces are punctuation, not content.
