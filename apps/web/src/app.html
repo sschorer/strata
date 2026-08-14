@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+    <!--
+      Paint in the right theme immediately: without this the page flashes the
+      default dark palette before the app boots. Mirrors `lib/theme` — the key
+      and the three modes must stay in step with it.
+    -->
+    <script>
+      (() => {
+        let mode = 'system';
+        try {
+          const stored = localStorage.getItem('strata:theme');
+          if (stored === 'dark' || stored === 'light' || stored === 'system') {
+            mode = stored;
+          }
+        } catch {
+          // Storage unavailable — fall through to the system preference.
+        }
+        const dark =
+          mode === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : mode === 'dark';
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

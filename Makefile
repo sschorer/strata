@@ -48,6 +48,10 @@ distclean: clean ## clean + remove all node_modules
 dev: ## Run the API server in watch mode
 	$(PNPM) --filter @strata/server dev
 
+.PHONY: web
+web: ## Run the web UI in dev mode (:5173, proxies the API to :4000)
+	$(PNPM) --filter @strata/web dev
+
 .PHONY: analyze
 analyze: ## Analyze a repo: make analyze REPO=/path/to/repo [LIMIT=500]
 	@test -n "$(REPO)" || (echo "REPO=/path/to/repo is required" && exit 1)

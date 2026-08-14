@@ -2,12 +2,27 @@
   "name": "@strata/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Strata web UI — dashboards for hotspots, dependency graphs, and commit analytics. (scaffold placeholder)",
+  "description": "Strata web UI — dashboards for hotspots, dependency graphs, and commit analytics.",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "echo 'TODO: scaffold the frontend here (Vite + SvelteKit or Next.js). See apps/web/README.md.'",
-    "build": "echo 'no-op until the frontend is scaffolded'",
-    "typecheck": "echo 'no-op'"
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@strata/sdk": "workspace:*",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.2",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "svelte": "^5.56.9",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.2.1"
   }
 }

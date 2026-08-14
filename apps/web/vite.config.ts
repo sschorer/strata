@@ -1,0 +1,20 @@
+import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vite';
+
+/** Where the dev server forwards API calls; the built UI is served same-origin. */
+const target = process.env.STRATA_API_PROXY ?? 'http://localhost:4000';
+
+// The API lives at the root of its origin (`/health`, not `/api/health`), so
+// the dev proxy mirrors those exact paths. Dev and production then use the
+// same URLs and the client needs no base-path juggling.
+const apiPaths = ['/health', '/plugins', '/analyze', '/cache'];
+
+export default defineConfig({
+  plugins: [tailwindcss(), sveltekit()],
+  server: {
+    proxy: Object.fromEntries(
+      apiPaths.map((path) => [path, { target, changeOrigin: true }]),
+    ),
+  },
+});

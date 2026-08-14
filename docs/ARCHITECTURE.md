@@ -99,7 +99,9 @@ strata/
 │   ├── language-typescript/      TS/JS graph, metrics, dead code (language)
 │   └── ai-provider-template/     copy-me AI backend              (ai-provider)
 ├── apps/
-│   └── web/                      Web UI (dashboards) — placeholder
+│   └── web/     @strata/web      Web UI (SvelteKit SPA + Tailwind)
+│                  app.css + lib/theme/ (tokens, both palettes) ·
+│                  lib/api/ (one module per endpoint) · lib/components/ · routes/
 ├── scripts/                      analyze.mjs, new-plugin.mjs (dev actions)
 └── docs/                         this file + per-module ARCHITECTURE.md
 ```
@@ -208,6 +210,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ADR-4 | SQLite blob-keyed cache (`node:sqlite`) | Cheap incremental analysis for large repos, with no runtime dependency. |
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
 | ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
+| ADR-7 | Web UI is a SvelteKit **static SPA** (Tailwind v4) | The build is plain files: the server can serve it from the same image, and the Tauri shell can load it from disk. Analysis is a local API call, so nothing needs server rendering. |
 
 (Promote these into `docs/adr/NNNN-*.md` as they harden.)
 
@@ -227,7 +230,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | TS resolution is not the compiler's | An import resolved through neither a relative path nor a `tsconfig` alias (a bundler's own aliases, `package.json` `imports`, a workspace package name) draws no edge | tree-sitter parses every file and `tsconfig.json` `paths`/`baseUrl` are honoured; the remaining schemes are per-project settings on the backlog. |
 | Cache is only as pure as its plugins | A `cache.file()` value that depends on more than the file's contents goes stale | Contract documented in the SDK; plugin version is part of the key, `DELETE /cache` is the escape hatch. |
 | Complexity proxy is indentation-based | Rough hotspot scores | Feed real cyclomatic complexity from language plugins. |
-| Web UI not scaffolded | No visual output yet | Build `apps/web` (see backlog). |
+| Web UI is a scaffold | Only the theme layer and API client exist; no analysis screens yet | Build the shell and views on top (see backlog / the *web-ui* issues). |
 | Third-party plugins run in-process | A plugin has the server's privileges | Manifest/entry validation and id protection on load; installing one is a trust decision, and the plugins directory is operator-controlled. Isolation is a later step. |
 | Vouch-bot needs push to `main` | May hit branch protection | Bypass entry or PR-mode fallback (documented). |
 

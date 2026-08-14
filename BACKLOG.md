@@ -136,8 +136,11 @@ Sans/Mono.
 
 ### Shell
 
-- [ ] **P0** Scaffold the frontend (Vite + SvelteKit/Next + Tailwind) and port the
-      mockup's token set as the theme layer (light + dark, both specified)
+- [x] Scaffold the frontend — Vite + SvelteKit (static SPA) + Tailwind v4, with
+      the token set as the theme layer (`lib/theme/tokens.css`, both palettes,
+      switchable dark / light / system), a typed REST client per endpoint, and
+      IBM Plex self-hosted. The palette is derived from the mockup's
+      description, so expect a tuning pass as screens land.
 - [ ] **P0** App shell — left rail (logo, project switcher, analysis nav, plugin
       count, settings entries), sticky header (breadcrumb, branch + rev chips,
       last-run summary, *Re-analyze*), scrollable main pane
