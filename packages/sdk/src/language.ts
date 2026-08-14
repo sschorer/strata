@@ -13,6 +13,8 @@ export interface CodeMetric {
   loc: number;
   /** Cyclomatic complexity if the plugin computes it. */
   complexity?: number;
+  /** Deepest nesting of control-flow blocks, if computed. */
+  nesting?: number;
   /** 0–1 fraction of lines duplicated elsewhere, if computed. */
   duplication?: number;
 }

@@ -81,7 +81,9 @@ here exists yet.
 - [ ] **P0** Real dead code — unreferenced exports, unreachable files, unused deps.
       The mockup's *Dead code* table is the target shape: path, symbol, reason
       (`unreferenced-export` / `unreachable-file` / `unused-dependency`), line.
-- [ ] **P0** Real metrics — cyclomatic complexity, nesting, duplication
+- [x] Real metrics — cyclomatic complexity, max nesting depth and cross-file
+      duplication per file, counted over lexed source (comments and literals
+      blanked) rather than raw text. Exact once tree-sitter replaces the lexer.
 - [ ] **P0** Graph summary in the language result — node/edge counts, cycle count,
       and fan-in/fan-out ranking (the mockup's *Max fan-in · sdk · 7* panel).
 - [ ] **P1** Emit each SCC as an ordered path so the UI can print the cycle as

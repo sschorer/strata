@@ -27,7 +27,7 @@ place and build. The web UI and richer analyzers are next — see
 **Per-language analysis** (one plugin per language)
 - Dependency graph + import-cycle detection ✅ (TS/JS starter)
 - Dead code (unreferenced exports, unreachable files) ⏳
-- Metrics: LOC, complexity, duplication ⏳
+- Metrics: LOC, cyclomatic complexity, nesting, duplication ✅ (TS/JS)
 - Angular module: component/DI graph, lazy boundaries ⏳
 - PHP module ⏳
 
@@ -106,7 +106,7 @@ packages/
 plugins/
   commit-conventional/     Conventional Commits parser
   git-hotspots/            churn × complexity metric
-  language-typescript/     TS/JS import graph + cycles
+  language-typescript/     TS/JS import graph, cycles + code metrics
   ai-provider-template/    copy-me AI backend
 apps/
   web/                     web UI (placeholder — scaffold here)
