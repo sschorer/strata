@@ -24,7 +24,8 @@ providers. The face of Strata for browser/self-host use.
 
 | View | Source in report |
 |------|------------------|
-| Hotspot treemap | `metrics["hotspots"]` |
+| Hotspot treemap | `metrics.find((m) => m.id === "hotspots")` |
+| Change coupling | `metrics.find((m) => m.id === "change-coupling")` (pair list / chord) |
 | Dependency graph | `languages[*].graph` (Cytoscape/d3) |
 | Commit analytics | `commits[]` (type/scope/breaking) |
 | Settings | AI provider registration |

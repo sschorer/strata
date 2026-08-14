@@ -62,7 +62,7 @@ export default defineCommitConventionPlugin({
 import { defineGitMetricPlugin } from '@strata/sdk';
 
 export default defineGitMetricPlugin({
-  id: 'change-coupling',
+  id: 'code-age',
   async compute(ctx, history) {
     /* → MetricSeries { id, label, points } */
   },
