@@ -1,8 +1,9 @@
 # Module: `@strata/web` — Architecture (arc42)
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
-> Status: **scaffolded** — theme layer and API client in place; the workbench
-> shell and the analysis screens are still to build.
+> Status: **in progress** — theme layer, API client and the hotspot screen in
+> place; the workbench shell and the remaining analysis screens are still to
+> build.
 
 ## 1. Purpose & Goals
 
@@ -35,9 +36,15 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/theme/tokens.css` | The palette, twice — dark and light, keyed on `data-theme` |
 | `src/lib/theme/*` | `mode` (types + resolution), `storage`, `apply`, `controller.svelte` (state) |
 | `src/lib/api/*` | `base` (origin), `request` (fetch + `ApiError`), one module per endpoint, `types` |
+| `src/lib/analysis/*` | The app-wide last report (`store.svelte`), the remembered repo path, and `RunForm` |
+| `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), `layout` (squarified treemap), `format`/`path`, and the three views |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
 | `src/lib/test/render.ts` | Mounts a component into a detached container for a test |
+
+A screen is a **feature folder**: its pure functions and the components that
+render them sit together (`lib/hotspots/`), because they change together. Only
+what more than one screen uses moves up into `lib/components/`.
 
 ## 5. Runtime
 
@@ -58,17 +65,28 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | 4 | **API paths not prefixed (`/analyze`, not `/api/analyze`)** | Matches the server as it is; dev proxy mirrors the same paths, so dev and production URLs are identical |
 | 5 | **Type-only dependency on `@strata/sdk`** | The report's leaf types stay in sync with the backend without a runtime coupling |
 | 6 | **Self-hosted IBM Plex via `@fontsource`** | Keeps a self-hosted install fully offline |
+| 7 | **Squarified treemap written here, no charting library** | ~100 lines of geometry against a dependency that would ship a whole renderer; keeping it in-repo also keeps the layout pure and unit-tested, and the tiles are plain DOM so theming, focus and `aria-pressed` come for free |
+| 8 | **Heat by quantile, not by value** | Complexity is long-tailed: equal value steps paint nearly everything cold. Equal population steps keep all five ramp colours on screen, and the legend labels the ranges so nothing is hidden |
+| 9 | **Report held in one app-wide store** | An analysis is expensive; the overview, graph and commit screens read the same run rather than each triggering their own |
 
 ## 7. Quality & Risks
 
 - **Risk:** graph rendering perf on large repos. **Mitigation:** virtualise /
   cluster nodes; render server-computed summaries first.
 - **Risk:** the palette here is derived from the mockup's description rather
-  than exported from it; expect a tuning pass when the screens land.
+  than exported from it; expect a tuning pass when the screens land. The light
+  heat ramp already took one, so a single light ink clears 4.5:1 on every step.
+- **Debt:** the hotspot screen types the repo path into a form and remembers it
+  in `localStorage`. That is the project switcher's job — this goes away with it.
+- **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
+  in the table. A zoom or a directory roll-up is the fix if it starts to bite.
 - **Debt:** ESLint skips this app (`apps/web/**` is ignored at the root) —
   `svelte-check` is the only static gate until `eslint-plugin-svelte` is wired in.
 - **Tests:** `vitest` with the plain Svelte plugin and a `happy-dom`
   environment (`vitest.config.ts`), wired into the root run as a second
   project. Covered: theme resolution, storage, the appearance controller, the
-  request helper's error normalisation, and the two stateful components
-  (`ThemeSwitch`, `ServerStatus`). Components mount through `lib/test/render`.
+  request helper's error normalisation, the stateful components (`ThemeSwitch`,
+  `ServerStatus`), the hotspot pure layer (rows join, heat scale, squarify's
+  area/overlap/aspect invariants, formatting) and its three views, the analysis
+  store (including a superseded run), plus the `/hotspots` route end to end.
+  Components mount through `lib/test/render`.

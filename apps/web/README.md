@@ -45,6 +45,8 @@ src/
   lib/
     theme/            tokens.css (both palettes) + the appearance controller
     api/              one module per endpoint over a shared request helper
+    analysis/         the last report, held app-wide, + the form that runs one
+    hotspots/         the hotspot feature: report → rows, heat, layout, views
     components/       reusable UI pieces
     test/             test helpers (component mounting)
   routes/             SvelteKit routes (SPA: `ssr = false`)
@@ -71,8 +73,13 @@ storage key on purpose, so keep the two in step.
 
 ## Status
 
-Scaffold: the theme layer, the typed API client and one page that proves both
-are wired. The app shell (left rail, header, project switcher) and the analysis
+The theme layer, the typed API client and the first analysis screen —
+**Hotspots** (`/hotspots`): a squarified treemap sized by score and coloured by
+complexity, its heat legend, and the ranked table. Until the project switcher
+lands, the repo to analyse is typed into the form on that page and remembered
+in `localStorage`.
+
+The app shell (left rail, header, project switcher) and the remaining analysis
 screens are next — see [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
 
 Where each screen's data comes from:

@@ -156,8 +156,10 @@ Sans/Mono.
 - [ ] **P0** Overview — six stat cards (files, top hotspot, import cycles, commits,
       dead code, plugins), top-hotspot bar list, import-cycle alert card with the
       cycle path, loaded-plugins list, commit-type strip
-- [ ] **P0** Hotspot treemap — heat legend, tiles sized by score and coloured by
-      complexity, plus the ranked table (churn / complexity / LOC / score)
+- [x] Hotspot treemap (`/hotspots`) — heat legend, squarified tiles sized by
+      score and coloured by complexity, the ranked table (churn / complexity /
+      LOC / score), and a shared selection between the two. Runs the analysis
+      from a repo-path form until the project switcher replaces it.
 - [ ] **P0** Dependency graph view (Cytoscape/d3) — local vs. package vs. cycle edge
       styles, cycle nodes highlighted, side panel with the SCC path and graph
       summary (nodes, edges, cycles, max fan-in)
