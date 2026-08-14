@@ -37,6 +37,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/api/*` | `base` (origin), `request` (fetch + `ApiError`), one module per endpoint, `types` |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
+| `src/lib/test/render.ts` | Mounts a component into a detached container for a test |
 
 ## 5. Runtime
 
@@ -66,4 +67,8 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
   than exported from it; expect a tuning pass when the screens land.
 - **Debt:** ESLint skips this app (`apps/web/**` is ignored at the root) —
   `svelte-check` is the only static gate until `eslint-plugin-svelte` is wired in.
-- **Debt:** no component tests yet; only `lib/theme/mode` is covered.
+- **Tests:** `vitest` with the plain Svelte plugin and a `happy-dom`
+  environment (`vitest.config.ts`), wired into the root run as a second
+  project. Covered: theme resolution, storage, the appearance controller, the
+  request helper's error normalisation, and the two stateful components
+  (`ThemeSwitch`, `ServerStatus`). Components mount through `lib/test/render`.

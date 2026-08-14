@@ -24,7 +24,17 @@ dev as in production, where the server serves this build itself. Two knobs:
 | `VITE_STRATA_API` | build | *(empty = same origin)* | Absolute API origin to bake into the build (needs CORS) |
 
 Other targets: `pnpm --filter @strata/web build` (writes `build/`),
-`preview`, and `typecheck` (`svelte-check`).
+`preview`, `typecheck` (`svelte-check`) and `test`.
+
+## Tests
+
+`vitest` with the plain Svelte plugin and a `happy-dom` environment, configured
+in `vitest.config.ts`. The root `vitest.config.ts` pulls it in as a second
+project, so `make test` at the repo root runs the UI suite alongside the Node
+one — and `pnpm --filter @strata/web test` runs just this app.
+
+Components are mounted with `lib/test/render` and asserted against the DOM;
+there is no testing-library layer to learn.
 
 ## Layout
 
@@ -36,6 +46,7 @@ src/
     theme/            tokens.css (both palettes) + the appearance controller
     api/              one module per endpoint over a shared request helper
     components/       reusable UI pieces
+    test/             test helpers (component mounting)
   routes/             SvelteKit routes (SPA: `ssr = false`)
 static/               favicon and anything else served verbatim
 ```
