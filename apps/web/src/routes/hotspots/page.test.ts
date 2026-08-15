@@ -19,6 +19,14 @@ function reportWith(rev: string) {
         graph: { nodes: [], edges: [], cycles: [] },
         deadCode: [],
         metrics: [{ path: 'src/big.ts', loc: 940 }],
+        summary: {
+          nodes: 0,
+          edges: 0,
+          cycles: 0,
+          cycleNodes: 0,
+          maxFanIn: null,
+          maxFanOut: null,
+        },
       },
     },
     metrics: [

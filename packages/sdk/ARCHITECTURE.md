@@ -38,6 +38,7 @@ path (`@strata/sdk`).
 | `repo.ts` | `RepoFile`, `RepoContext` |
 | `cache.ts` | `PluginCache` — the blob-keyed incremental cache contract |
 | `graph.ts` | `GraphNode`, `GraphEdge`, `DependencyGraph` |
+| `summary.ts` | `GraphSummary`, `DegreeEntry`, `summariseGraph` — a graph's headline numbers |
 | `language.ts` | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
 | `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
 | `metric.ts` | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
@@ -47,8 +48,10 @@ path (`@strata/sdk`).
 ## 5. Runtime
 
 Almost none, but not zero: the `define*` helpers merely stamp the `kind`
-discriminant so the core can route a plugin without reflection, and
-`PLUGIN_KINDS` is the kind list as a value, for loaders validating a manifest.
+discriminant so the core can route a plugin without reflection,
+`PLUGIN_KINDS` is the kind list as a value, for loaders validating a manifest,
+and `summariseGraph` counts a dependency graph so that every language module
+reports the same numbers for the same graph.
 Both survive compilation, so a built plugin still imports `@strata/sdk` at
 runtime — it must be resolvable from the plugin (see
 [`docs/PLUGINS.md`](../../docs/PLUGINS.md)).

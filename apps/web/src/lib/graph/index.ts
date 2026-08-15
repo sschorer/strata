@@ -4,7 +4,7 @@ export {
   type CollapsedGraph,
 } from './collapse';
 export { cycleMembership, cycleViews, type CycleView } from './cycles';
-export { degrees, ranking, type DegreeEntry, type Degrees } from './degree';
+export { degrees, type Degrees } from './degree';
 export {
   classifyEdges,
   edgeDash,
@@ -25,7 +25,7 @@ export {
 export { everyLane, laneTree, type Lane } from './lanes';
 export { rankNodes, type Ranking } from './rank';
 export { folderRows, type FolderRow } from './rows';
-export { graphSummary, type GraphSummary } from './summary';
+export { reportSummary } from './summary';
 export {
   ancestorsOf,
   containerOf,

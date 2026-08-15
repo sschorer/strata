@@ -28,6 +28,8 @@ theme layer and API client wired; the analysis screens are next. See
 **Per-language analysis** (one plugin per language)
 - Dependency graph + import-cycle detection ✅ (TS/JS, parsed with tree-sitter,
   resolving `tsconfig.json` path aliases and dynamic imports)
+- Graph summary — nodes, edges, cycles and the busiest module in each
+  direction, counted with the graph ✅
 - Dead code — unreferenced exports, unreachable files, unused dependencies ✅ (TS/JS)
 - Metrics: LOC, cyclomatic complexity, nesting, duplication ✅ (TS/JS)
 - Angular module: component/DI graph, lazy boundaries ⏳

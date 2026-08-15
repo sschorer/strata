@@ -1,6 +1,6 @@
 <script lang="ts">
+  import type { GraphSummary } from '@strata/sdk';
   import { compactNumber, fileName } from '$lib/format';
-  import type { GraphSummary } from './summary';
 
   interface Props {
     summary: GraphSummary;

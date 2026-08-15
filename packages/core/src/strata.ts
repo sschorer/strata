@@ -11,6 +11,7 @@ import {
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { consoleLogger } from './logger.js';
 import type { PluginRegistry } from './registry.js';
+import { summarised } from './summarise.js';
 import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
 
 /**
@@ -62,7 +63,7 @@ export class Strata {
         runKey,
       );
       if (hit) {
-        languages[key] = hit;
+        languages[key] = summarised(hit);
         continue;
       }
 
@@ -72,7 +73,7 @@ export class Strata {
         cache: cache.scope(manifest.id, manifest.version),
       });
       cache.setRun(manifest.id, manifest.version, runKey, analysis);
-      languages[key] = analysis;
+      languages[key] = summarised(analysis);
       cache.flush();
     }
 

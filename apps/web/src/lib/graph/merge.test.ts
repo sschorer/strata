@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { graphOf, languageOf } from '$lib/test/graph';
 import { mergedGraph } from './merge';
 
 function reportWith(
@@ -31,24 +32,16 @@ describe('mergedGraph', () => {
   it('folds every language into one graph', () => {
     const graph = mergedGraph(
       reportWith({
-        typescript: {
-          graph: {
-            nodes: [{ id: 'a.ts', label: 'a.ts', kind: 'file' }],
-            edges: [],
-            cycles: [],
-          },
-          deadCode: [],
-          metrics: [],
-        },
-        php: {
-          graph: {
-            nodes: [{ id: 'a.php', label: 'a.php', kind: 'file' }],
-            edges: [],
-            cycles: [],
-          },
-          deadCode: [],
-          metrics: [],
-        },
+        typescript: languageOf({
+          nodes: [{ id: 'a.ts', label: 'a.ts', kind: 'file' }],
+          edges: [],
+          cycles: [],
+        }),
+        php: languageOf({
+          nodes: [{ id: 'a.php', label: 'a.php', kind: 'file' }],
+          edges: [],
+          cycles: [],
+        }),
       }),
     );
 
@@ -56,18 +49,7 @@ describe('mergedGraph', () => {
   });
 
   it('drops nodes, edges and cycles two plugins both claimed', () => {
-    const language = {
-      graph: {
-        nodes: [
-          { id: 'a.ts', label: 'a.ts', kind: 'file' as const },
-          { id: 'b.ts', label: 'b.ts', kind: 'file' as const },
-        ],
-        edges: [{ from: 'a.ts', to: 'b.ts', kind: 'import' as const }],
-        cycles: [['a.ts', 'b.ts']],
-      },
-      deadCode: [],
-      metrics: [],
-    };
+    const language = languageOf(graphOf('a.ts>b.ts', [['a.ts', 'b.ts']]));
 
     const graph = mergedGraph(
       reportWith({ typescript: language, other: language }),
@@ -81,15 +63,11 @@ describe('mergedGraph', () => {
   it('gives an edge that leaves the file set a package node', () => {
     const graph = mergedGraph(
       reportWith({
-        typescript: {
-          graph: {
-            nodes: [{ id: 'a.ts', label: 'a.ts', kind: 'file' }],
-            edges: [{ from: 'a.ts', to: 'svelte', kind: 'import' }],
-            cycles: [],
-          },
-          deadCode: [],
-          metrics: [],
-        },
+        typescript: languageOf({
+          nodes: [{ id: 'a.ts', label: 'a.ts', kind: 'file' }],
+          edges: [{ from: 'a.ts', to: 'svelte', kind: 'import' }],
+          cycles: [],
+        }),
       }),
     );
 

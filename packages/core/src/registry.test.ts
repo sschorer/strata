@@ -30,7 +30,7 @@ const PLUGIN_SOURCE = (kind: PluginKind) => `export default {
   extensions: ['ts'],
   convention: 'test',
   id: 'test',
-  async analyze() { return { graph: { nodes: [], edges: [], cycles: [] }, deadCode: [], metrics: [] }; },
+  async analyze() { return { graph: { nodes: [], edges: [], cycles: [] }, deadCode: [], metrics: [], summary: { nodes: 0, edges: 0, cycles: 0, cycleNodes: 0, maxFanIn: null, maxFanOut: null } }; },
   async compute() { return { id: 'test', label: 'Test', points: [] }; },
   parse() { return { type: 'feat', breaking: false, subject: '', tags: [], valid: true }; },
 };

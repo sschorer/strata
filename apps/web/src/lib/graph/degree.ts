@@ -1,13 +1,7 @@
 import type { DependencyGraph } from '@strata/sdk';
 
-/** One node's share of the edges, as the fan-in / fan-out ranking prints it. */
-export interface DegreeEntry {
-  id: string;
-  count: number;
-}
-
 export interface Degrees {
-  /** How many nodes import this one — the mockup's *max fan-in*. */
+  /** How many nodes import this one. */
   fanIn: Map<string, number>;
   /** How many nodes this one imports. */
   fanOut: Map<string, number>;
@@ -35,18 +29,4 @@ export function degrees(
   }
 
   return { fanIn, fanOut };
-}
-
-/**
- * The ranking a panel shows: busiest first, ties broken by id so a re-run of
- * the same analysis never reshuffles the list.
- */
-export function ranking(
-  counts: ReadonlyMap<string, number>,
-  limit = Infinity,
-): DegreeEntry[] {
-  return [...counts]
-    .map(([id, count]) => ({ id, count }))
-    .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id))
-    .slice(0, limit);
 }

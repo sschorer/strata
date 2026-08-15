@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { languageOf } from '$lib/test/graph';
 import { hotspotRows } from './rows';
 
 function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
@@ -42,8 +43,7 @@ describe('hotspotRows', () => {
         metrics: [hotspots],
         languages: {
           typescript: {
-            graph: { nodes: [], edges: [], cycles: [] },
-            deadCode: [],
+            ...languageOf({ nodes: [], edges: [], cycles: [] }),
             metrics: [{ path: 'src/a.ts', loc: 120 }],
           },
         },

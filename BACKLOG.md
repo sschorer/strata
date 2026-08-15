@@ -116,10 +116,14 @@ New area — the mockup's settings screens need somewhere to write to.
       config); user-declared ones wait for per-project plugin settings.
 - [x] Real metrics — cyclomatic complexity, max nesting depth and cross-file
       duplication per file, counted over the syntax tree rather than raw text.
-- [ ] **P0** Graph summary in the language result — node/edge counts, cycle count,
-      and fan-in/fan-out ranking (the mockup's *Max fan-in · sdk · 7* panel).
-      The graph view computes this in the browser meanwhile
-      (`apps/web/src/lib/graph/summary.ts`), which is what it stops doing.
+- [x] Graph summary in the language result — every `LanguageAnalysis` carries
+      node/edge counts, the cycle count and the files those cycles hold, and the
+      busiest node in each direction (the mockup's *Max fan-in · sdk · 7*
+      panel). `summariseGraph` in the SDK counts it, so every language module
+      reports the same numbers; a result that arrives without one — a plugin
+      built against an older SDK, or a run it cached back then — is summarised
+      by the core. The graph view stopped computing it in the browser:
+      `apps/web/src/lib/graph/summary.ts` now only adds the languages up.
 - [ ] **P1** Emit each SCC as an ordered path so the UI can print the cycle as
       `a → b → a` instead of an unordered node set. Ordered in the browser for
       now (`apps/web/src/lib/graph/cycles.ts`).

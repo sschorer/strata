@@ -23,8 +23,8 @@
     focusGraph,
     folderRows,
     folderTree,
-    graphSummary,
     mergedGraph,
+    reportSummary,
     neighbourhood,
   } from '$lib/graph';
 
@@ -44,8 +44,9 @@
   let report = $derived(analysis.report);
   let graph = $derived(report ? mergedGraph(report) : null);
   // The summary and the cycle list describe the repository, not the current
-  // view: closing a folder hides files, it does not un-import them.
-  let summary = $derived(graph ? graphSummary(graph) : null);
+  // view: closing a folder hides files, it does not un-import them. The counts
+  // come from the run itself — the language modules report them.
+  let summary = $derived(report ? reportSummary(report) : null);
   let cycles = $derived(graph ? cycleViews(graph) : []);
   let cycleOf = $derived(cycleMembership(cycles));
   // The folder tree of the repository, whatever is open: the panel lists it

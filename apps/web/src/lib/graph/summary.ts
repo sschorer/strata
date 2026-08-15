@@ -1,37 +1,47 @@
-import type { DependencyGraph } from '@strata/sdk';
-import { degrees, ranking, type DegreeEntry } from './degree';
-
-/** The numbers above the canvas: how big the graph is and where it knots. */
-export interface GraphSummary {
-  nodes: number;
-  edges: number;
-  cycles: number;
-  /** Nodes inside at least one cycle. */
-  cycleNodes: number;
-  /** The most-imported node, `null` for a graph with no edges at all. */
-  maxFanIn: DegreeEntry | null;
-  /** The node with the most imports of its own. */
-  maxFanOut: DegreeEntry | null;
-}
+import type { GraphSummary } from '@strata/sdk';
+import type { AnalysisReport } from '$lib/api';
 
 /**
- * Summarise the merged graph.
+ * The numbers above the canvas, folded out of the report.
  *
- * Computed here rather than read off the report: the language result carries
- * no summary yet. When it does, this is the shape to fill from it — the view
- * reads nothing else.
+ * Every language result carries its own `GraphSummary`, counted by the plugin
+ * over the graph it built; the browser only adds them up. Language plugins
+ * claim disjoint extensions, so their file sets are disjoint and the counts
+ * simply sum — the same assumption `mergedGraph` makes, except that the merge
+ * also deduplicates, so two plugins claiming one extension would be counted
+ * twice here and drawn once there.
+ *
+ * A report with no language results summarises to zeroes rather than to
+ * nothing: the panel renders the same either way.
  */
-export function graphSummary(graph: DependencyGraph): GraphSummary {
-  const { fanIn, fanOut } = degrees(graph);
-  const [topIn] = ranking(fanIn, 1);
-  const [topOut] = ranking(fanOut, 1);
-
-  return {
-    nodes: graph.nodes.length,
-    edges: graph.edges.length,
-    cycles: graph.cycles.length,
-    cycleNodes: new Set(graph.cycles.flat()).size,
-    maxFanIn: topIn && topIn.count > 0 ? topIn : null,
-    maxFanOut: topOut && topOut.count > 0 ? topOut : null,
+export function reportSummary(report: AnalysisReport): GraphSummary {
+  const summary: GraphSummary = {
+    nodes: 0,
+    edges: 0,
+    cycles: 0,
+    cycleNodes: 0,
+    maxFanIn: null,
+    maxFanOut: null,
   };
+
+  for (const language of Object.values(report.languages)) {
+    summary.nodes += language.summary.nodes;
+    summary.edges += language.summary.edges;
+    summary.cycles += language.summary.cycles;
+    summary.cycleNodes += language.summary.cycleNodes;
+    summary.maxFanIn = busier(summary.maxFanIn, language.summary.maxFanIn);
+    summary.maxFanOut = busier(summary.maxFanOut, language.summary.maxFanOut);
+  }
+
+  return summary;
+}
+
+/** The busier of two ranked nodes; ties go to the id, as the plugins rank. */
+function busier<T extends { id: string; count: number }>(
+  a: T | null,
+  b: T | null,
+): T | null {
+  if (!a || !b) return a ?? b;
+  if (b.count > a.count) return b;
+  return b.count === a.count && b.id < a.id ? b : a;
 }

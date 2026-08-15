@@ -118,6 +118,57 @@ describe('typescript plugin', () => {
     expect(deadCode).toEqual([]);
   });
 
+  it('summarises the graph it just built', async () => {
+    const ctx = context(
+      {
+        'src/index.ts': [
+          `import { a } from './a.js';`,
+          `import { b } from './b.js';`,
+          'export const main = () => a + b;',
+        ].join('\n'),
+        'src/a.ts': [
+          `import { shared } from './shared.js';`,
+          'export const a = shared;',
+        ].join('\n'),
+        'src/b.ts': [
+          `import { shared } from './shared.js';`,
+          'export const b = shared;',
+        ].join('\n'),
+        'src/shared.ts': 'export const shared = 1;',
+      },
+      { 'package.json': '{ "name": "demo", "main": "./dist/index.js" }' },
+    );
+
+    const { summary } = await plugin.analyze(ctx);
+
+    expect(summary).toEqual({
+      nodes: 4,
+      edges: 4,
+      cycles: 0,
+      cycleNodes: 0,
+      maxFanIn: { id: 'src/shared.ts', count: 2 },
+      maxFanOut: { id: 'src/index.ts', count: 2 },
+    });
+  });
+
+  it('counts the files a cycle holds', async () => {
+    const ctx = context({
+      'src/a.ts': [
+        `import { b } from './b.js';`,
+        'export const a = () => b();',
+      ].join('\n'),
+      'src/b.ts': [
+        `import { a } from './a.js';`,
+        'export const b = () => a();',
+      ].join('\n'),
+    });
+
+    const { summary } = await plugin.analyze(ctx);
+
+    expect(summary.cycles).toBe(1);
+    expect(summary.cycleNodes).toBe(2);
+  });
+
   it('says nothing about exports when no entry point can be found', async () => {
     const ctx = context({
       'src/a.ts': 'export const a = 1;',

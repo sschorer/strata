@@ -22,6 +22,7 @@ export * from './logger.js';
 export * from './cache.js';
 export * from './repo.js';
 export * from './graph.js';
+export * from './summary.js';
 
 // The four plugin kinds
 export * from './language.js';
