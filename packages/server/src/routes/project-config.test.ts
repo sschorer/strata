@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   memoryProjectStore,
+  memorySettingsStore,
   PluginRegistry,
   type ProjectStore,
   type Strata,
@@ -70,7 +71,13 @@ beforeEach(() => {
   projects = memoryProjectStore();
   id = projects.add({ name: 'Strata', root: '/repos/strata' }).id;
   app = Fastify();
-  projectConfigRoute(app, { projects, registry, strata: {} as Strata });
+  projectConfigRoute(app, {
+    projects,
+    registry,
+    settings: memorySettingsStore(),
+    strata: {} as Strata,
+    pluginsDir: '/app/.strata/plugins',
+  });
 });
 
 afterEach(async () => {

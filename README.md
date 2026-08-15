@@ -108,6 +108,28 @@ names `rev` or `historyLimit` itself still wins.
 The registry lives in `$STRATA_DATA_DIR` (default `<cwd>/.strata/projects.db`),
 its own database beside the cache: `DELETE /cache` never touches it.
 
+One scope up are the app-wide settings — appearance, the plugin and cache
+engine, the CI gate thresholds and the AI providers this workbench knows about.
+`PATCH` merges by section and by field, so a settings screen sends back only
+what it edits:
+
+```bash
+curl -s localhost:4000/settings
+curl -X PATCH localhost:4000/settings -H 'content-type: application/json' \
+  -d '{"appearance":{"theme":"light"},"gates":{"failOnNewCycles":true}}'
+# point the workbench at another plugins directory, or stop loading drop-ins
+curl -X PATCH localhost:4000/settings -H 'content-type: application/json' \
+  -d '{"engine":{"pluginsDir":"/opt/strata/plugins","thirdPartyPlugins":false}}'
+```
+
+The cache toggle applies to the next run; the two plugin settings are read when
+the server starts, because that is when plugins load. Appearance, the gates and
+the AI providers are stored and served for the screens and the headless CI mode
+still being built — see [`BACKLOG.md`](BACKLOG.md). Provider environment values
+are held as written, so nothing secret belongs in them until secret storage
+lands. The settings live beside the registry, in
+`$STRATA_DATA_DIR/settings.db`.
+
 Third-party plugins are drop-in: one directory per plugin (with its
 `strata.plugin.json`) under `$STRATA_PLUGINS_DIR`, default
 `<cwd>/.strata/plugins`. Built-ins load first, a plugin that fails to load is

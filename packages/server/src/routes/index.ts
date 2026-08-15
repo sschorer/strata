@@ -5,6 +5,7 @@ import { healthRoute } from './health.js';
 import { pluginsRoute } from './plugins.js';
 import { projectConfigRoute } from './project-config.js';
 import { projectsRoute } from './projects.js';
+import { settingsRoute } from './settings.js';
 import type { RouteContext } from './context.js';
 
 export type { RouteContext } from './context.js';
@@ -15,6 +16,7 @@ export function registerRoutes(app: FastifyInstance, ctx: RouteContext): void {
   pluginsRoute(app, ctx);
   projectsRoute(app, ctx);
   projectConfigRoute(app, ctx);
+  settingsRoute(app, ctx);
   analyzeRoute(app, ctx);
   cacheRoute(app, ctx);
 }

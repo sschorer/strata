@@ -91,7 +91,8 @@ strata/
 │   │              git/ (exec, rev, branch, repo, files, history, churn) ·
 │   │              cache/ (types, schema, sqlite, null, open, keys, digest, …) ·
 │   │              projects/ (types, schema, sqlite, memory, open, id, …) ·
-│   │              config/ (types, defaults, patch, errors)
+│   │              config/ (types, defaults, patch, errors) ·
+│   │              settings/ (types, defaults, patch, schema, sqlite, memory, …)
 │   └── server/   @strata/server  Fastify HTTP API over the core
 │                  app.ts · main.ts (entry) · registry.ts · routes/*
 ├── plugins/
@@ -210,6 +211,17 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   copy of it. `/analyze` takes these as its defaults and lets an explicit
   request field win. Identity — display name and root — stays on the registry
   entry, which is the only place that can keep a root unique.
+- **App settings** — how the workbench itself behaves (appearance, the plugins
+  directory and third-party loading, the incremental cache, the CI gate
+  thresholds, the AI provider instances), behind `/settings`. A third SQLite
+  file (`$STRATA_DATA_DIR`, else `<cwd>/.strata/settings.db`), stored sparsely
+  and defaulted on read like a project's config. Two scopes, split by what the
+  setting belongs to: nothing here is about one repository, and nothing in
+  `/projects/:id/config` is about the workbench. Reading a setting is not the
+  same as it taking effect — the cache toggle applies to the next run, the
+  plugin settings are read when the server starts (which is when plugins load),
+  and appearance, gates and providers are stored for consumers still being
+  built.
 - **One responsibility per file** — implementation, types, helpers and
   alternate implementations live in separate modules; every `index.ts` is a
   barrel that only re-exports. Public import paths (`@strata/core`,

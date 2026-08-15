@@ -53,4 +53,28 @@ export {
   type ProjectConfig,
   type ProjectConfigPatch,
 } from './config/index.js';
+export {
+  openSettingsStore,
+  memorySettingsStore,
+  DEFAULT_APP_SETTINGS,
+  withAppDefaults,
+  applyAppPatch,
+  InvalidSettingsError,
+  DENSITIES,
+  THEME_MODES,
+  type AIProviderInput,
+  type AIProviderInstance,
+  type AISettings,
+  type AISettingsPatch,
+  type AppearanceSettings,
+  type AppSettings,
+  type AppSettingsPatch,
+  type Density,
+  type EngineSettings,
+  type GateSettings,
+  type SettingsStore,
+  type SettingsStoreOptions,
+  type StoredAppSettings,
+  type ThemeMode,
+} from './settings/index.js';
 export * as gitUtil from './git/index.js';

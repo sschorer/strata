@@ -39,7 +39,9 @@ export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
       root,
       rev: rev ?? config?.rev,
       historyLimit: historyLimit ?? config?.historyLimit ?? undefined,
-      cache,
+      // The incremental cache is app-scoped, not per project: it is keyed on
+      // blob shas and shared across every repository this workbench analyses.
+      cache: cache ?? cacheEnabled(ctx, req.log),
     });
 
     // The switcher shows how long ago each project was analysed, so every run
@@ -60,6 +62,23 @@ export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
     }
     return report;
   });
+}
+
+/**
+ * Whether *Settings → Plugins & engine* leaves the incremental cache on;
+ * `undefined` leaves the core its own default. Settings that cannot be read
+ * cost the run a preference, never the run itself.
+ */
+function cacheEnabled(
+  ctx: RouteContext,
+  log: { warn(message: string): void },
+): boolean | undefined {
+  try {
+    return ctx.settings.get().engine.cache;
+  } catch (err) {
+    log.warn(`could not read the app settings: ${(err as Error).message}`);
+    return undefined;
+  }
 }
 
 /**
