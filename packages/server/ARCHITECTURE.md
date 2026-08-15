@@ -29,8 +29,11 @@ UI and CI. Keeps transport concerns out of the core.
 | GET | `/projects` | `{ projects }` — the registry, in registration order; each entry carries its id, display name, root and last-analysis summary. |
 | POST | `/projects` | Body `{ name, root }` → the created `Project` (201). The root is resolved to the repository that owns it; 400 if it owns none, 409 if that repository is already registered. |
 | GET | `/projects/:id` | One project, or 404. |
-| DELETE | `/projects/:id` | Drop the entry (`{ removed: true }`), or 404. Never touches the repository on disk. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). A run over a registered root also updates that project's last-analysis summary. |
+| PATCH | `/projects/:id` | Body `{ name?, root? }` → the updated `Project`. Identity only; same root resolution and 409 as `POST`. |
+| DELETE | `/projects/:id` | Drop the entry and its config (`{ removed: true }`), or 404. Never touches the repository on disk. |
+| GET | `/projects/:id/config` | That project's settings, filled out with the defaults. |
+| PATCH | `/projects/:id/config` | Body: any of `rev`, `historyLimit`, `ignore`, `paths`, `languages`, `metrics`, `convention`, `rules` → the whole config. Merges by field; an array replaces. 400 on a value that cannot be stored or a plugin id nobody loaded. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary. |
 | DELETE | `/cache` | Empty the incremental cache. Registered projects are untouched — they live in their own database. |
 
 ## 4. Building Blocks
@@ -41,8 +44,10 @@ UI and CI. Keeps transport concerns out of the core.
 | `app.ts` | `createServer()` — plugin registry, one `Strata`, one project store, routes, shutdown hook. |
 | `main.ts` | Process entry point (`node dist/main.js`). |
 | `registry.ts` | `buildRegistry()` — load the built-ins, then the user plugins directory. |
-| `routes/health.ts` … `routes/projects.ts` | One module per endpoint. |
+| `routes/health.ts` … `routes/project-config.ts` | One module per endpoint. |
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
+| `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
+| `routes/plugin-ids.ts` | `requireKnownPlugins()` — refuse settings naming a plugin nobody loaded. |
 | `routes/index.ts` | `registerRoutes()` + the `RouteContext` they share. |
 
 ## 5. Runtime
@@ -69,6 +74,17 @@ once at startup, as does opening the registry.
   click through the UI keep the same entry current. A registry that will not
   take the update is logged, never raised: the caller already paid for the
   report.
+- **A project's config is the default for a run over it**, not a constraint on
+  it: `/analyze` fills in `rev` and `historyLimit` from the settings and lets an
+  explicit request field win, so *Re-analyze* follows *Project settings* while a
+  CI job asking for a revision still gets that revision.
+- **Settings are two resources, split by who can promise what** — `/projects/:id`
+  owns identity (the root has to stay unique across projects), `/projects/:id/config`
+  owns what an analysis does. One PATCH each, merging by field.
+- **Plugin selections are checked against the registry as they are written** —
+  the screens only offer loaded plugins, so an id that is not one is a typo or a
+  stale client, and stored silently it would look like a plugin that is switched
+  on but never runs.
 - **Registering a project resolves the path through git**, so a path that is no
   repository is a 400 at *Add project* rather than a failure at the first
   analysis, and a subdirectory registers the repository that owns it instead of

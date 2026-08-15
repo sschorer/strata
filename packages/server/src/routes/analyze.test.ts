@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import {
   memoryProjectStore,
   type AnalysisReport,
+  type AnalyzeOptions,
   type PluginRegistry,
   type ProjectStore,
   type Strata,
@@ -36,7 +37,15 @@ const report = {
   },
 } satisfies AnalysisReport;
 
-const strata = { analyze: async () => report } as unknown as Strata;
+/** What the route asked the core for, so the defaults can be asserted. */
+let requested: AnalyzeOptions | undefined;
+
+const strata = {
+  analyze: async (opts: AnalyzeOptions) => {
+    requested = opts;
+    return report;
+  },
+} as unknown as Strata;
 
 let projects: ProjectStore;
 let app: FastifyInstance;
@@ -51,15 +60,16 @@ function build(store: ProjectStore): FastifyInstance {
   return instance;
 }
 
-async function analyze(root: string) {
+async function analyze(root: string, body: Record<string, unknown> = {}) {
   return await app.inject({
     method: 'POST',
     url: '/analyze',
-    payload: { root },
+    payload: { root, ...body },
   });
 }
 
 beforeEach(() => {
+  requested = undefined;
   projects = memoryProjectStore();
   app = build(projects);
 });
@@ -79,6 +89,34 @@ describe('POST /analyze', () => {
       rev: report.rev,
       ...report.run,
     });
+  });
+
+  it('runs a registered project the way its settings say', async () => {
+    const { id } = projects.add({ name: 'Strata', root: '/repos/strata' });
+    projects.setConfig(id, { rev: 'develop', historyLimit: 500 });
+
+    await analyze('/repos/strata');
+
+    expect(requested).toMatchObject({ rev: 'develop', historyLimit: 500 });
+  });
+
+  it('lets the request override what the settings say', async () => {
+    const { id } = projects.add({ name: 'Strata', root: '/repos/strata' });
+    projects.setConfig(id, { rev: 'develop', historyLimit: 500 });
+
+    await analyze('/repos/strata', { rev: 'v1.0.0', historyLimit: 10 });
+
+    expect(requested).toMatchObject({ rev: 'v1.0.0', historyLimit: 10 });
+  });
+
+  it('leaves the core its own defaults for an unconfigured project', async () => {
+    projects.add({ name: 'Strata', root: '/repos/strata' });
+
+    await analyze('/repos/strata');
+
+    // `HEAD` and no cap are what the core does anyway; a null limit must not
+    // reach it as a number.
+    expect(requested).toMatchObject({ rev: 'HEAD', historyLimit: undefined });
   });
 
   it('analyses a root nobody registered without recording anything', async () => {
