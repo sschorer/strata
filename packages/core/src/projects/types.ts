@@ -1,4 +1,5 @@
 import type { Logger } from '@strata/sdk';
+import type { ProjectConfig, ProjectConfigPatch } from '../config/index.js';
 import type { RunReport } from '../types.js';
 
 /**
@@ -27,6 +28,16 @@ export interface Project {
 export interface ProjectInput {
   name: string;
   root: string;
+}
+
+/**
+ * What can be changed about a registered project *after* it is registered —
+ * its identity, not its settings. The id is not in here: it is what links to
+ * this project point at, and a rename must not break them.
+ */
+export interface ProjectUpdate {
+  name?: string;
+  root?: string;
 }
 
 export interface ProjectStoreOptions {
@@ -62,9 +73,27 @@ export interface ProjectStore {
    * registered, and `Error` if name or root is blank.
    */
   add(input: ProjectInput): Project;
+  /**
+   * Rename a project or point it at another root; `undefined` if the id is
+   * unknown. Throws `DuplicateRootError` if another project holds the new root.
+   */
+  update(id: string, changes: ProjectUpdate): Project | undefined;
   /** Store the summary of a finished run; `undefined` if the id is unknown. */
   recordAnalysis(id: string, analysis: ProjectAnalysis): Project | undefined;
-  /** Drop the entry. Never touches the repository on disk. */
+  /**
+   * This project's settings, filled out with the defaults; `undefined` if the
+   * id is unknown.
+   */
+  config(id: string): ProjectConfig | undefined;
+  /**
+   * Merge a patch into this project's settings and return the result;
+   * `undefined` if the id is unknown. Throws `InvalidConfigError` on a value
+   * that cannot be stored as written.
+   */
+  setConfig(id: string, patch: ProjectConfigPatch): ProjectConfig | undefined;
+  /**
+   * Drop the entry and its settings. Never touches the repository on disk.
+   */
   remove(id: string): boolean;
   close(): void;
 }

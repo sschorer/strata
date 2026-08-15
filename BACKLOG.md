@@ -48,11 +48,20 @@ New area — the mockup's settings screens need somewhere to write to.
       entry's summary; removing drops the entry only, never the repo on disk.
       The sidebar switcher, *Add project* and *Danger zone → Remove project*
       that render it are UI work, listed below.
-- [ ] **P0** Project-scoped config store + `GET`/`PATCH` endpoints, covering the
-      *Project settings* sections — including editing the two fields the registry
-      already holds: display name, root, revision (default `HEAD`),
-      history limit, ignore globs, analyze paths, enabled language plugins,
-      enabled git metrics, commit convention, architecture rules.
+- [x] Project-scoped config store + endpoints — `GET`/`PATCH`
+      `/projects/:id/config` holds revision (default `HEAD`), history limit,
+      ignore globs, analyze paths, enabled language plugins, enabled git
+      metrics, commit convention and architecture rules; `PATCH /projects/:id`
+      renames a project or re-points its root. Settings are stored sparsely and
+      defaulted on read, and a plugin id nobody loaded is refused. `/analyze`
+      over a registered root takes `rev` and `historyLimit` from here (an
+      explicit request field still wins) — the remaining fields are stored and
+      served but not yet honoured by the pipeline, which is the item below.
+- [ ] **P0** Honour the rest of a project's config in the pipeline — ignore
+      globs and analyze paths in the file routing, the enabled-plugin lists in
+      `Strata.analyze`, and the chosen commit convention instead of
+      first-registered-wins. (Architecture rules need the rule engine under
+      *Architecture fitness*.)
 - [ ] **P0** App-scoped config store + endpoints: appearance (theme, density),
       plugins directory, third-party plugin loading, cache on/off + clear,
       CI gate thresholds, AI provider instances.
@@ -109,8 +118,10 @@ New area — the mockup's settings screens need somewhere to write to.
 
 ## Architecture fitness
 
-- [ ] **P1** Rule engine — declare allowed/forbidden dependencies ("`ui` may not import `db`"),
-      persisted per project and edited in *Project settings → Architecture rules*
+- [ ] **P1** Rule engine — declare allowed/forbidden dependencies ("`ui` may not import `db`").
+      The rules are persisted per project already (`/projects/:id/config`,
+      `{from, to, enforced}`); what is missing is the check that reads them and
+      the *Project settings → Architecture rules* screen that edits them.
 - [ ] **P1** Boundary/layer violation report + CI gate
 - [ ] **P2** Violations surfaced on the dependency graph (highlight the offending edge)
 - [ ] **P2** Fitness-function trends over time

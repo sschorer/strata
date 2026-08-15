@@ -43,5 +43,14 @@ export {
   type ProjectInput,
   type ProjectStore,
   type ProjectStoreOptions,
+  type ProjectUpdate,
 } from './projects/index.js';
+export {
+  DEFAULT_PROJECT_CONFIG,
+  withDefaults,
+  InvalidConfigError,
+  type ArchitectureRule,
+  type ProjectConfig,
+  type ProjectConfigPatch,
+} from './config/index.js';
 export * as gitUtil from './git/index.js';

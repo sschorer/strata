@@ -9,8 +9,9 @@ the immutable `RepoContext`, and drives the analysis pipeline that fans work out
 to plugins. This is the only module that knows about all four plugin kinds.
 
 It also owns what the workbench has to remember between runs: the incremental
-cache, and the **project registry** — which repositories are registered, and
-what the last analysis of each one found.
+cache, the **project registry** — which repositories are registered, and what
+the last analysis of each one found — and each project's **configuration**,
+what an analysis of it is supposed to do.
 
 ## 2. Constraints
 
@@ -60,6 +61,10 @@ what the last analysis of each one found.
 | `projects/memory.ts` | The process-lifetime registry (fallback, tests). |
 | `projects/schema.ts` | Table, pragmas, schema stamp. |
 | `projects/id.ts`, `projects/input.ts`, `projects/errors.ts` | Slugged ids, normalised input, `DuplicateRootError`. |
+| `config/types.ts` | `ProjectConfig`, `ProjectConfigPatch`, `ArchitectureRule`. |
+| `config/defaults.ts` | `DEFAULT_PROJECT_CONFIG` + `withDefaults()` — fill a stored config out. |
+| `config/patch.ts` | `applyPatch()` — merge, normalise, refuse what cannot be stored. |
+| `config/errors.ts` | `InvalidConfigError`. |
 
 ## 5. Runtime
 
@@ -75,8 +80,15 @@ what the last analysis of each one found.
    branch, file count, duration, finished-at) beside the resolved `rev`.
 
 `openProjectStore()` is independent of a run: it opens `projects.db` once, and
-the entries it holds are read on request (`list` / `get` / `findByRoot`) and
-written when a project is added, analysed or removed.
+the entries it holds are read on request (`list` / `get` / `findByRoot` /
+`config`) and written when a project is added, renamed, re-pointed, configured,
+analysed or removed.
+
+A project's config is stored **sparsely** — only the fields someone set — and
+`withDefaults()` fills it out on the way to a caller. `setConfig()` merges a
+patch through `applyPatch()`, which normalises (trims, drops blank rows,
+collapses duplicates) and throws `InvalidConfigError` on a value that cannot
+mean anything.
 
 ## 6. Decisions
 
@@ -122,6 +134,15 @@ written when a project is added, analysed or removed.
   root is resolved to its git working-tree root (`gitUtil.toplevel`) and stored
   absolute, so a subdirectory, a trailing slash and a symlink are one project
   and not four. Ids are slugs assigned once, so renaming cannot break a link.
+- **Config is stored sparsely and defaulted on read**, rather than written out
+  in full when a project is registered. A default that moves in a later release
+  then reaches every project that never overrode it, and "never set" stays
+  distinguishable from "set to today's default".
+- **Identity and configuration are separate** — display name and root live on
+  the registry entry (the root has to stay unique across projects, which only
+  the registry can promise); everything about what an analysis *does* lives in
+  the config. Deleting a project deletes both, so an id handed out again never
+  inherits the last holder's settings.
 
 ## 7. Quality & Risks
 
@@ -133,10 +154,14 @@ written when a project is added, analysed or removed.
 - **Risk:** the cache file grows without bound. **Mitigation:** entries carry a
   last-used stamp and are pruned after 30 days on open.
 - **Risk:** the registry names a root that has since been moved or deleted.
-  **Mitigation:** the entry is checked when it is added, not forever; an
-  analysis of a vanished root fails at the git call, and the entry can be
-  removed. Re-pointing a project at a new root is the project-settings work on
-  the backlog.
+  **Mitigation:** the entry is checked when it is added and whenever it is
+  re-pointed, not forever; an analysis of a vanished root fails at the git call,
+  and the project can be pointed at the new path (`update`) or removed.
+- **Risk:** a stored config names a plugin that is no longer installed, or a
+  revision that no longer exists. **Mitigation:** the API checks plugin ids
+  against the registry as they are written; a stale one survives only until the
+  next edit of that field, and an unknown revision fails the run it is used in
+  rather than the settings screen.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
 - **Risk:** a plugin runs **in-process, with the server's privileges** — the

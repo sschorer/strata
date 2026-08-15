@@ -4,7 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
  * Bump when the table layout changes — and write the migration. Unlike the
  * cache, this file holds data nobody can recompute, so a mismatch never wipes.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const TABLES = `
 CREATE TABLE IF NOT EXISTS projects (
@@ -18,6 +18,14 @@ CREATE TABLE IF NOT EXISTS projects (
   -- The last run's summary as JSON, or NULL until this project is analysed.
   last_analysis TEXT
 ) WITHOUT ROWID;
+
+-- Schema 2. One row per configured project, holding only the settings that
+-- were explicitly set: defaults are applied on read, so a default that moves
+-- in a later release reaches every project that never overrode it.
+CREATE TABLE IF NOT EXISTS project_config (
+  project_id TEXT PRIMARY KEY,
+  value      TEXT NOT NULL
+) WITHOUT ROWID;
 `;
 
 /** Pragmas for a small, durable, occasionally-shared file. */
@@ -30,6 +38,10 @@ export function configure(db: DatabaseSync): void {
 
 /**
  * Create the tables and stamp the schema version.
+ *
+ * Every version so far only *adds* tables, so an older file needs nothing but
+ * the `CREATE TABLE IF NOT EXISTS` run and a new stamp; a version that changes
+ * an existing table has to bring its own `ALTER`s here.
  *
  * A file written by a *newer* Strata is left untouched and reported: opening it
  * with this build's expectations would either fail confusingly or quietly drop

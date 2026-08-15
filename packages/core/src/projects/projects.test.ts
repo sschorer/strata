@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_PROJECT_CONFIG } from '../config/index.js';
 import {
   DuplicateRootError,
   memoryProjectStore,
@@ -120,6 +121,83 @@ describe('project store', () => {
     store.close();
   });
 
+  it('renames and re-points a project without changing its id', () => {
+    const store = openProjectStore({ dir });
+    const { id } = store.add({ name: 'Strata', root: '/repos/strata' });
+
+    const renamed = store.update(id, { name: 'The workbench' });
+    expect(renamed).toMatchObject({
+      id: 'strata',
+      name: 'The workbench',
+      root: resolve('/repos/strata'),
+    });
+
+    const moved = store.update(id, { root: '/repos/moved' });
+    expect(moved?.root).toBe(resolve('/repos/moved'));
+    expect(store.findByRoot('/repos/moved')?.id).toBe(id);
+    expect(store.findByRoot('/repos/strata')).toBeUndefined();
+    store.close();
+  });
+
+  it('will not move a project onto a root another one holds', () => {
+    const store = openProjectStore({ dir });
+    store.add({ name: 'Strata', root: '/repos/strata' });
+    const other = store.add({ name: 'Other', root: '/repos/other' });
+
+    expect(() => store.update(other.id, { root: '/repos/strata' })).toThrow(
+      DuplicateRootError,
+    );
+    // Its own root is not a clash with itself.
+    expect(store.update(other.id, { root: '/repos/other' })?.id).toBe(other.id);
+    expect(store.update('ghost', { name: 'Nobody' })).toBeUndefined();
+    store.close();
+  });
+
+  it('keeps the settings that were set, and defaults the rest', () => {
+    const store = openProjectStore({ dir });
+    const { id } = store.add({ name: 'Strata', root: '/repos/strata' });
+
+    expect(store.config(id)).toEqual(DEFAULT_PROJECT_CONFIG);
+
+    const saved = store.setConfig(id, { rev: 'main', historyLimit: 500 });
+    expect(saved).toMatchObject({ rev: 'main', historyLimit: 500, paths: [] });
+    store.close();
+
+    const reopened = openProjectStore({ dir });
+    expect(reopened.config(id)).toMatchObject({
+      rev: 'main',
+      historyLimit: 500,
+    });
+    // A later patch merges into what is stored rather than replacing it.
+    expect(reopened.setConfig(id, { paths: ['src'] })).toMatchObject({
+      rev: 'main',
+      historyLimit: 500,
+      paths: ['src'],
+    });
+    reopened.close();
+  });
+
+  it('has no settings for a project it does not hold', () => {
+    const store = openProjectStore({ dir });
+
+    expect(store.config('ghost')).toBeUndefined();
+    expect(store.setConfig('ghost', { rev: 'main' })).toBeUndefined();
+    store.close();
+  });
+
+  it('drops the settings with the project, so a reused id starts clean', () => {
+    const store = openProjectStore({ dir });
+    const { id } = store.add({ name: 'Strata', root: '/repos/strata' });
+    store.setConfig(id, { rev: 'main' });
+
+    store.remove(id);
+    const again = store.add({ name: 'Strata', root: '/repos/strata' });
+
+    expect(again.id).toBe(id);
+    expect(store.config(id)).toEqual(DEFAULT_PROJECT_CONFIG);
+    store.close();
+  });
+
   it('lists projects in registration order', () => {
     const store = openProjectStore({ dir });
     store.add({ name: 'Zulu', root: '/repos/z' });
@@ -158,8 +236,17 @@ describe('memory project store', () => {
     expect(() =>
       store.add({ name: 'Twice', root: '/repos/strata' }),
     ).toThrow(DuplicateRootError);
+    expect(store.update(project.id, { name: 'Renamed' })).toMatchObject({
+      id: project.id,
+      name: 'Renamed',
+    });
+    expect(store.config(project.id)).toEqual(DEFAULT_PROJECT_CONFIG);
+    expect(store.setConfig(project.id, { rev: 'main' })).toMatchObject({
+      rev: 'main',
+    });
     expect(store.remove(project.id)).toBe(true);
     expect(store.list()).toEqual([]);
+    expect(store.config(project.id)).toBeUndefined();
   });
 });
 

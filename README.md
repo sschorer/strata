@@ -90,6 +90,21 @@ curl -s localhost:4000/projects
 curl -X DELETE localhost:4000/projects/strata
 ```
 
+Each project carries its own settings — revision, history window, ignore globs
+and analyze paths, which plugins run, the commit convention, architecture
+rules. `PATCH` merges, so send only what changed:
+
+```bash
+curl -s localhost:4000/projects/strata/config
+curl -X PATCH localhost:4000/projects/strata/config \
+  -H 'content-type: application/json' \
+  -d '{"rev":"main","historyLimit":500,"ignore":["**/dist/**"]}'
+```
+
+An analysis of a registered root uses those settings as its defaults, so
+`POST /analyze {"root":"…"}` runs what *Project settings* says; a request that
+names `rev` or `historyLimit` itself still wins.
+
 The registry lives in `$STRATA_DATA_DIR` (default `<cwd>/.strata/projects.db`),
 its own database beside the cache: `DELETE /cache` never touches it.
 

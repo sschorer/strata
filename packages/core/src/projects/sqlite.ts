@@ -1,15 +1,22 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
+import {
+  applyPatch,
+  withDefaults,
+  type ProjectConfig,
+  type ProjectConfigPatch,
+} from '../config/index.js';
 import { DuplicateRootError } from './errors.js';
 import { projectId } from './id.js';
-import { normalizeInput } from './input.js';
+import { normalizeInput, normalizeUpdate } from './input.js';
 import { configure, migrate } from './schema.js';
 import type {
   Project,
   ProjectAnalysis,
   ProjectInput,
   ProjectStore,
+  ProjectUpdate,
 } from './types.js';
 
 /** One row of `projects`, as SQLite hands it back. */
@@ -40,8 +47,12 @@ export class SqliteProjectStore implements ProjectStore {
   private readonly selectById: StatementSync;
   private readonly selectByRoot: StatementSync;
   private readonly insert: StatementSync;
+  private readonly updateIdentity: StatementSync;
   private readonly updateAnalysis: StatementSync;
   private readonly deleteById: StatementSync;
+  private readonly selectConfig: StatementSync;
+  private readonly upsertConfig: StatementSync;
+  private readonly deleteConfig: StatementSync;
 
   constructor(path: string) {
     this.path = resolve(path);
@@ -62,10 +73,23 @@ export class SqliteProjectStore implements ProjectStore {
       `INSERT INTO projects (id, name, root, added_at, seq, last_analysis)
        VALUES (?, ?, ?, ?, (SELECT IFNULL(MAX(seq), 0) + 1 FROM projects), ?)`,
     );
+    this.updateIdentity = this.db.prepare(
+      'UPDATE projects SET name = ?, root = ? WHERE id = ?',
+    );
     this.updateAnalysis = this.db.prepare(
       'UPDATE projects SET last_analysis = ? WHERE id = ?',
     );
     this.deleteById = this.db.prepare('DELETE FROM projects WHERE id = ?');
+    this.selectConfig = this.db.prepare(
+      'SELECT value FROM project_config WHERE project_id = ?',
+    );
+    this.upsertConfig = this.db.prepare(
+      `INSERT INTO project_config (project_id, value) VALUES (?, ?)
+       ON CONFLICT (project_id) DO UPDATE SET value = excluded.value`,
+    );
+    this.deleteConfig = this.db.prepare(
+      'DELETE FROM project_config WHERE project_id = ?',
+    );
   }
 
   list(): Project[] {
@@ -109,14 +133,62 @@ export class SqliteProjectStore implements ProjectStore {
     return project;
   }
 
+  update(id: string, changes: ProjectUpdate): Project | undefined {
+    const current = this.get(id);
+    if (!current) return undefined;
+
+    const { name, root } = normalizeUpdate(current, changes);
+    const holder = this.findByRoot(root);
+    if (holder && holder.id !== id) throw new DuplicateRootError(root, holder);
+
+    this.updateIdentity.run(name, root, id);
+    return this.get(id);
+  }
+
   recordAnalysis(id: string, analysis: ProjectAnalysis): Project | undefined {
     if (!this.get(id)) return undefined;
     this.updateAnalysis.run(JSON.stringify(analysis), id);
     return this.get(id);
   }
 
+  config(id: string): ProjectConfig | undefined {
+    if (!this.get(id)) return undefined;
+    return withDefaults(this.storedConfig(id));
+  }
+
+  setConfig(id: string, patch: ProjectConfigPatch): ProjectConfig | undefined {
+    if (!this.get(id)) return undefined;
+    const stored = applyPatch(this.storedConfig(id), patch);
+    this.upsertConfig.run(id, JSON.stringify(stored));
+    return withDefaults(stored);
+  }
+
   remove(id: string): boolean {
-    return Number(this.deleteById.run(id).changes) > 0;
+    // The settings go with the project: an id can be handed out again, and
+    // reusing one must not resurrect the last holder's configuration.
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const removed = Number(this.deleteById.run(id).changes) > 0;
+      this.deleteConfig.run(id);
+      this.db.exec('COMMIT');
+      return removed;
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
+  /** Only what was explicitly set; the defaults are applied on the way out. */
+  private storedConfig(id: string): Partial<ProjectConfig> {
+    const row = this.selectConfig.get(id) as { value: string } | undefined;
+    if (row === undefined) return {};
+    try {
+      return JSON.parse(row.value) as Partial<ProjectConfig>;
+    } catch {
+      // Unreadable settings fall back to the defaults rather than failing the
+      // screen that reads them; the next PATCH overwrites the bad row.
+      return {};
+    }
   }
 
   close(): void {

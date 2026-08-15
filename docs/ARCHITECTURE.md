@@ -90,7 +90,8 @@ strata/
 │   │              manifest.ts · discover.ts · plugins-dir.ts ·
 │   │              git/ (exec, rev, branch, repo, files, history, churn) ·
 │   │              cache/ (types, schema, sqlite, null, open, keys, digest, …) ·
-│   │              projects/ (types, schema, sqlite, memory, open, id, …)
+│   │              projects/ (types, schema, sqlite, memory, open, id, …) ·
+│   │              config/ (types, defaults, patch, errors)
 │   └── server/   @strata/server  Fastify HTTP API over the core
 │                  app.ts · main.ts (entry) · registry.ts · routes/*
 ├── plugins/
@@ -201,6 +202,14 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   repository is one entry; every `/analyze` over a registered root refreshes
   that entry's summary. Removing a project drops the row and nothing else — the
   repository on disk is never touched.
+- **Project configuration** — what an analysis of a project does (revision,
+  history window, ignore globs and analyze paths, which language/metric plugins
+  run, the commit convention, architecture rules), behind
+  `/projects/:id/config`. Stored sparsely beside the registry entry and merged
+  with the defaults on read, so an unset field follows the default rather than a
+  copy of it. `/analyze` takes these as its defaults and lets an explicit
+  request field win. Identity — display name and root — stays on the registry
+  entry, which is the only place that can keep a root unique.
 - **One responsibility per file** — implementation, types, helpers and
   alternate implementations live in separate modules; every `index.ts` is a
   barrel that only re-exports. Public import paths (`@strata/core`,
