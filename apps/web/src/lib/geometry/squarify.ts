@@ -29,6 +29,10 @@ export function squarify<T>(
   width: number,
   height: number,
 ): TreemapTile<T>[] {
+  // `NaN <= 0` is false, so an unchecked box would sail past a positive test
+  // and lay every tile out at `NaN`. Nothing can be drawn in a box that is not
+  // a size, so nothing is.
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return [];
   if (width <= 0 || height <= 0) return [];
 
   const weighted = items
@@ -36,8 +40,10 @@ export function squarify<T>(
     .filter((entry) => Number.isFinite(entry.weight) && entry.weight > 0)
     .sort((a, b) => b.weight - a.weight);
 
+  // Individually finite weights can still sum past `Number.MAX_VALUE`, and a
+  // total of `Infinity` scales every area to zero — which divides to `NaN`.
   const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
-  if (total === 0) return [];
+  if (!Number.isFinite(total) || total === 0) return [];
 
   // Weights become areas up front, so the row maths is plain geometry.
   const scale = (width * height) / total;
