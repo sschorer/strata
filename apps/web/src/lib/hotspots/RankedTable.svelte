@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { compactNumber } from './format';
+  import { compactNumber, dirName, fileName } from '$lib/format';
   import { heatColor, heatLevel, type HeatScale } from './heat';
-  import { dirName, fileName } from './path';
   import type { HotspotRow } from './rows';
 
   interface Props {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { squarify, type TreemapTile } from './layout';
+import { squarify, type TreemapTile } from './squarify';
 
 interface Item {
   id: string;

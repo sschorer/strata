@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { compactNumber } from './format';
+  import { compactNumber } from '$lib/format';
   import { heatBands, heatColor, type HeatScale } from './heat';
 
   interface Props {
