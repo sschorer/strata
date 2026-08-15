@@ -62,12 +62,23 @@ New area — the mockup's settings screens need somewhere to write to.
       `Strata.analyze`, and the chosen commit convention instead of
       first-registered-wins. (Architecture rules need the rule engine under
       *Architecture fitness*.)
-- [ ] **P0** App-scoped config store + endpoints: appearance (theme, density),
-      plugins directory, third-party plugin loading, cache on/off + clear,
-      CI gate thresholds, AI provider instances.
+- [x] App-scoped config store + endpoints — `GET`/`PATCH` `/settings` holds
+      appearance (theme, density), the plugins directory, third-party plugin
+      loading, the incremental cache toggle, the CI gate thresholds and the AI
+      provider instances, in `settings.db` (`$STRATA_DATA_DIR`, its own
+      database beside the registry). Stored sparsely and defaulted on read like
+      a project's config; a `PATCH` merges by section and then by field, so one
+      settings screen can send back only what it edits. Every setting whose
+      consumer already exists is honoured: the cache toggle is the default for
+      the next `/analyze`, and the plugins directory and third-party switch are
+      read when the server starts, which is when plugins load. *Clear cache*
+      stays `DELETE /cache` — an action, not a setting. Appearance, the gates
+      and the providers are stored and served for the screens below.
 - [ ] **P1** Secret storage for provider env values — write-only from the API's
       perspective; the mockup states *"sensitive values are stored separately and
-      are not returned to the app after saving"*, so redact on read.
+      are not returned to the app after saving"*, so redact on read. Until this
+      lands, `ai.providers[].env` on `/settings` is stored and served as
+      written, so nothing sensitive belongs in it.
 - [ ] **P1** Config precedence + a checked-in `strata.config.*` file so a project's
       scope, rules, and gates travel with the repo and drive headless CI mode.
 - [ ] **P2** Import/export a project config; per-project overrides of app defaults.
@@ -136,14 +147,15 @@ call surface, but everything about *configuring* an instance is new. Analysis
 itself stays fully offline.
 
 - [x] AI-provider contract + template (OpenAI-compatible / Ollama)
-- [ ] **P1** CLI-agent provider kind — spawn and talk to a coding-agent binary;
-      per-instance binary path, agent home path, shadow home (account-specific
-      home that keeps `auth.json` separate while sharing state), launch args,
-      env vars, and a model id list.
+- [ ] **P1** CLI-agent provider kind — spawn and talk to a coding-agent binary.
+      The per-instance declaration (binary path, agent home path, shadow home —
+      the account-specific home that keeps `auth.json` separate while sharing
+      state — launch args, env vars and a model id list) is persisted already,
+      behind `/settings` `ai.providers`; launching it is what is missing.
 - [ ] **P1** Provider health checks — resolve the binary, read its version and
-      auth state, list models; run on an interval (*Health check interval*,
-      `0` = manual only) and expose the three states the mockup renders:
-      *Ready*, *Not found*, *Disabled*.
+      auth state, list models; run on the stored interval
+      (`/settings` `ai.healthCheckInterval`, `0` = manual only) and expose the
+      three states the mockup renders: *Ready*, *Not found*, *Disabled*.
 - [ ] **P1** Provider registry UI — enable/disable, display name, accent colour,
       env vars, models, plus *Add custom provider*. See the Web UI section.
 - [ ] **P1** "Explain this hotspot / module" action
@@ -218,13 +230,19 @@ Sans/Mono.
 ### Application settings
 
 - [ ] **P1** Appearance — theme (dark / light / system) and density
-      (dense / balanced / airy)
+      (dense / balanced / airy). Persisted per workbench behind
+      `/settings` `appearance`; the shell still reads the theme from
+      `localStorage`, which is what this screen replaces.
 - [ ] **P1** Plugins & engine — plugins directory, third-party loading toggle,
-      incremental cache toggle and *Clear cache*
-- [ ] **P1** CI gates — fail on new import cycles, hotspot regression threshold
+      incremental cache toggle and *Clear cache*. All four are wired
+      (`/settings` `engine`, plus `DELETE /cache`); the screen is what is left.
+- [ ] **P1** CI gates — fail on new import cycles, hotspot regression threshold.
+      Stored behind `/settings` `gates`; headless CI mode is what reads them.
 - [ ] **P1** AI providers — provider cards with enable toggle, expandable detail
       (display name, accent colour, env vars, binary path, home path, shadow home,
-      launch args, models), health-check interval stepper, *Add custom provider*
+      launch args, models), health-check interval stepper, *Add custom provider*.
+      Every field is persisted behind `/settings` `ai` already; what is missing
+      is the screen and the runtime that launches what it describes.
 - [ ] **P2** About — version, licence, links to docs / architecture / backlog
 - [ ] **P2** Multi-repo workspace; saved views
 
@@ -233,8 +251,9 @@ Sans/Mono.
 - [x] CI (build/typecheck/lint/test), Conventional Commits enforcement (hook + CI)
 - [x] release-please + multi-arch GHCR image + Linux desktop stub
 - [ ] **P1** Headless CI mode — emit JSON/Markdown report, **fail on thresholds**
-      (hotspot regression, new cycles, rule violations), reading the same gate
-      config the *CI gates* screen edits
+      (hotspot regression, new cycles, rule violations), reading the gate
+      config the *CI gates* screen edits — `/settings` `gates` holds it, and
+      nothing reads it yet
 - [ ] **P1** Commit the pnpm lockfile and switch CI to `--frozen-lockfile`
 - [ ] **P1** Serve the built web UI from `@strata/server` so the Docker image is a
       single deployable workbench

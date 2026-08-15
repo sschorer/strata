@@ -38,7 +38,8 @@ clean: ## Remove build output and caches
 	$(PNPM) -r exec rm -rf dist .tsbuildinfo || true
 	rm -rf coverage
 	# Only the analysis cache: .strata also holds projects.db (the registered
-	# projects) and any third-party plugins, and neither is build output.
+	# projects), settings.db (the app settings) and any third-party plugins, and
+	# none of those is build output.
 	rm -f .strata/cache.db .strata/cache.db-wal .strata/cache.db-shm
 
 .PHONY: distclean

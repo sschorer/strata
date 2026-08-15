@@ -11,8 +11,8 @@ UI and CI. Keeps transport concerns out of the core.
 
 ## 2. Constraints
 
-- Stateless request handling (state lives in the core: the cache and the
-  project registry).
+- Stateless request handling (state lives in the core: the cache, the project
+  registry and the app settings).
 - No business logic beyond validation + delegation to the core.
 - Must run in the container as a non-root user.
 
@@ -25,7 +25,7 @@ UI and CI. Keeps transport concerns out of the core.
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Liveness. |
-| GET | `/plugins` | What loaded, from where, and what was skipped: `{ directory, plugins, failures }` — each plugin its manifest plus a `source` (`builtin`/`user`). |
+| GET | `/plugins` | What loaded, from where, and what was skipped: `{ directory, plugins, failures }` — each plugin its manifest plus a `source` (`builtin`/`user`). `directory` is the one actually scanned at startup. |
 | GET | `/projects` | `{ projects }` — the registry, in registration order; each entry carries its id, display name, root and last-analysis summary. |
 | POST | `/projects` | Body `{ name, root }` → the created `Project` (201). The root is resolved to the repository that owns it; 400 if it owns none, 409 if that repository is already registered. |
 | GET | `/projects/:id` | One project, or 404. |
@@ -33,18 +33,20 @@ UI and CI. Keeps transport concerns out of the core.
 | DELETE | `/projects/:id` | Drop the entry and its config (`{ removed: true }`), or 404. Never touches the repository on disk. |
 | GET | `/projects/:id/config` | That project's settings, filled out with the defaults. |
 | PATCH | `/projects/:id/config` | Body: any of `rev`, `historyLimit`, `ignore`, `paths`, `languages`, `metrics`, `convention`, `rules` → the whole config. Merges by field; an array replaces. 400 on a value that cannot be stored or a plugin id nobody loaded. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary. |
-| DELETE | `/cache` | Empty the incremental cache. Registered projects are untouched — they live in their own database. |
+| GET | `/settings` | The app-wide settings, filled out with the defaults: `{ appearance, engine, gates, ai }`. |
+| PATCH | `/settings` | Body: any of those four sections → all of them. Merges two levels deep (section, then field); an array replaces. 400 on a value that cannot be stored, or on a section named with no field in it. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary; the cache default comes from the app settings. |
+| DELETE | `/cache` | Empty the incremental cache — the *Clear cache* button, which is an action rather than a setting. Registered projects and app settings are untouched: both live in their own databases. |
 
 ## 4. Building Blocks
 
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Barrel — the package's public surface. |
-| `app.ts` | `createServer()` — plugin registry, one `Strata`, one project store, routes, shutdown hook. |
+| `app.ts` | `createServer()` — settings, plugin registry, one `Strata`, one project store, routes, shutdown hook. |
 | `main.ts` | Process entry point (`node dist/main.js`). |
-| `registry.ts` | `buildRegistry()` — load the built-ins, then the user plugins directory. |
-| `routes/health.ts` … `routes/project-config.ts` | One module per endpoint. |
+| `registry.ts` | `buildRegistry(opts)` — load the built-ins, then the user plugins directory the settings name (unless third-party loading is off). |
+| `routes/health.ts` … `routes/settings.ts` | One module per endpoint. |
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
 | `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
 | `routes/plugin-ids.ts` | `requireKnownPlugins()` — refuse settings naming a plugin nobody loaded. |
@@ -66,8 +68,19 @@ once at startup, as does opening the registry.
 - **A plugin that will not load never fails startup** — it is reported on
   `GET /plugins` instead, which is what the plugins settings screen reads.
 - **One long-lived `Strata`**, so the cache is opened once and closed with the
-  server (`onClose`), not per request. The project store is opened and closed
-  the same way.
+  server (`onClose`), not per request. The project store and the settings store
+  are opened and closed the same way.
+- **Settings are read before plugins are loaded** — *Plugins & engine* decides
+  which directory is scanned and whether drop-in plugins are loaded at all, and
+  loading happens exactly once, at startup. So `createServer()` opens the
+  settings first, and `/plugins` reports the directory that was actually
+  scanned rather than the one a setting has been changed to since: a pending
+  change should read as pending, not as history.
+- **A setting is honoured where its consumer already exists**, and stored
+  otherwise. The cache toggle is a per-run default on `/analyze`, the plugin
+  settings are read at startup — appearance, the CI gates and the AI providers
+  are served to a shell, a headless CI mode and a provider runtime that are
+  still being built, and the backlog says so rather than the API pretending.
 - **`/analyze` refreshes the registry itself** — the switcher shows how long ago
   each project was analysed, and a run over a registered root is that fact,
   whoever asked for it. No `projectId` in the request body, so a CI run and a
@@ -95,9 +108,14 @@ once at startup, as does opening the registry.
 - **Risk:** `root` points anywhere on disk, and the API is unauthenticated —
   `DELETE /cache` is reachable by anyone who can reach the port (cost: a
   recomputation), and so is `DELETE /projects/:id` (cost: a registry entry, and
-  nothing on disk). **Mitigation:** the API assumes a trusted network and
-  deployments mount repos read-only under a fixed prefix; path allow-listing and
-  auth are on the backlog. Do not expose the port publicly.
+  nothing on disk). `PATCH /settings` is reachable too, and it names a plugins
+  directory the next start will load code from. **Mitigation:** the API assumes
+  a trusted network and deployments mount repos read-only under a fixed prefix;
+  path allow-listing and auth are on the backlog. Do not expose the port
+  publicly.
+- **Risk:** AI provider `env` values are stored and served in plain text.
+  **Mitigation:** secret storage is the next item in that area; until it lands,
+  nothing sensitive belongs in provider settings.
 - **Risk:** malformed request bodies. **Mitigation:** `/analyze` carries a JSON
   schema, so a wrong-typed field (`"cache": "false"`) is a 400 rather than a
   silently ignored option.

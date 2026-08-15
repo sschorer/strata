@@ -10,8 +10,9 @@ to plugins. This is the only module that knows about all four plugin kinds.
 
 It also owns what the workbench has to remember between runs: the incremental
 cache, the **project registry** — which repositories are registered, and what
-the last analysis of each one found — and each project's **configuration**,
-what an analysis of it is supposed to do.
+the last analysis of each one found — each project's **configuration**, what an
+analysis of it is supposed to do, and the **app settings**, how the workbench
+itself behaves.
 
 ## 2. Constraints
 
@@ -26,8 +27,8 @@ what an analysis of it is supposed to do.
 - **Depends on:** `@strata/sdk` (contracts), `git` CLI.
 - **Consumed by:** `@strata/server` (and `scripts/analyze.mjs`).
 - **Public API:** `Strata.analyze(opts) → AnalysisReport`, `PluginRegistry`,
-  `discoverPlugins()` / `userPluginsDir()`, `openProjectStore()`, `gitUtil`
-  helpers.
+  `discoverPlugins()` / `userPluginsDir()`, `openProjectStore()`,
+  `openSettingsStore()`, `gitUtil` helpers.
 
 ## 4. Building Blocks
 
@@ -65,6 +66,14 @@ what an analysis of it is supposed to do.
 | `config/defaults.ts` | `DEFAULT_PROJECT_CONFIG` + `withDefaults()` — fill a stored config out. |
 | `config/patch.ts` | `applyPatch()` — merge, normalise, refuse what cannot be stored. |
 | `config/errors.ts` | `InvalidConfigError`. |
+| `settings/types.ts` | `AppSettings` and its sections, `SettingsStore`, options. |
+| `settings/defaults.ts` | `DEFAULT_APP_SETTINGS` + `withAppDefaults()`. |
+| `settings/patch.ts` | `applyAppPatch()` — merge two levels deep, normalise, refuse. |
+| `settings/open.ts` | `openSettingsStore()` — resolve location, degrade safely. |
+| `settings/sqlite.ts` | The persistent settings (`settings.db`). |
+| `settings/memory.ts` | The process-lifetime settings (fallback, tests). |
+| `settings/schema.ts` | Table, pragmas, schema stamp. |
+| `settings/errors.ts` | `InvalidSettingsError`. |
 
 ## 5. Runtime
 
@@ -89,6 +98,12 @@ A project's config is stored **sparsely** — only the fields someone set — an
 patch through `applyPatch()`, which normalises (trims, drops blank rows,
 collapses duplicates) and throws `InvalidConfigError` on a value that cannot
 mean anything.
+
+`openSettingsStore()` is the app-scoped twin, and works the same way one scope
+up: one row in `settings.db`, stored sparsely, filled out by
+`withAppDefaults()`, merged by `applyAppPatch()`. Its patch is two levels deep
+— a section left out keeps everything it had, a field left out inside a named
+section keeps its value — because each section is one settings screen.
 
 ## 6. Decisions
 
@@ -143,6 +158,16 @@ mean anything.
   the registry can promise); everything about what an analysis *does* lives in
   the config. Deleting a project deletes both, so an id handed out again never
   inherits the last holder's settings.
+- **App settings are their own database too** (`settings.db`, beside
+  `projects.db`). They are one row about the workbench, not a list that grows
+  per project, and the registry's schema is the one that keeps changing as
+  project features land — a migration there must not be able to cost somebody
+  their provider configuration. Same durability rules as the registry: opening
+  degrades to memory and a warning, a write that fails throws.
+- **A settings section is a settings screen**, and the sections are stored as
+  one JSON value rather than a column per field. Adding a screen is then not a
+  migration, and a `PATCH` that names one section says exactly what the screen
+  it came from can promise.
 
 ## 7. Quality & Risks
 
@@ -162,6 +187,11 @@ mean anything.
   against the registry as they are written; a stale one survives only until the
   next edit of that field, and an unknown revision fails the run it is used in
   rather than the settings screen.
+- **Risk:** an AI provider's `env` values are stored and served in plain text,
+  so a token put there is readable by anyone who can reach the API.
+  **Mitigation:** none yet — secret storage (write-only, redacted on read) is
+  the next step in this area, and until it lands nothing sensitive belongs in
+  provider settings. The store is local and the API assumes a trusted network.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
 - **Risk:** a plugin runs **in-process, with the server's privileges** — the

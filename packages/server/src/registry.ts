@@ -12,6 +12,17 @@ const BUILTINS = [
   'plugins/language-typescript/strata.plugin.json',
 ];
 
+/** What *Settings → Plugins & engine* decides about loading. */
+export interface RegistryOptions {
+  /** Where drop-in plugins live. Defaults to `userPluginsDir()`. */
+  pluginsDir?: string;
+  /**
+   * Load drop-in plugins at all (default `true`). Off is the way back into a
+   * workbench a third-party plugin has made unusable, without deleting it.
+   */
+  thirdParty?: boolean;
+}
+
 /**
  * Discover and load plugins: the built-ins that ship here, then every plugin
  * installed in the user plugins directory (see docs/PLUGINS.md). Built-ins go
@@ -20,11 +31,15 @@ const BUILTINS = [
  * Neither step can fail startup — a plugin that will not load is recorded in
  * `registry.failures()` and served on `GET /plugins`.
  */
-export async function buildRegistry(): Promise<PluginRegistry> {
+export async function buildRegistry(
+  opts: RegistryOptions = {},
+): Promise<PluginRegistry> {
   const registry = new PluginRegistry();
   for (const rel of BUILTINS) {
     await registry.load(resolve(REPO_ROOT, rel), 'builtin');
   }
-  await registry.loadDirectory(userPluginsDir(), 'user');
+  if (opts.thirdParty !== false) {
+    await registry.loadDirectory(opts.pluginsDir ?? userPluginsDir(), 'user');
+  }
   return registry;
 }

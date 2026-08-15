@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   memoryProjectStore,
+  memorySettingsStore,
   type PluginRegistry,
   type ProjectStore,
   type Strata,
@@ -50,8 +51,10 @@ beforeEach(async () => {
   app = Fastify();
   projectsRoute(app, {
     projects,
+    settings: memorySettingsStore(),
     strata: {} as Strata,
     registry: {} as PluginRegistry,
+    pluginsDir: '/app/.strata/plugins',
   });
 });
 

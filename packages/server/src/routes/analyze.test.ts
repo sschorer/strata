@@ -1,10 +1,12 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   memoryProjectStore,
+  memorySettingsStore,
   type AnalysisReport,
   type AnalyzeOptions,
   type PluginRegistry,
   type ProjectStore,
+  type SettingsStore,
   type Strata,
 } from '@strata/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -48,14 +50,20 @@ const strata = {
 } as unknown as Strata;
 
 let projects: ProjectStore;
+let settings: SettingsStore;
 let app: FastifyInstance;
 
-function build(store: ProjectStore): FastifyInstance {
+function build(
+  store: ProjectStore,
+  appSettings: SettingsStore = settings,
+): FastifyInstance {
   const instance = Fastify();
   analyzeRoute(instance, {
     strata,
     projects: store,
+    settings: appSettings,
     registry: {} as PluginRegistry,
+    pluginsDir: '/app/.strata/plugins',
   });
   return instance;
 }
@@ -71,6 +79,7 @@ async function analyze(root: string, body: Record<string, unknown> = {}) {
 beforeEach(() => {
   requested = undefined;
   projects = memoryProjectStore();
+  settings = memorySettingsStore();
   app = build(projects);
 });
 
@@ -117,6 +126,43 @@ describe('POST /analyze', () => {
     // `HEAD` and no cap are what the core does anyway; a null limit must not
     // reach it as a number.
     expect(requested).toMatchObject({ rev: 'HEAD', historyLimit: undefined });
+  });
+
+  it('runs with the cache the app settings leave switched on', async () => {
+    await analyze('/repos/strata');
+    expect(requested).toMatchObject({ cache: true });
+
+    settings.patch({ engine: { cache: false } });
+    await analyze('/repos/strata');
+
+    expect(requested).toMatchObject({ cache: false });
+  });
+
+  it('lets a request ask for a cold run whatever the settings say', async () => {
+    await analyze('/repos/strata', { cache: false });
+    expect(requested).toMatchObject({ cache: false });
+
+    settings.patch({ engine: { cache: false } });
+    await analyze('/repos/strata', { cache: true });
+
+    expect(requested).toMatchObject({ cache: true });
+  });
+
+  it('still returns the report when the settings cannot be read', async () => {
+    const broken: SettingsStore = {
+      ...settings,
+      get: () => {
+        throw new Error('database is locked');
+      },
+    };
+    await app.close();
+    app = build(projects, broken);
+
+    const response = await analyze('/repos/strata');
+
+    expect(response.statusCode).toBe(200);
+    // No preference reaches the core, so it keeps its own default.
+    expect(requested).toMatchObject({ cache: undefined });
   });
 
   it('analyses a root nobody registered without recording anything', async () => {
