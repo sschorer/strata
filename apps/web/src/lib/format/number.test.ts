@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compactNumber } from './format';
+import { compactNumber } from './number';
 
 describe('compactNumber', () => {
   it('rounds small values and abbreviates large ones', () => {

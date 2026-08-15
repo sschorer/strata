@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { compactNumber } from './format';
+  import { compactNumber, fileName } from '$lib/format';
   import { heatColor, heatInk, heatLevel, type HeatScale } from './heat';
-  import { fileName } from './path';
-  import { squarify } from './layout';
+  import { squarify } from '$lib/geometry';
   import type { HotspotRow } from './rows';
 
   interface Props {

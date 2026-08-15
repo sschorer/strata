@@ -3,10 +3,11 @@
   import RunForm from '$lib/analysis/RunForm.svelte';
   import Card from '$lib/components/Card.svelte';
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
+  import { compactNumber } from '$lib/format';
   import HeatLegend from '$lib/hotspots/HeatLegend.svelte';
   import RankedTable from '$lib/hotspots/RankedTable.svelte';
   import Treemap from '$lib/hotspots/Treemap.svelte';
-  import { compactNumber, heatScale, hotspotRows } from '$lib/hotspots';
+  import { heatScale, hotspotRows } from '$lib/hotspots';
 
   let report = $derived(analysis.report);
   let rows = $derived(report ? hotspotRows(report) : []);

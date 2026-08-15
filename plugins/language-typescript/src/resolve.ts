@@ -1,6 +1,7 @@
 import { dirname, extname, join, normalize } from 'node:path';
 import type { RepoFile } from '@strata/sdk';
 import { aliasBases, type AliasScope } from './aliases.js';
+import { resolveWorkspace, type WorkspacePackage } from './packages.js';
 import type { FileScan } from './scan.js';
 
 /** Extensions this module claims, in the order a resolver should try them. */
@@ -75,25 +76,37 @@ export interface ResolvedImports {
 }
 
 /**
- * Resolve everything one file imports. Specifiers that point outside the run —
- * packages, assets, files the ignore rules dropped — simply fall away; they are
- * not edges, and the dependency pass reads the raw specifiers anyway.
+ * Resolve everything one file imports.
+ *
+ * A specifier that names a file in the run is an edge. So is one that names a
+ * package *this repository publishes* — resolved through the workspace
+ * manifests, because `packages/core` says `@strata/sdk` rather than
+ * `../sdk/src`, and without that every package in a monorepo looks like an
+ * island. Everything else points outside the run — a third-party package, an
+ * asset, a file the ignore rules dropped — and simply falls away; it is not an
+ * edge, and the dependency pass reads the raw specifiers anyway.
  */
 export function resolveImports(
   file: RepoFile,
   scan: FileScan,
   byPath: Map<string, RepoFile>,
   scopes: readonly AliasScope[] = [],
+  packages: readonly WorkspacePackage[] = [],
 ): ResolvedImports {
   const uses: ResolvedUse[] = [];
+
+  const resolve = (spec: string): string | undefined =>
+    resolveLocal(file, spec, byPath, scopes) ??
+    resolveWorkspace(spec, packages, byPath);
+
   for (const site of scan.imports) {
-    const to = resolveLocal(file, site.spec, byPath, scopes);
+    const to = resolve(site.spec);
     if (to) uses.push({ to, names: site.names, namespace: site.namespace });
   }
 
   const stars: string[] = [];
   for (const spec of scan.stars) {
-    const to = resolveLocal(file, spec, byPath, scopes);
+    const to = resolve(spec);
     if (to) stars.push(to);
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { squarify, type TreemapTile } from './layout';
+import { squarify, type TreemapTile } from './squarify';
 
 interface Item {
   id: string;
@@ -93,5 +93,22 @@ describe('squarify', () => {
   it('has nothing to lay out in an empty or collapsed box', () => {
     expect(squarify([], weightOf, 4, 4)).toEqual([]);
     expect(squarify(items, weightOf, 0, 4)).toEqual([]);
+  });
+
+  it('lays nothing out in a box that is not a size', () => {
+    // `NaN <= 0` is false, so an unguarded box would pass a positive test and
+    // place every tile at `NaN`.
+    expect(squarify(items, weightOf, Number.NaN, 4)).toEqual([]);
+    expect(squarify(items, weightOf, 6, Number.NaN)).toEqual([]);
+    expect(squarify(items, weightOf, Infinity, 4)).toEqual([]);
+  });
+
+  it('lays nothing out when the weights overflow their sum', () => {
+    const huge = [
+      { id: 'a', weight: Number.MAX_VALUE },
+      { id: 'b', weight: Number.MAX_VALUE },
+    ];
+
+    expect(squarify(huge, weightOf, 6, 4)).toEqual([]);
   });
 });

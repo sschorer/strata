@@ -10,6 +10,7 @@ import { findCycles } from './cycles.js';
 import { findDeadCode, type AnalysedFile } from './deadcode.js';
 import { duplicationByPath } from './duplication.js';
 import { importEdges } from './graph.js';
+import { workspacePackages } from './packages.js';
 import { resolveImports } from './resolve.js';
 import { scan, type FileScan } from './scan.js';
 import { trackedPaths } from './tracked.js';
@@ -43,6 +44,9 @@ export default defineLanguagePlugin({
     const tracked = await trackedPaths(ctx);
     const manifests = await readManifests(ctx, tracked);
     const scopes = aliasScopes(await readTsconfigs(ctx, tracked));
+    // How this repository names its own packages: `@strata/sdk` is an edge
+    // into `packages/sdk`, not a third-party dependency.
+    const packages = workspacePackages(manifests);
 
     for (const file of ctx.files) {
       // Reading and scanning is the expensive half and depends only on the
@@ -58,7 +62,13 @@ export default defineLanguagePlugin({
         meta: { loc: scanned.loc },
       });
 
-      const { uses, stars } = resolveImports(file, scanned, byPath, scopes);
+      const { uses, stars } = resolveImports(
+        file,
+        scanned,
+        byPath,
+        scopes,
+        packages,
+      );
       analysed.push({
         path: file.path,
         exports: scanned.exports,

@@ -11,6 +11,8 @@ export interface DeclaredDependency {
 export interface PackageManifest {
   /** Repo-relative path to the package.json itself. */
   path: string;
+  /** The name it publishes under, when it declares one. */
+  name?: string;
   /** The directory it governs; `''` for one at the repository root. */
   dir: string;
   /** `dependencies` only — see `dependencies.ts` for why dev deps are out. */
@@ -39,8 +41,10 @@ export function parseManifest(
   if (!isRecord(json)) return undefined;
 
   const dir = dirname(path);
+  const name = json['name'];
   return {
     path,
+    ...(typeof name === 'string' && name ? { name } : {}),
     dir: dir === '.' ? '' : dir,
     dependencies: declaredDependencies(json, text),
     entries: [
