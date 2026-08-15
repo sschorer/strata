@@ -46,9 +46,12 @@ src/
     theme/            tokens.css (both palettes) + the appearance controller
     api/              one module per endpoint over a shared request helper
     analysis/         the last report, held app-wide, + the form that runs one
-    hotspots/         the hotspot feature: report → rows, heat, layout, views
+    format/           compact numbers and repo paths, shared by every screen
+    geometry/         squarify — the treemap layout
+    hotspots/         the hotspot feature: report → rows, heat, views
+    graph/            the dependency feature: folder tree, collapse, rank, layered, views
     components/       reusable UI pieces
-    test/             test helpers (component mounting)
+    test/             test helpers (component mounting, graph fixtures)
   routes/             SvelteKit routes (SPA: `ssr = false`)
 static/               favicon and anything else served verbatim
 ```
@@ -73,11 +76,22 @@ storage key on purpose, so keep the two in step.
 
 ## Status
 
-The theme layer, the typed API client and the first analysis screen —
-**Hotspots** (`/hotspots`): a squarified treemap sized by score and coloured by
-complexity, its heat legend, and the ranked table. Until the project switcher
-lands, the repo to analyse is typed into the form on that page and remembered
-in `localStorage`.
+The theme layer, the typed API client and the first two analysis screens:
+
+- **Hotspots** (`/hotspots`) — a squarified treemap sized by score and coloured
+  by complexity, its heat legend, and the ranked table.
+- **Dependencies** (`/graph`) — the import graph as uniform cards in ranks, in
+  the shape of Nx's project graph: what a card imports sits below it, so every
+  arrow points one way. It opens as one card per top-level folder — the
+  architecture — and opening a folder lays its contents out inside a dashed
+  container. Folders open and close from the canvas or the side panel; a closed
+  one carries the imports behind it, counted. Drag to pan, scroll to zoom. The
+  side panel carries the graph summary (nodes, edges, cycles, max fan-in) and
+  every cycle as a path, `a.ts → b.ts → a.ts`. Selecting a card lights up its
+  neighbourhood; selecting a cycle lights up the knot.
+
+Until the project switcher lands, the repo to analyse is typed into the form on
+those pages and remembered in `localStorage`.
 
 The app shell (left rail, header, project switcher) and the remaining analysis
 screens are next — see [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
@@ -88,7 +102,7 @@ Where each screen's data comes from:
 |------|----------------------|
 | Hotspot treemap | `metrics.find((m) => m.id === 'hotspots')` |
 | Change coupling | `metrics.find((m) => m.id === 'change-coupling')` |
-| Dependency graph | `languages[*].graph` (Cytoscape/d3) |
+| Dependency graph | `languages[*].graph` |
 | Dead code | `languages[*].deadCode` |
 | Commit analytics | `commits[]` (type / scope / breaking) |
 | Plugins settings | `GET /plugins` |

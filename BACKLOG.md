@@ -81,6 +81,9 @@ here exists yet.
       (WASM grammars, no native build), so imports, exports, dynamic `import()`
       and `require()` are read from the tree, and specifiers resolve through the
       project's own `tsconfig.json` `paths`/`baseUrl` aliases.
+- [x] Workspace package resolution — `@strata/sdk` resolves to `packages/sdk`'s
+      source, so a monorepo's cross-package imports are edges instead of every
+      package looking like an island.
 - [x] Real dead code — unreferenced exports, unreachable files, unused deps,
       in the mockup's shape (path, symbol, reason, line). Entry points are
       inferred (published `package.json` fields, npm scripts, tests, tool
@@ -89,8 +92,11 @@ here exists yet.
       duplication per file, counted over the syntax tree rather than raw text.
 - [ ] **P0** Graph summary in the language result — node/edge counts, cycle count,
       and fan-in/fan-out ranking (the mockup's *Max fan-in · sdk · 7* panel).
+      The graph view computes this in the browser meanwhile
+      (`apps/web/src/lib/graph/summary.ts`), which is what it stops doing.
 - [ ] **P1** Emit each SCC as an ordered path so the UI can print the cycle as
-      `a → b → a` instead of an unordered node set.
+      `a → b → a` instead of an unordered node set. Ordered in the browser for
+      now (`apps/web/src/lib/graph/cycles.ts`).
 - [ ] **P1** **Angular** module — component/module/service graph, DI graph, standalone vs NgModule, lazy boundaries, unused components
 - [ ] **P1** **PHP** module — dependency graph + dead code
 - [ ] **P2** Cross-language project graph (e.g. TS frontend ↔ PHP backend boundaries)
@@ -160,9 +166,14 @@ Sans/Mono.
       score and coloured by complexity, the ranked table (churn / complexity /
       LOC / score), and a shared selection between the two. Runs the analysis
       from a repo-path form until the project switcher replaces it.
-- [ ] **P0** Dependency graph view (Cytoscape/d3) — local vs. package vs. cycle edge
-      styles, cycle nodes highlighted, side panel with the SCC path and graph
-      summary (nodes, edges, cycles, max fan-in)
+- [x] Dependency graph view (`/graph`) — an in-repo SVG layout, no Cytoscape/d3
+      (`apps/web` decision 10), in the shape of **Nx's project graph**: uniform
+      cards in ranks running down, what a card imports below it, folders as
+      dashed containers laid out as units. Opens as one card per top-level folder and folders open and
+      close from the canvas or the side panel — a closed one carries the imports
+      behind it, counted. Pan and zoom. Cycle cards and edges highlighted; side
+      panel with the SCC path and the graph summary (nodes, edges, cycles,
+      max fan-in).
 - [ ] **P1** Commit analytics view — by-type bars, breaking + validity stat cards,
       8-week activity chart, recent-commits table with `BREAKING` markers
 - [ ] **P1** Dead code view — three summary cards and the findings table, now

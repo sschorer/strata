@@ -18,12 +18,15 @@
         Frontend scaffold — theme layer, API client and the first analysis
         screen in place. The workbench shell comes next.
       </p>
-      <p class="mt-3 text-sm">
+      <p class="mt-3 flex flex-wrap gap-4 text-sm">
         <a
           class="text-accent underline-offset-4 hover:underline"
           href="/hotspots"
         >
           Hotspots →
+        </a>
+        <a class="text-accent underline-offset-4 hover:underline" href="/graph">
+          Dependencies →
         </a>
       </p>
     </div>
