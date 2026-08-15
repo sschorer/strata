@@ -148,7 +148,12 @@
   /** The room the page gives the canvas; the window takes its shape from it. */
   let boxWidth = $state(1000);
   let boxHeight = $state(640);
-  let aspect = $derived(boxWidth / Math.max(boxHeight, 1));
+  // Before the first measurement the element reports nothing; a zero there
+  // would divide the whole viewport into infinities, so fall back to the shape
+  // the canvas is styled to have.
+  let aspect = $derived(
+    boxWidth > 0 && boxHeight > 0 ? boxWidth / boxHeight : 1000 / 640,
+  );
   let view = $state<Viewport>(viewportOf(1000, 640));
   let grabbing = $state(false);
   /** A drag that moved is a pan, not a click on whatever it started over. */
@@ -159,9 +164,16 @@
 
   // A new analysis is a new picture: start from the whole of it. Opening a
   // folder is not — it is the reader looking closer at the one they have.
+  //
+  // Everything but `revision` is read untracked on purpose. Reading `world`
+  // here would make this effect run whenever the drawing changes, which is
+  // exactly what opening a folder does — and the reader would be thrown back
+  // out to the whole graph every time.
   $effect(() => {
     void revision;
-    view = viewportOf(world.width, world.height, untrack(() => aspect));
+    untrack(() => {
+      view = viewportOf(world.width, world.height, aspect);
+    });
   });
 
   // Opening a folder changes the drawing, and resizing the page changes the

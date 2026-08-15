@@ -1,6 +1,8 @@
 import type { GraphNode } from '@strata/sdk';
+import { tick } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { graphOf } from '$lib/test/graph';
+import { reactiveProps } from '$lib/test/props.svelte';
 import { render } from '$lib/test/render';
 import { cycleMembership, cycleViews } from './cycles';
 import GraphCanvas from './GraphCanvas.svelte';
@@ -170,5 +172,61 @@ describe('GraphCanvas', () => {
   it('says so when no language claimed a file', () => {
     ui = render(GraphCanvas, { nodes: [], edges: [], cycleOf: new Map() });
     expect(ui.container.textContent).toContain('No dependency graph');
+  });
+
+  /** The zoom control doubles as a readout of how far in the reader is. */
+  const zoomOf = (container: HTMLElement) =>
+    container.querySelector('button[aria-label="Fit the whole graph"]')!
+      .textContent!.trim();
+
+  it('holds the reader’s zoom when opening a folder changes the drawing', async () => {
+    const props = reactiveProps({
+      nodes: graph.nodes,
+      edges: graph.edges,
+      cycleOf,
+      revision: 'abc',
+    });
+    ui = render(GraphCanvas, props);
+    // The view fits itself to the drawing on mount; zoom from there.
+    await tick();
+
+    ui.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Zoom in"]')!
+      .click();
+    await tick();
+    const zoomed = zoomOf(ui.container);
+    expect(zoomed).not.toBe('1.0×');
+
+    // Opening a folder changes the nodes, and so the size of the drawing.
+    props.nodes = [
+      ...graph.nodes,
+      { id: 'd', label: 'd', kind: 'file' as const },
+      { id: 'e', label: 'e', kind: 'file' as const },
+    ];
+    await tick();
+
+    expect(zoomOf(ui.container)).toBe(zoomed);
+  });
+
+  it('starts from the whole graph when a new analysis arrives', async () => {
+    const props = reactiveProps({
+      nodes: graph.nodes,
+      edges: graph.edges,
+      cycleOf,
+      revision: 'abc',
+    });
+    ui = render(GraphCanvas, props);
+    await tick();
+
+    ui.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Zoom in"]')!
+      .click();
+    await tick();
+    expect(zoomOf(ui.container)).not.toBe('1.0×');
+
+    props.revision = 'def';
+    await tick();
+
+    expect(zoomOf(ui.container)).toBe('1.0×');
   });
 });
