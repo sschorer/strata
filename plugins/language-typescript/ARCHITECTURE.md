@@ -29,7 +29,7 @@ exports, unreachable files, unused dependencies). The reference language plugin
 
 | File | Responsibility |
 |------|----------------|
-| `index.ts` | The plugin: assemble nodes/edges/metrics, return `LanguageAnalysis`. |
+| `index.ts` | The plugin: assemble nodes/edges/metrics, summarise the graph, return `LanguageAnalysis`. |
 | `parser.ts` | Load the grammars once; parse one file and lend out its syntax tree. |
 | `scan.ts` | Everything derivable from one file → `{ loc, imports, exports, stars, complexity, nesting, fingerprint }`, cached per blob via `ctx.cache`. |
 | `imports.ts` | Read `import` / `require` / `import()` off the tree → specifier + the names taken. |
@@ -65,7 +65,13 @@ before the first specifier is resolved. It then iterates the matched files,
 collects each file's scan (one parse per file) and resolves its specifiers into
 nodes/edges. Finally it runs the cross-file passes — duplication, and the three
 dead-code passes over the resolved graph plus the workspace manifests — and
-returns `{ graph, deadCode, metrics }`.
+returns `{ graph, summary, deadCode, metrics }`.
+
+The summary is the graph's headline numbers — nodes, edges, cycles, the files
+those cycles hold, and the busiest node in each direction. `summariseGraph` from
+the SDK counts them, here, once: the graph is repository-sized, the numbers
+never change after the run, and a reader that recounts them is a second
+definition of the same thing waiting to disagree.
 
 Dead code is three questions against one graph:
 

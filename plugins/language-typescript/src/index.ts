@@ -1,5 +1,6 @@
 import {
   defineLanguagePlugin,
+  summariseGraph,
   type CodeMetric,
   type GraphNode,
   type LanguageAnalysis,
@@ -90,10 +91,14 @@ export default defineLanguagePlugin({
     }));
 
     const edges = importEdges(analysed);
+    const graph = { nodes, edges, cycles: findCycles(nodes, edges) };
     return {
-      graph: { nodes, edges, cycles: findCycles(nodes, edges) },
+      graph,
       deadCode: findDeadCode(analysed, manifests),
       metrics,
+      // Counted here, once, rather than by every reader of the result: the
+      // graph is repository-sized and the numbers never change after this.
+      summary: summariseGraph(graph),
     };
   },
 });

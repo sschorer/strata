@@ -31,6 +31,15 @@ function reportWith(rev: string) {
         },
         deadCode: [],
         metrics: [],
+        // As the language module counts it — the screen only prints it.
+        summary: {
+          nodes: 3,
+          edges: 3,
+          cycles: 1,
+          cycleNodes: 2,
+          maxFanIn: { id: 'src/a.ts', count: 2 },
+          maxFanOut: { id: 'src/a.ts', count: 1 },
+        },
       },
     },
     metrics: [],

@@ -40,7 +40,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/format/*` | `number` (compact counts) and `path` (repo path → dir + name), used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
-| `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `summary`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
+| `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `summary` (report → the panel's numbers), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
 | `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph from an edge list |
@@ -95,10 +95,9 @@ what more than one screen uses moves up into `lib/components/`.
   in `localStorage`. That is the project switcher's job — this goes away with it.
 - **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
   in the table. A zoom or a directory roll-up is the fix if it starts to bite.
-- **Debt:** the graph summary (nodes, edges, cycles, fan-in) is computed in the
-  browser from `languages[*].graph`. The backlog puts it in the language result;
-  when it lands, `summary.ts` fills its shape from the report and the view does
-  not change.
+- **Decision:** the graph summary (nodes, edges, cycles, fan-in) is read, not
+  computed: every language result carries its own, counted by the plugin, and
+  `summary.ts` only adds them up across languages.
 - **Debt:** package edges are styled but never drawn — by choice, the
   TypeScript module reports only imports that land in the repository. The
   legend shows a style only when the drawing contains it, and `merge.ts`
@@ -114,8 +113,9 @@ what more than one screen uses moves up into `lib/components/`.
   the graph pure layer (merge and package synthesis, the folder tree and its
   compression, collapsing and its edge merging, the ranking's direction and its
   cycle-breaking, the layered layout's uniform cards, non-overlap of cards *and*
-  containers, growth and purity, the panel rows, degrees and ranking, the
-  summary, cycle paths over real edges, the focus ranking, edge classification,
+  containers, growth and purity, the panel rows, degrees, the
+  summary fold across languages, cycle paths over real edges, the focus
+  ranking, edge classification,
   and the viewport's zoom, clamping, letterboxing and carrying across a resize) with its canvas, folder tree and
   cycle list, the analysis store (including a superseded run), plus the
   `/hotspots` and `/graph` routes end to end. Components mount through

@@ -127,7 +127,7 @@ Quality/Risks). Start here:
 
 | Kind | Contract (in `@strata/sdk`) | Produces |
 |------|------------------------------|----------|
-| `language` | `LanguagePlugin.analyze(ctx)` | `LanguageAnalysis` (graph, dead code, metrics) |
+| `language` | `LanguagePlugin.analyze(ctx)` | `LanguageAnalysis` (graph, graph summary, dead code, metrics) |
 | `commit-convention` | `CommitConventionPlugin.parse(commit)` | `ParsedCommit` |
 | `git-metric` | `GitMetricPlugin.compute(ctx, history)` | `MetricSeries` |
 | `ai-provider` | `AIProvider.chat()/embed()` | text / vectors |

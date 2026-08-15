@@ -41,6 +41,7 @@ itself behaves.
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
+| `summarise.ts` | `summarised()` — fill in a language result's graph summary when the plugin (or its cached run) predates the field. |
 | `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
 | `plugins-dir.ts` | `userPluginsDir()` — where drop-in plugins live (`STRATA_PLUGINS_DIR`). |
 | `git/exec.ts` | Run a read-only git command. |

@@ -1,5 +1,6 @@
 import type { DependencyGraph } from './graph.js';
 import type { RepoContext } from './repo.js';
+import type { GraphSummary } from './summary.js';
 
 export interface DeadCodeFinding {
   path: string;
@@ -23,6 +24,11 @@ export interface LanguageAnalysis {
   graph: DependencyGraph;
   deadCode: DeadCodeFinding[];
   metrics: CodeMetric[];
+  /**
+   * The graph's headline numbers. `summariseGraph(graph)` computes it; a plugin
+   * that keeps richer knowledge of its own graph may fill it in itself.
+   */
+  summary: GraphSummary;
 }
 
 export interface LanguagePlugin {

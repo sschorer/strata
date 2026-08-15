@@ -29,13 +29,14 @@ this repo — see [Installing a plugin](#installing-a-plugin).
 ### Language plugin
 
 ```ts
-import { defineLanguagePlugin } from '@strata/sdk';
+import { defineLanguagePlugin, summariseGraph } from '@strata/sdk';
 
 export default defineLanguagePlugin({
   extensions: ['py'],
   async analyze(ctx) {
     // ctx.files is already filtered to your extensions
-    return { graph: { nodes: [], edges: [], cycles: [] }, deadCode: [], metrics: [] };
+    const graph = { nodes: [], edges: [], cycles: [] };
+    return { graph, deadCode: [], metrics: [], summary: summariseGraph(graph) };
   },
 });
 ```
@@ -44,6 +45,13 @@ Route real parsing through **tree-sitter** for accuracy — the TypeScript plugi
 loads `web-tree-sitter` with a pre-built WASM grammar, which keeps installation
 free of a native build step and is the pattern to copy. Return the standard
 `LanguageAnalysis` shape and the UI renders it for free.
+
+`summary` is the graph's headline numbers — node and edge counts, how many
+cycles and how many files they hold, and the busiest node in each direction.
+`summariseGraph` counts them for you, so every language module reports them the
+same way; fill the shape yourself only if your analyzer already knows better.
+A result that arrives without one is summarised by the core, so a plugin built
+against an older SDK keeps working.
 
 ### Commit-convention plugin
 
