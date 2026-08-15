@@ -62,7 +62,7 @@ the analysed repo.
 |---------|-----------|----------|---------|
 | git CLI | out | process exec | history, blobs, file lists |
 | AI provider | out | HTTPS (OpenAI-compatible or native) | explanations, embeddings |
-| Web UI | in | REST/JSON | trigger analysis, render results |
+| Web UI | in | REST/JSON | register projects, trigger analysis, render results |
 | CI | in | CLI / container | headless analysis, gating |
 
 ## 4. Solution Strategy
@@ -88,8 +88,9 @@ strata/
 │   ├── core/     @strata/core    Orchestrator: git ingest, registry, pipeline
 │   │              strata.ts · types.ts · logger.ts · registry.ts ·
 │   │              manifest.ts · discover.ts · plugins-dir.ts ·
-│   │              git/ (exec, rev, files, history, churn) ·
-│   │              cache/ (types, schema, sqlite, null, open, keys, digest, …)
+│   │              git/ (exec, rev, branch, repo, files, history, churn) ·
+│   │              cache/ (types, schema, sqlite, null, open, keys, digest, …) ·
+│   │              projects/ (types, schema, sqlite, memory, open, id, …)
 │   └── server/   @strata/server  Fastify HTTP API over the core
 │                  app.ts · main.ts (entry) · registry.ts · routes/*
 ├── plugins/
@@ -191,6 +192,15 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   inside it. `STRATA_CACHE=0`, `analyze({cache: false})` or `DELETE /cache` turn
   it off or empty it. A cache that cannot be opened, read or written degrades to
   a pass-through with one warning — it never fails an analysis.
+- **Project registry** — the repositories this workbench knows about (id,
+  display name, root, last-analysis summary), behind `/projects`. A second
+  SQLite file (`$STRATA_DATA_DIR`, else `<cwd>/.strata/projects.db`), separate
+  from the cache on purpose: everything in the cache is derived and gets pruned,
+  cleared and wiped, and none of that may cost someone their list of projects.
+  Roots are stored as the git working-tree root they resolve to, so one
+  repository is one entry; every `/analyze` over a registered root refreshes
+  that entry's summary. Removing a project drops the row and nothing else — the
+  repository on disk is never touched.
 - **One responsibility per file** — implementation, types, helpers and
   alternate implementations live in separate modules; every `index.ts` is a
   barrel that only re-exports. Public import paths (`@strata/core`,
@@ -246,4 +256,5 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | **Change coupling** | Files that tend to change in the same commits. |
 | **RepoContext** | The immutable repo view handed to plugins. |
 | **Plugin manifest** | `strata.plugin.json` describing a plugin to the registry. |
+| **Project** | A repository registered with this workbench: id, display name, root, last-analysis summary. |
 | **Vouch** | Granting a contributor's approval the power to unblock merges. |

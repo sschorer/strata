@@ -34,4 +34,14 @@ export {
   type CacheOptions,
   type CacheStats,
 } from './cache/index.js';
+export {
+  openProjectStore,
+  memoryProjectStore,
+  DuplicateRootError,
+  type Project,
+  type ProjectAnalysis,
+  type ProjectInput,
+  type ProjectStore,
+  type ProjectStoreOptions,
+} from './projects/index.js';
 export * as gitUtil from './git/index.js';

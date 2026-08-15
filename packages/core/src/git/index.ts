@@ -5,6 +5,7 @@
 export * from './exec.js';
 export * from './rev.js';
 export * from './branch.js';
+export * from './repo.js';
 export * from './files.js';
 export * from './history.js';
 export * from './churn.js';

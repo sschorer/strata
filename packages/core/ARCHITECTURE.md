@@ -8,6 +8,10 @@ The **orchestrator**. Ingests a git repository, holds the plugin registry, build
 the immutable `RepoContext`, and drives the analysis pipeline that fans work out
 to plugins. This is the only module that knows about all four plugin kinds.
 
+It also owns what the workbench has to remember between runs: the incremental
+cache, and the **project registry** — which repositories are registered, and
+what the last analysis of each one found.
+
 ## 2. Constraints
 
 - Reads git by shelling out to the `git` binary (must be on PATH).
@@ -21,7 +25,8 @@ to plugins. This is the only module that knows about all four plugin kinds.
 - **Depends on:** `@strata/sdk` (contracts), `git` CLI.
 - **Consumed by:** `@strata/server` (and `scripts/analyze.mjs`).
 - **Public API:** `Strata.analyze(opts) → AnalysisReport`, `PluginRegistry`,
-  `discoverPlugins()` / `userPluginsDir()`, `gitUtil` helpers.
+  `discoverPlugins()` / `userPluginsDir()`, `openProjectStore()`, `gitUtil`
+  helpers.
 
 ## 4. Building Blocks
 
@@ -42,12 +47,19 @@ to plugins. This is the only module that knows about all four plugin kinds.
 | `git/files.ts` | `listFiles` — tracked files with blob shas. |
 | `git/history.ts` | `history` — structured commit records. |
 | `git/churn.ts` | `churn` — per-file change counts. |
+| `git/repo.ts` | `toplevel` — the working-tree root a path belongs to. |
 | `cache/types.ts` | `AnalysisCache`, `CacheOptions`, `CacheStats`. |
 | `cache/open.ts` | `openAnalysisCache()` — resolve location, degrade safely. |
 | `cache/sqlite.ts` | The SQLite implementation. |
 | `cache/null.ts` | The pass-through implementation. |
 | `cache/schema.ts` | Tables, pragmas, schema migration. |
 | `cache/keys.ts`, `cache/digest.ts`, `cache/json.ts`, `cache/stats.ts` | Entry keys, run-key digests, JSON round-trip, counter arithmetic. |
+| `projects/types.ts` | `Project`, `ProjectAnalysis`, `ProjectStore`, options. |
+| `projects/open.ts` | `openProjectStore()` — resolve location, degrade safely. |
+| `projects/sqlite.ts` | The persistent registry (`projects.db`). |
+| `projects/memory.ts` | The process-lifetime registry (fallback, tests). |
+| `projects/schema.ts` | Table, pragmas, schema stamp. |
+| `projects/id.ts`, `projects/input.ts`, `projects/errors.ts` | Slugged ids, normalised input, `DuplicateRootError`. |
 
 ## 5. Runtime
 
@@ -61,6 +73,10 @@ to plugins. This is the only module that knows about all four plugin kinds.
 5. Parse commits with the first `commit-convention` plugin.
 6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`.
+
+`openProjectStore()` is independent of a run: it opens `projects.db` once, and
+the entries it holds are read on request (`list` / `get` / `findByRoot`) and
+written when a project is added, analysed or removed.
 
 ## 6. Decisions
 
@@ -93,6 +109,19 @@ to plugins. This is the only module that knows about all four plugin kinds.
 - **The cache never fails an analysis** — a database that cannot be opened,
   read or written degrades to a pass-through with one warning per run. A failed
   write costs a recomputation on the next run, nothing more.
+- **The registry is its own database** (`projects.db`, beside `cache.db`).
+  Everything in the cache is derived and disposable — it is pruned, cleared by
+  `DELETE /cache`, and wiped outright on a schema bump. None of that may cost
+  someone their list of projects, so the two never share a file, and a registry
+  written by a newer Strata is left alone rather than opened.
+- **The registry does not swallow its failures**, unlike the cache. Opening it
+  does degrade — to an in-memory registry and a warning, so the workbench still
+  runs — but a *write* that fails throws, because an "Add project" that reports
+  success and stores nothing loses something no rerun brings back.
+- **A project is keyed on the repository, not the path someone typed** — the
+  root is resolved to its git working-tree root (`gitUtil.toplevel`) and stored
+  absolute, so a subdirectory, a trailing slash and a symlink are one project
+  and not four. Ids are slugs assigned once, so renaming cannot break a link.
 
 ## 7. Quality & Risks
 
@@ -103,6 +132,11 @@ to plugins. This is the only module that knows about all four plugin kinds.
   SDK docs; `analyze({cache: false})` and `DELETE /cache` recover.
 - **Risk:** the cache file grows without bound. **Mitigation:** entries carry a
   last-used stamp and are pruned after 30 days on open.
+- **Risk:** the registry names a root that has since been moved or deleted.
+  **Mitigation:** the entry is checked when it is added, not forever; an
+  analysis of a vanished root fails at the git call, and the entry can be
+  removed. Re-pointing a project at a new root is the project-settings work on
+  the backlog.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
 - **Risk:** a plugin runs **in-process, with the server's privileges** — the
