@@ -38,15 +38,19 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
 
 ## Configuration & persistence
 
-New area — the mockup's settings screens need somewhere to write to. Nothing
-here exists yet.
+New area — the mockup's settings screens need somewhere to write to.
 
-- [ ] **P0** Project registry — persist the list of registered projects
-      (id, display name, root path, last-analysis summary). Backs the sidebar
-      switcher, *Add project*, and *Danger zone → Remove project* (drops the
-      entry only; never touches the repo on disk).
+- [x] Project registry — `projects.db` (`$STRATA_DATA_DIR`, its own database
+      beside the cache) holds id, display name, root and last-analysis summary
+      per project, behind `GET`/`POST` `/projects` and `GET`/`DELETE`
+      `/projects/:id`. A root is resolved to the repository that owns it, so one
+      repo is one entry; every `/analyze` over a registered root refreshes that
+      entry's summary; removing drops the entry only, never the repo on disk.
+      The sidebar switcher, *Add project* and *Danger zone → Remove project*
+      that render it are UI work, listed below.
 - [ ] **P0** Project-scoped config store + `GET`/`PATCH` endpoints, covering the
-      *Project settings* sections: display name, root, revision (default `HEAD`),
+      *Project settings* sections — including editing the two fields the registry
+      already holds: display name, root, revision (default `HEAD`),
       history limit, ignore globs, analyze paths, enabled language plugins,
       enabled git metrics, commit convention, architecture rules.
 - [ ] **P0** App-scoped config store + endpoints: appearance (theme, density),

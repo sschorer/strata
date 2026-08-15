@@ -1,21 +1,26 @@
 import Fastify, { type FastifyInstance } from 'fastify';
-import { Strata } from '@strata/core';
+import { openProjectStore, Strata } from '@strata/core';
 import { buildRegistry } from './registry.js';
 import { registerRoutes } from './routes/index.js';
 
 /**
  * Build the HTTP app: discover plugins once, hold one `Strata` (so the
- * incremental cache is opened once and closed with the server), register routes.
+ * incremental cache is opened once and closed with the server) and one project
+ * registry, register routes.
  */
 export async function createServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
   const registry = await buildRegistry();
   const strata = new Strata(registry);
+  const projects = openProjectStore();
 
-  registerRoutes(app, { strata, registry });
+  registerRoutes(app, { strata, registry, projects });
 
-  // Flush and close the cache with the server.
-  app.addHook('onClose', async () => strata.close());
+  // Flush and close the cache and the registry with the server.
+  app.addHook('onClose', async () => {
+    strata.close();
+    projects.close();
+  });
 
   return app;
 }

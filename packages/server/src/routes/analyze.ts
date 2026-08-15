@@ -29,6 +29,25 @@ const schema = {
 export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
   app.post<{ Body: AnalyzeBody }>('/analyze', { schema }, async (req) => {
     const { root, rev, historyLimit, cache } = req.body;
-    return ctx.strata.analyze({ root, rev, historyLimit, cache });
+    const report = await ctx.strata.analyze({ root, rev, historyLimit, cache });
+
+    // The switcher shows how long ago each project was analysed, so every run
+    // over a registered root updates it — whoever asked for the run.
+    try {
+      const project = ctx.projects.findByRoot(root);
+      if (project) {
+        ctx.projects.recordAnalysis(project.id, {
+          rev: report.rev,
+          ...report.run,
+        });
+      }
+    } catch (err) {
+      // A registry that cannot be written is worth a line in the log; it is not
+      // worth failing an analysis the caller already paid for.
+      req.log.warn(
+        `could not record the run against the project registry: ${(err as Error).message}`,
+      );
+    }
+    return report;
   });
 }

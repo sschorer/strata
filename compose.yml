@@ -14,9 +14,10 @@ services:
     volumes:
       # Mount a repo you want to analyse (read-only) at /repos.
       - ${STRATA_REPOS_DIR:-./repos}:/repos:ro
-      # Persist the analysis cache across restarts. Third-party plugins are
-      # read from /app/.strata/plugins, so they live in this volume too — or
-      # mount a host directory there instead (see docs/PLUGINS.md).
+      # Persist the analysis cache and the project registry across restarts.
+      # Third-party plugins are read from /app/.strata/plugins, so they live in
+      # this volume too — or mount a host directory there instead (see
+      # docs/PLUGINS.md).
       - strata-data:/app/.strata
     restart: unless-stopped
 

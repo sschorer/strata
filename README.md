@@ -79,6 +79,20 @@ curl -X DELETE localhost:4000/cache
 curl -s localhost:4000/plugins
 ```
 
+Repositories can be registered, so the workbench remembers them (and what the
+last analysis of each one found) instead of being handed a path every time:
+
+```bash
+curl -X POST localhost:4000/projects -H 'content-type: application/json' \
+  -d '{"name":"Strata","root":"/absolute/path/to/a/repo"}'
+curl -s localhost:4000/projects
+# forget a project — the repository on disk is untouched
+curl -X DELETE localhost:4000/projects/strata
+```
+
+The registry lives in `$STRATA_DATA_DIR` (default `<cwd>/.strata/projects.db`),
+its own database beside the cache: `DELETE /cache` never touches it.
+
 Third-party plugins are drop-in: one directory per plugin (with its
 `strata.plugin.json`) under `$STRATA_PLUGINS_DIR`, default
 `<cwd>/.strata/plugins`. Built-ins load first, a plugin that fails to load is

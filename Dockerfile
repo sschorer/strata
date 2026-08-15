@@ -28,11 +28,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 COPY --from=build /out ./
 
-# The incremental cache is written at runtime as `node` — mount a volume here
-# (see compose.yml) to keep it across restarts.
+# The incremental cache and the project registry are written at runtime as
+# `node` — mount a volume here (see compose.yml) to keep them across restarts.
 # Third-party plugins are read from the same volume: drop one directory per
 # plugin into /app/.strata/plugins (see docs/PLUGINS.md).
-ENV STRATA_CACHE_DIR=/app/.strata STRATA_PLUGINS_DIR=/app/.strata/plugins
+ENV STRATA_CACHE_DIR=/app/.strata STRATA_DATA_DIR=/app/.strata \
+    STRATA_PLUGINS_DIR=/app/.strata/plugins
 RUN mkdir -p /app/.strata/plugins && chown -R node:node /app/.strata
 
 EXPOSE 4000

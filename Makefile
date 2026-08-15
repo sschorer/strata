@@ -36,7 +36,10 @@ build: ## Build every package and plugin
 .PHONY: clean
 clean: ## Remove build output and caches
 	$(PNPM) -r exec rm -rf dist .tsbuildinfo || true
-	rm -rf coverage .strata
+	rm -rf coverage
+	# Only the analysis cache: .strata also holds projects.db (the registered
+	# projects) and any third-party plugins, and neither is build output.
+	rm -f .strata/cache.db .strata/cache.db-wal .strata/cache.db-shm
 
 .PHONY: distclean
 distclean: clean ## clean + remove all node_modules
