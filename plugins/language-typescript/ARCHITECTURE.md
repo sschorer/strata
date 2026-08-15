@@ -34,6 +34,7 @@ exports, unreachable files, unused dependencies). The reference language plugin
 | `scan.ts` | Everything derivable from one file → `{ loc, imports, exports, stars, complexity, nesting, fingerprint }`, cached per blob via `ctx.cache`. |
 | `imports.ts` | Read `import` / `require` / `import()` off the tree → specifier + the names taken. |
 | `exports.ts` | Read `export` off the tree → the names offered, their lines, and re-exports. |
+| `packages.ts` | The workspace's own packages: name → directory, and a specifier → its source. |
 | `literal.ts` | The value of a static string node — or nothing, when only the runtime knows it. |
 | `comments.ts` | Blank every comment, keeping the offsets — what duplication compares. |
 | `complexity.ts` | McCabe cyclomatic complexity — 1 + decision-point nodes. |
@@ -93,6 +94,17 @@ Dead code is three questions against one graph:
   package but whatever `compilerOptions.paths` says, resolved with the nearest
   config's rules (`extends` chain included). Without it, every file behind an
   alias reads as unreachable.
+- **A workspace package is an edge, not a dependency** — in a monorepo,
+  `packages/core` imports `@strata/sdk`, which Node resolves through a
+  `node_modules` symlink to build output that is not in the repository. Read
+  literally, every package is an island and the graph shows nothing crossing
+  between them. So the workspace manifests are read for the names the repository
+  publishes (`packages.ts`) and the specifier resolves to that package's source.
+  The built entry is deliberately not followed: an edge into a `dist/` artefact
+  is not one a reader can act on.
+- **Imports that leave the repository are not edges** — a third-party package is
+  a fact about the `package.json`, which the dependency pass already reports;
+  putting `svelte` in the graph adds a node nobody navigates to.
 - **`./x.js` resolves to `x.ts`** — a NodeNext codebase imports the output and
   ships the input. Without that mapping a correctly written ESM + TypeScript
   project resolves to no edges at all, and everything downstream of the graph
