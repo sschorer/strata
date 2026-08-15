@@ -47,8 +47,19 @@ export interface CacheReport {
   writes: number;
 }
 
+/** What one run did — what the header line and the overview stat cards read. */
+export interface RunReport {
+  /** Branch the analysed revision names; null for a detached HEAD, sha or tag. */
+  branch: string | null;
+  files: number;
+  durationMs: number;
+  /** When the run finished, ISO 8601. */
+  finishedAt: string;
+}
+
 export interface AnalysisReport {
   rev: string;
+  run: RunReport;
   languages: Record<string, LanguageAnalysis>;
   metrics: MetricSeries[];
   commits: ParsedCommit[];

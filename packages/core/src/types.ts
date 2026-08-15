@@ -24,8 +24,25 @@ export interface CacheReport extends CacheStats {
   path?: string;
 }
 
+/**
+ * What one run did, rather than what it found — the header line
+ * (`main · @ 4c1249e · analyzed 2 min ago · 1.82s`) and the overview stat cards
+ * read this. The resolved sha is `AnalysisReport.rev`, not repeated here.
+ */
+export interface RunReport {
+  /** Branch the analysed revision names; null for a detached HEAD, sha or tag. */
+  branch: string | null;
+  /** Tracked files at that revision. */
+  files: number;
+  /** Wall-clock time of the whole run, in milliseconds. */
+  durationMs: number;
+  /** When the run finished, ISO 8601. */
+  finishedAt: string;
+}
+
 export interface AnalysisReport {
   rev: string;
+  run: RunReport;
   languages: Record<string, LanguageAnalysis>;
   metrics: MetricSeries[];
   commits: ParsedCommit[];

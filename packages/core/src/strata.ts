@@ -8,7 +8,7 @@ import {
   openAnalysisCache,
   type AnalysisCache,
 } from './cache/index.js';
-import { git, history, listFiles, resolveRev } from './git/index.js';
+import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { consoleLogger } from './logger.js';
 import type { PluginRegistry } from './registry.js';
 import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
@@ -28,11 +28,14 @@ export class Strata {
   ) {}
 
   async analyze(opts: AnalyzeOptions): Promise<AnalysisReport> {
+    // The run clock covers everything the caller waited for, cache open included.
+    const startedAt = performance.now();
     const cache = opts.cache === false ? nullCache() : this.openCache();
     warnIfCacheInsideRepo(cache.path, opts.root);
     // Counters live as long as the cache does; report this run's delta.
     const before = cache.stats();
     const rev = await resolveRev(opts.root, opts.rev);
+    const branch = await branchAt(opts.root, opts.rev);
     const files = await listFiles(opts.root, rev);
     const ctx: Omit<RepoContext, 'cache'> = {
       root: opts.root,
@@ -118,6 +121,12 @@ export class Strata {
     cache.flush();
     return {
       rev,
+      run: {
+        branch,
+        files: files.length,
+        durationMs: Math.round(performance.now() - startedAt),
+        finishedAt: new Date().toISOString(),
+      },
       languages,
       metrics,
       commits,

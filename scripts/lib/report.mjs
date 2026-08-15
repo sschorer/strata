@@ -2,7 +2,12 @@
 
 /** Print the whole report: hotspots, coupling, commits, cache, per-language graphs. */
 export function printReport(report, target) {
-  console.log(`\nStrata — ${target} @ ${report.rev.slice(0, 8)}\n`);
+  const { branch, files, durationMs } = report.run;
+  const at = `${branch ? `${branch} ` : ''}@ ${report.rev.slice(0, 8)}`;
+  console.log(
+    `\nStrata — ${target} — ${at} · ${files} files · ` +
+      `${(durationMs / 1000).toFixed(2)}s\n`,
+  );
   printHotspots(report);
   printCoupling(report);
   printCommits(report);
