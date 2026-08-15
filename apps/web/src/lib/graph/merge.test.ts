@@ -7,6 +7,12 @@ function reportWith(
 ): AnalysisReport {
   return {
     rev: 'abc',
+    run: {
+      branch: 'main',
+      files: 0,
+      durationMs: 1,
+      finishedAt: '2026-01-01T00:00:00.000Z',
+    },
     languages,
     metrics: [],
     commits: [],

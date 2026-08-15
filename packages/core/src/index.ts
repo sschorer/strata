@@ -24,6 +24,7 @@ export type {
   AnalysisReport,
   AnalyzeOptions,
   CacheReport,
+  RunReport,
   StrataOptions,
 } from './types.js';
 export {

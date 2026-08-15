@@ -25,7 +25,7 @@ UI and CI. Keeps transport concerns out of the core.
 |--------|------|---------|
 | GET | `/health` | Liveness. |
 | GET | `/plugins` | What loaded, from where, and what was skipped: `{ directory, plugins, failures }` — each plugin its manifest plus a `source` (`builtin`/`user`). |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. cache stats). |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). |
 | DELETE | `/cache` | Empty the incremental cache. |
 
 ## 4. Building Blocks

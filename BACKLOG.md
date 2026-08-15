@@ -18,9 +18,11 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
 - [x] Orchestrator + git ingest + plugin registry
 - [x] HTTP API (`/health`, `/plugins`, `/analyze`)
 - [x] Incremental cache — SQLite, keyed on `(pluginId, blob)`; skip unchanged files
-- [ ] **P0** Analysis run metadata in the `/analyze` result — branch, resolved rev,
-      file count, duration, finished-at. The mockup header (`main · @ 4c1249e ·
-      analyzed 2 min ago · 1.82s`) and the overview stat cards read this directly.
+- [x] Analysis run metadata in the `/analyze` result — every report carries a
+      `run` block (branch, file count, duration, finished-at) beside the
+      resolved `rev`, which is what the mockup header (`main · @ 4c1249e ·
+      analyzed 2 min ago · 1.82s`) and the overview stat cards read. Rendering
+      that header is UI work, listed below.
 - [x] Third-party plugin discovery (API) — `STRATA_PLUGINS_DIR` is scanned for
       drop-in plugins alongside the built-ins; `/plugins` reports the directory,
       each plugin's source, and anything skipped. The *Settings → Plugins &

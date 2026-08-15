@@ -29,7 +29,7 @@ to plugins. This is the only module that knows about all four plugin kinds.
 |------|----------------|
 | `index.ts` | Barrel — the package's public surface, no logic. |
 | `strata.ts` | The `Strata` orchestrator. |
-| `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `CacheReport`. |
+| `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `RunReport`, `CacheReport`. |
 | `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
@@ -38,6 +38,7 @@ to plugins. This is the only module that knows about all four plugin kinds.
 | `plugins-dir.ts` | `userPluginsDir()` — where drop-in plugins live (`STRATA_PLUGINS_DIR`). |
 | `git/exec.ts` | Run a read-only git command. |
 | `git/rev.ts` | `resolveRev` — revision → sha. |
+| `git/branch.ts` | `branchAt` — the branch a revision names, if any. |
 | `git/files.ts` | `listFiles` — tracked files with blob shas. |
 | `git/history.ts` | `history` — structured commit records. |
 | `git/churn.ts` | `churn` — per-file change counts. |
@@ -51,13 +52,15 @@ to plugins. This is the only module that knows about all four plugin kinds.
 ## 5. Runtime
 
 `analyze()`:
-1. `resolveRev` → sha; `listFiles` → `RepoFile[]` (blob-keyed).
+1. `resolveRev` → sha; `branchAt` → branch (or none); `listFiles` → `RepoFile[]`
+   (blob-keyed).
 2. Build `RepoContext`, one `cache` scope per plugin.
 3. Route files to `language` plugins by extension — skipping any plugin whose
    input digest already has a stored result.
 4. Stream `history`; run `git-metric` plugins (same skip).
 5. Parse commits with the first `commit-convention` plugin.
-6. Merge into `AnalysisReport`.
+6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
+   branch, file count, duration, finished-at) beside the resolved `rev`.
 
 ## 6. Decisions
 
@@ -72,6 +75,11 @@ to plugins. This is the only module that knows about all four plugin kinds.
   `registry.failures()` rather than thrown: a broken third-party plugin must
   cost only itself, not the process.
 - **First-registered commit convention wins** (single active convention).
+- **The run times itself** — duration covers everything the caller waited for,
+  cache open included, and `finishedAt` is stamped where the run ends. A client
+  measuring its own round-trip would be measuring the network too. A revision
+  that names no branch (detached HEAD, sha, tag) reports `null` rather than
+  inventing one.
 - **Blob sha on every file**, so the cache keys on content, not on paths or
   timestamps.
 - **Two cache levels** — a plugin whose entire input digest is unchanged is

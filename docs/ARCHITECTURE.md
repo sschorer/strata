@@ -136,8 +136,8 @@ builds a `RepoContext` and fans work out.
 
 ### Analyse a repository
 
-1. `Strata.analyze({root, rev})` resolves `rev` → sha and lists tracked files
-   (each with its blob sha).
+1. `Strata.analyze({root, rev})` resolves `rev` → sha and branch, and lists
+   tracked files (each with its blob sha).
 2. Files are routed to `language` plugins by extension.
 3. Commit history is streamed; `git-metric` plugins compute their series.
 4. The active `commit-convention` plugin parses each commit.
@@ -147,7 +147,10 @@ Steps 2 and 3 go through the cache. The core skips any plugin whose inputs
 digest to a stored result — that part needs no cooperation. Per-file reuse
 inside a plugin that does run is opt-in: only plugins that route their per-file
 work through `ctx.cache.file()` skip unchanged blobs; one that ignores the
-helper recomputes everything. The report carries the run's cache counters.
+helper recomputes everything. The report carries the run's cache counters, and
+its `run` block carries what the run itself did — branch, file count, duration
+and finished-at, which is what the workbench header and the overview stat cards
+render.
 
 ### Grant merge trust (governance runtime)
 
