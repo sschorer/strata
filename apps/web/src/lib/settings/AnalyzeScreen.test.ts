@@ -9,6 +9,7 @@ import type {
 import { PluginsStore } from '$lib/plugins';
 import { ProjectsStore, SELECTION_STORAGE_KEY } from '$lib/projects';
 import { stubApi } from '$lib/test/api';
+import { noCommits } from '$lib/test/commits';
 import { render } from '$lib/test/render';
 import AnalyzeScreen from './AnalyzeScreen.svelte';
 import { ProjectConfigStore } from './config.svelte';
@@ -71,6 +72,7 @@ const report: AnalysisReport = {
   languages: {},
   metrics: [],
   commits: [],
+  commitAnalytics: noCommits(),
   cache: {
     enabled: true,
     hits: 0,

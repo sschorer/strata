@@ -57,12 +57,47 @@ export interface RunReport {
   finishedAt: string;
 }
 
+/** One `type` or `scope` of the analysed window; `null` where a commit named none. */
+export interface CommitBucket {
+  name: string | null;
+  count: number;
+  /** 0–1 of every parsed commit in the window. */
+  share: number;
+  breaking: number;
+}
+
+/** One week of the activity series, dated by its Monday (UTC), `YYYY-MM-DD`. */
+export interface CommitWeek {
+  week: string;
+  commits: number;
+}
+
+/**
+ * The history window as the core folded it: what the *Commit analytics* screen
+ * prints, counted once on the server so a screen never has to walk the log and
+ * arrive at its own quietly different answer.
+ */
+export interface CommitAnalytics {
+  total: number;
+  valid: number;
+  /** Parsed commits the convention could not make sense of. */
+  invalid: number;
+  /** 0–1 of the judged commits; 0 when nothing judged them. */
+  validRate: number;
+  breaking: number;
+  types: CommitBucket[];
+  scopes: CommitBucket[];
+  /** Contiguous weeks, oldest first — a week with no commits included as 0. */
+  weeks: CommitWeek[];
+}
+
 export interface AnalysisReport {
   rev: string;
   run: RunReport;
   languages: Record<string, LanguageAnalysis>;
   metrics: MetricSeries[];
   commits: ParsedCommit[];
+  commitAnalytics: CommitAnalytics;
   cache: CacheReport;
 }
 

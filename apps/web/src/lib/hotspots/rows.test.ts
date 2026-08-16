@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { noCommits } from '$lib/test/commits';
 import { languageOf } from '$lib/test/graph';
 import { hotspotRows } from './rows';
 
@@ -15,6 +16,7 @@ function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
     languages: {},
     metrics: [],
     commits: [],
+    commitAnalytics: noCommits(),
     cache: {
       enabled: false,
       hits: 0,

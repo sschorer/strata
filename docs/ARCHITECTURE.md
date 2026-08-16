@@ -143,7 +143,9 @@ builds a `RepoContext` and fans work out.
    tracked files (each with its blob sha).
 2. Files are routed to `language` plugins by extension.
 3. Commit history is streamed; `git-metric` plugins compute their series.
-4. The active `commit-convention` plugin parses each commit.
+4. The active `commit-convention` plugin parses each commit, and the core folds
+   the parsed log into `CommitAnalytics` — per type, per scope, how much of the
+   history conforms, breaking changes, weekly activity.
 5. Results merge into an `AnalysisReport`, returned by the API.
 
 Steps 2 and 3 go through the cache. The core skips any plugin whose inputs

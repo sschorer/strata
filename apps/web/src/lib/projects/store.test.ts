@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysis, ROOT_STORAGE_KEY } from '$lib/analysis';
 import type { Project } from '$lib/api';
 import { stubApi } from '$lib/test/api';
+import { noCommits } from '$lib/test/commits';
 import { SELECTION_STORAGE_KEY } from './selection';
 import { ProjectsStore } from './store.svelte';
 
@@ -45,6 +46,7 @@ const report = {
   languages: {},
   metrics: [],
   commits: [],
+  commitAnalytics: noCommits(),
   cache: {
     enabled: false,
     hits: 0,

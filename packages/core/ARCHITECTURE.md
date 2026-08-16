@@ -37,6 +37,10 @@ itself behaves.
 | `index.ts` | Barrel — the package's public surface, no logic. |
 | `strata.ts` | The `Strata` orchestrator. |
 | `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `RunReport`, `CacheReport`. |
+| `commits/analyse.ts` | `analyseCommits()` — the parsed log folded into `CommitAnalytics`. |
+| `commits/buckets.ts` | `bucketBy()` — counts per type / per scope, biggest first. |
+| `commits/weeks.ts` | `weeklyActivity()` — commits per Monday-started week (UTC). |
+| `commits/types.ts` | `CommitAnalytics`, `CommitBucket`, `CommitWeek`. |
 | `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
@@ -91,7 +95,9 @@ itself behaves.
 3. Route files to `language` plugins by extension — skipping any plugin whose
    input digest already has a stored result.
 4. Stream `history`; run `git-metric` plugins (same skip).
-5. Parse commits with the first `commit-convention` plugin.
+5. Parse commits with the first `commit-convention` plugin, then fold the log
+   into `CommitAnalytics` (per type, per scope, conformance, breaking changes,
+   weekly activity).
 6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`.
 
@@ -125,6 +131,14 @@ section keeps its value — because each section is one settings screen.
   `registry.failures()` rather than thrown: a broken third-party plugin must
   cost only itself, not the process.
 - **First-registered commit convention wins** (single active convention).
+- **The aggregates are folded in the core, not by each reader.** A plugin says
+  what one commit means; how many `feat` commits there were is a question every
+  screen, card and gate asks, and three of them counting it three ways is three
+  quietly disagreeing definitions. A window no convention parsed still reports
+  its activity and claims nothing about conformance — "unjudged" is not the
+  same as "non-conforming". Weeks are bucketed Monday-to-Monday in **UTC**: an
+  author's timezone is whatever their laptop said at the time, so anything else
+  would move a commit between columns depending on who ran the analysis.
 - **The run times itself** — duration covers everything the caller waited for,
   cache open included, and `finishedAt` is stamped where the run ends. A client
   measuring its own round-trip would be measuring the network too. A revision
