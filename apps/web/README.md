@@ -52,6 +52,7 @@ src/
     shell/            the workbench frame: rail, sticky header, scrolling pane
     format/           compact numbers, repo paths, durations and ages
     geometry/         squarify — the treemap layout
+    overview/         the overview feature: stat cards, hotspot bars, cycles, plugins, commit types
     hotspots/         the hotspot feature: report → rows, heat, views
     graph/            the dependency feature: folder tree, collapse, rank, layered, views
     components/       reusable UI pieces

@@ -2,8 +2,8 @@
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
 > Status: **in progress** — theme layer, API client, the workbench shell, the
-> project switcher and the hotspot and dependency-graph screens in place; the
-> remaining analysis and settings screens are still to build.
+> project switcher and the overview, hotspot and dependency-graph screens in
+> place; the commit, dead-code and settings screens are still to build.
 
 ## 1. Purpose & Goals
 
@@ -42,6 +42,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `PluginCount`, `Logo` |
 | `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
+| `src/lib/overview/*` | The overview feature end to end: `stats` (report + plugins → the six cards), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
 | `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
 | `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `summary` (report → the panel's numbers), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
 | `src/lib/components/*` | Reusable UI pieces |
@@ -92,6 +93,8 @@ what more than one screen uses moves up into `lib/components/`.
 | 23 | **The registry replaces the repo-path form** | Every screen used to run its own *Repository path* field, which made the typed path and the registered projects two answers to the same question. The path is now typed once, in *Add project*, and the screens read whatever the switcher is on |
 | 24 | **The path is browsed, not only typed** | An absolute server-side path is the one thing a reader of a web UI cannot see, and on a remote or containerised workbench they may never have seen it at all. `FolderPicker` walks `GET /browse` and marks the repositories, so *Add project* is a tree with the answers already highlighted; the field stays beside it, because pasting a path is faster when you know it |
 | 25 | **A first analysis can be started from the switcher** | A project that has just been registered has nothing to show on any screen. *Project settings → Analyze / run* is where that run belongs, and the entry moves there when the screen lands; until then the switcher offers it, because the alternative is an empty workbench with no visible way out |
+| 26 | **The overview folds nothing of its own that another screen already folds** | Its cards read `hotspotRows`, `reportSummary` and `cycleViews` — the same functions the hotspot and dependency screens read. An overview is a second opinion about one run, and a second implementation of "how many cycles" would eventually be a *different* opinion. What is new here is only what no other screen needed: the six cards, the bar shares, the change types and the dead-code count |
+| 27 | **Change types are a bar list, not a coloured strip** | The mockup's commit strip wants six hues; the palette has none to give. `h1…h5` is a *sequential* ramp — validated as a categorical set it fails on adjacent pairs no reader can separate, colour-blind or not — and the status colours are reserved for status. Painting `docs` and `test` from a heat ramp would also say "hotter = worse" about neither. So identity is the label and magnitude is the bar, which is what the two facts are; breaking changes are marked with the danger token *and* the word, as a status should be |
 
 ## 7. Quality & Risks
 
@@ -120,6 +123,15 @@ what more than one screen uses moves up into `lib/components/`.
   synthesises the node the day a plugin does emit one.
 - **Debt:** ESLint skips this app (`apps/web/**` is ignored at the root) —
   `svelte-check` is the only static gate until `eslint-plugin-svelte` is wired in.
+- **Risk:** the overview's dead-code card counts the findings the language
+  modules report, and those are still approximate — entry points and
+  resolution are exact only once tree-sitter lands. The card prints findings
+  *and* the files holding them, so a barrel of unused exports does not read as
+  twenty separate problems; the *preview* framing belongs on the dead-code
+  screen, where the findings themselves are listed.
+- **Debt:** `TokenPalette` and `ServerStatus` are now unmounted: the real
+  overview replaced the workbench's own state, and `/health` has no screen
+  until *App settings*. Both keep their place in `lib/components` for it.
 - **Tests:** `vitest` with the plain Svelte plugin and a `happy-dom`
   environment (`vitest.config.ts`), wired into the root run as a second
   project. Covered: theme resolution, storage, the appearance controller, the
@@ -138,7 +150,13 @@ what more than one screen uses moves up into `lib/components/`.
   the header's breadcrumb and *Re-analyze*, and the frame itself), the project
   registry (its rows, the project label, the store's selection, adoption after
   a reload, add, remove and the fold of a finished run) with the switcher end
-  to end, the plugin store's load-once, plus the `/hotspots` and `/graph`
+  to end, the plugin store's load-once, the overview's pure layer (the six
+  cards' order, values, tones and links, a clean report reading as *none*, bar
+  shares held against the whole ranking, change types grouped and tied by name,
+  and dead code counted per finding *and* per file) with its views — the stat
+  grid through its cards, the hotspot bars, the change types, the cycle alert
+  and the plugin list — plus
+  the `/`, `/hotspots` and `/graph`
   routes end to end, and the folder picker (listing, walking in and back out,
   the path bar, picking a repository or the current folder, the hidden toggle,
   a refusal from the server, and a server that browses nothing) including the
