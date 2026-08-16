@@ -3,9 +3,9 @@
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
 > Status: **in progress** — theme layer, API client, the workbench shell, the
 > project switcher, the overview, hotspot and dependency-graph screens, the
-> settings shell and its *Project settings → General* section in place; the
-> commit and dead-code screens, and the remaining settings sections, are still
-> to build.
+> settings shell and its *Project settings → General* and *Analyze / run*
+> sections in place; the commit and dead-code screens, and the remaining
+> settings sections, are still to build.
 
 ## 1. Purpose & Goals
 
@@ -42,7 +42,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/projects/*` | The project registry end to end: `store.svelte` (the registered projects and which one the workbench is on), `entries` (project → a switcher row), `label` (root → name), `crumbs` (path → the picker's steps), `selection` (the remembered choice), and the views — `ProjectSwitcher`, `ProjectList`, `AddProject`, `FolderPicker` |
 | `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
 | `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `PluginCount`, `Logo` |
-| `src/lib/settings/*` | The settings area's frame: `scope` (path → project or app), `sections` (what each scope holds), `heading` (scope + project → what the area calls itself), `config.svelte` (the open project's config, held for every project section), and the views — `SettingsNav` (the rail in settings mode), `SettingsScreen` and `SectionList` (a scope's landing screen). Then one section: `general` (the *General* form → the two patches a save sends) with `GeneralScreen` |
+| `src/lib/settings/*` | The settings area's frame: `scope` (path → project or app), `sections` (what each scope holds), `heading` (scope + project → what the area calls itself), `config.svelte` (the open project's config, held for every project section), and the views — `SettingsNav` (the rail in settings mode), `SettingsScreen` and `SectionList` (a scope's landing screen). Then the sections: `general` (the *General* form → the two patches a save sends) with `GeneralScreen`, and *Analyze / run* — `run-window` (project + config → what the next run reads), `run-plugins` (the loaded plugins → who takes part, and why the rest stand by), `recents` (the log's rules), `recents-storage` (where it is kept) and `recent-rows` (the log → strings) with `AnalyzeScreen`, `RunPlugins` and `RecentRuns` |
 | `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/overview/*` | The overview feature end to end: `stats` (report + plugins → the six cards), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
@@ -95,7 +95,7 @@ what more than one screen uses moves up into `lib/components/`.
 | 22 | **The switcher points the workbench; the analysis store runs it** | Which project is open is one fact, so one store owns it: `lib/projects` holds the registry and the choice, and hands `lib/analysis` the root. That is also why picking another project drops the report on screen — a report describes the repository that was analysed, and leaving it up would draw one project's graph under another project's name |
 | 23 | **The registry replaces the repo-path form** | Every screen used to run its own *Repository path* field, which made the typed path and the registered projects two answers to the same question. The path is now typed once, in *Add project*, and the screens read whatever the switcher is on |
 | 24 | **The path is browsed, not only typed** | An absolute server-side path is the one thing a reader of a web UI cannot see, and on a remote or containerised workbench they may never have seen it at all. `FolderPicker` walks `GET /browse` and marks the repositories, so *Add project* is a tree with the answers already highlighted; the field stays beside it, because pasting a path is faster when you know it |
-| 25 | **A first analysis can be started from the switcher** | A project that has just been registered has nothing to show on any screen. *Project settings → Analyze / run* is where that run belongs, and the entry moves there when the screen lands; until then the switcher offers it, because the alternative is an empty workbench with no visible way out |
+| 25 | **A first analysis is started where a run is configured** | A project that has just been registered has nothing to show on any screen, so the switcher says so — and links to *Project settings → Analyze / run*, which owns the run. It carried the run itself while that screen did not exist; keeping both would be two doors to one thing, and the one in a dropdown could not show what the run is about to read |
 | 26 | **The overview folds nothing of its own that another screen already folds** | Its cards read `hotspotRows`, `reportSummary` and `cycleViews` — the same functions the hotspot and dependency screens read. An overview is a second opinion about one run, and a second implementation of "how many cycles" would eventually be a *different* opinion. What is new here is only what no other screen needed: the six cards, the bar shares, the change types and the dead-code count |
 | 27 | **Change types are a bar list, not a coloured strip** | The mockup's commit strip wants six hues; the palette has none to give. `h1…h5` is a *sequential* ramp — validated as a categorical set it fails on adjacent pairs no reader can separate, colour-blind or not — and the status colours are reserved for status. Painting `docs` and `test` from a heat ramp would also say "hotter = worse" about neither. So identity is the label and magnitude is the bar, which is what the two facts are; breaking changes are marked with the danger token *and* the word, as a status should be |
 | 28 | **Settings is a place, so the rail swaps rather than grows** | A settings area with seven project sections and five app ones cannot hang off a nav entry, and hanging it under the analysis screens would make the rail a list of everything Strata can do. `settingsScope(pathname)` is the whole mechanism: inside `/settings/*` the rail — and the narrow-screen strip, for the same reason — shows *Back to workbench*, the scope's heading and its sections, and nothing else. The route decides, so a link into a section arrives with the right frame already up |
@@ -104,6 +104,9 @@ what more than one screen uses moves up into `lib/components/`.
 | 31 | **The root is shown, not edited** | `PATCH /projects/:id` can re-point a project, and *General* still prints the root as a read-only mount. A root is what makes a project *that* repository: moving it under the same entry would keep the name, the settings and the last run's summary while every one of them now describes something else. Removing and adding again says that plainly, costs a registry row, and touches nothing on disk. What the field is for is the opposite problem — an absolute server-side path is the one thing a reader of a web UI cannot see (decision 24), so it is worth printing where it can be read and copied |
 | 32 | **One config store behind every project section** | The revision *General* edits is the revision *Analyze / run* shows and the one *Scope & ignore* sits beside; `config.svelte` holds it once, keyed on the project it belongs to, so the sections are screens over one document rather than seven copies drifting apart. Keyed, because the workbench can be pointed at another project while a section is open — a revision read under one project must never be saved under another. It holds what the server answers rather than what was sent, since the server normalises on the way in |
 | 33 | **A section saves the two documents behind it as one screen** | *General* edits the display name, which is the registry entry, and the revision and history limit, which are the project's config — two endpoints, because the root has to stay unique across projects and the config is not the place that can promise that. `general.ts` turns the form into whichever halves changed, so an untouched half is not sent, and identity goes first: a config write that fails then leaves a screen whose own heading is still right |
+| 34 | **The run window is printed where a run is started, edited where it is owned** | *Analyze / run* shows the root, revision and history limit and offers no field for any of them: they are one setting each and *General* is where a setting is set. A second form over the same two values would be a second answer to "what does this project analyse", and the one in front of the button would win by being nearer. What the screen owes the reader is what is about to happen, so it prints the three and links to the screen that changes them |
+| 35 | **The chips say what the orchestrator does, not what the config allows** | `runPlugins` follows the pipeline's own rule — every language module and git metric runs, the first commit-convention plugin parses and the rest stand by, an AI provider takes no part — because a chip in front of *Run analysis* is a promise about the next run. The per-project plugin lists are stored and not yet honoured (`BACKLOG.md` → *Honour the rest of a project's config*), so filtering the chips by them would show a plugin as skipped that in fact runs. A plugin that stands by prints why: "why is my convention plugin doing nothing" is the question this screen exists to answer |
+| 36 | **The recents list is this browser's log, seeded from the registry** | The server records one run per project — the last one — so a list of several has nowhere else to live yet (`BACKLOG.md` → *Run history per project*). `recents-storage` keeps it per project in `localStorage`, and the registry's last run is folded in when the screen opens, so a run from another machine still shows up as the newest entry. `mergeRun` dedupes on the finish timestamp and hands back the **same list** when nothing is new, which is what keeps the effect that records a finished run from watching its own write. The screen also folds that run into the registry itself: the switcher normally does it and is not mounted inside settings |
 
 ## 7. Quality & Risks
 
@@ -115,10 +118,17 @@ what more than one screen uses moves up into `lib/components/`.
 - **Risk:** the palette here is derived from the mockup's description rather
   than exported from it; expect a tuning pass when the screens land. The light
   heat ramp already took one, so a single light ink clears 4.5:1 on every step.
-- **Debt:** *Add project* should land on *Project settings → Analyze / run* for
-  the first analysis; that screen is not built, so the switcher carries the run
-  itself (decision 24) and the entry moves the day the screen exists.
-- **Debt:** every settings section but *Project settings → General* is still
+- **Debt:** *Add project* lands on the new project but not on *Project settings
+  → Analyze / run*; the switcher links there instead (decision 25), so the
+  first analysis costs one click more than it could. Navigating from the
+  switcher would put routing inside a component the frame otherwise keeps clear
+  of it (decision 20), which is not worth that click yet.
+- **Debt:** the recents list is per browser (decision 36), so a workbench used
+  from two machines shows two different lists over the same project — each with
+  the server's last run at the top. A handful of runs kept in the registry is
+  the fix, and is on the backlog.
+- **Debt:** every settings section but *Project settings → General* and
+  *Analyze / run* is still
   listed and inert, so `/settings/app` is a landing screen only. Each section
   is its own issue, and the day one lands it becomes `ready` in `sections.ts`
   and the rail links to it — nothing else in the shell has to change.
@@ -178,7 +188,13 @@ what more than one screen uses moves up into `lib/components/`.
   until an edit, a rename through the registry, the window through the config,
   a bad limit answered without a round-trip, a refusal from the server, discard,
   no project, and a config that could not be read — and its
-  route, the plugin store's load-once, the overview's pure layer (the six
+  route, *Analyze / run*'s pure layer (the window a run reads, who takes part
+  and why the rest stand by, the log's ordering, its cap, its identity-on-
+  duplicate and the shape it is stored in) with its two views and the screen
+  end to end — the window it opens on, the chips, the run it posts and folds
+  into the registry, the log it opens on and remembers, a refused run, no
+  project, and a config that could not be read — and its route,
+  the plugin store's load-once, the overview's pure layer (the six
   cards' order, values, tones and links, a clean report reading as *none*, bar
   shares held against the whole ranking, change types grouped and tied by name,
   and dead code counted per finding *and* per file) with its views — the stat

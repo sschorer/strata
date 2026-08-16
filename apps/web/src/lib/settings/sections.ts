@@ -30,7 +30,7 @@ export const PROJECT_SECTIONS: readonly SettingsSection[] = [
     label: 'Analyze / run',
     description:
       'Start a run over this project, see which plugins will take part, and what the recent runs found.',
-    status: 'planned',
+    status: 'ready',
   },
   {
     href: '/settings/project/scope',

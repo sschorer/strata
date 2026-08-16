@@ -50,7 +50,7 @@ src/
     projects/         the registered projects and the switcher over them
     plugins/          what the workbench loaded, fetched once for the app
     shell/            the workbench frame: rail, sticky header, scrolling pane
-    settings/         the settings frame: the two scopes, their sections, the rail in settings mode
+    settings/         the settings frame: the two scopes, their sections, the rail in settings mode, and the sections built so far
     format/           compact numbers, repo paths, durations and ages
     geometry/         squarify — the treemap layout
     overview/         the overview feature: stat cards, hotspot bars, cycles, plugins, commit types
@@ -120,13 +120,20 @@ analysis screens built so far and the settings shell:
   strip) for that scope's nav: *Back to workbench*, the scope's heading over
   what it applies to — the project and its root, or the workbench — and the
   section list. Each scope's landing screen prints the same sections with a
-  line on what each one holds. The sections themselves are still to build, so
-  they are listed disabled, as the analysis screens on the backlog are.
+  line on what each one holds; sections still to build are listed disabled, as
+  the analysis screens on the backlog are. Two are built:
+  - *General* — the display name (the registry entry) and the revision and
+    history limit every run over this project reads (its config). The root is
+    printed as a read-only mount: moving a project is remove-and-add-again.
+  - *Analyze / run* — what the next run reads, the plugins that will take part
+    (and a line for each loaded plugin that stands by, with why), *Run
+    analysis*, and the recent runs. Strata keeps one run summary per project,
+    so that list is this browser's log seeded with the registry's last run.
 
 A repository is named once, in *Add project*; the screens then read whatever
 run the selected project last had, the header's *Re-analyze* repeats it, and a
-project that has never been analysed is offered its first run in the switcher —
-until *Project settings → Analyze / run* takes that over.
+project that has never been analysed is pointed from the switcher at
+*Project settings → Analyze / run*, which owns the run.
 
 The remaining analysis and settings screens are next — see
 [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.

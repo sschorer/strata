@@ -81,6 +81,11 @@ New area — the mockup's settings screens need somewhere to write to.
       written, so nothing sensitive belongs in it.
 - [ ] **P1** Config precedence + a checked-in `strata.config.*` file so a project's
       scope, rules, and gates travel with the repo and drive headless CI mode.
+- [ ] **P2** Run history per project — the registry keeps the *last* run of each
+      project, so *Analyze / run*'s recents list is the browser's own log
+      seeded with that one summary. A handful of runs kept server-side would
+      make it the same list on every machine, and is what a trend delta between
+      two runs would read.
 - [ ] **P2** Import/export a project config; per-project overrides of app defaults.
 
 ## Git / history intelligence
@@ -192,9 +197,10 @@ Sans/Mono.
       its last run: select, remove (registry only — the repo on disk is
       untouched), *Add project*. Picking a project points the workbench at it
       and drops a report belonging to another one. *Add project* lands on the
-      new project; until *Project settings → Analyze / run* exists, the
-      switcher offers the first analysis itself. It replaces the repo-path form
-      the hotspot and dependency screens used to carry. *Add project* also
+      new project, and a project that has never been analysed is pointed at
+      *Project settings → Analyze / run*, which owns the run. It replaces the
+      repo-path form the hotspot and dependency screens used to carry. *Add
+      project* also
       browses: `GET /browse` walks the server's folders inside
       `STRATA_BROWSE_ROOTS` and marks which are repositories.
 - [ ] **P1** Cycle count badge on the *Dependencies* nav item, driven by the last run
@@ -248,8 +254,15 @@ Sans/Mono.
       mount: re-pointing an entry would keep its name, settings and last run
       while all three now described another repository, so moving a project is
       remove-and-add-again.
-- [ ] **P0** Analyze / run — root, revision, history limit, the plugin chips that
-      will run, *Run analysis* (`POST /analyze`), and a recents list
+- [x] Analyze / run — `/settings/project/analyze`. The root, revision and
+      history limit a run reads, printed rather than edited (*General* owns
+      them, and this is where they are used); the plugins that will take part
+      as chips, with a line for every loaded plugin that stands by and why —
+      the orchestrator's own rule, so the first commit-convention plugin parses
+      and an AI provider never runs; *Run analysis* (`POST /analyze`); and the
+      recent runs. Strata keeps one run summary per project, so the list is
+      this browser's own log seeded with the registry's last one. The switcher
+      no longer carries the first run; it links here.
 - [ ] **P1** Scope & ignore — ignore globs and analyze paths as editable chip lists
 - [ ] **P1** Language plugins — per-project toggles with the extensions each one
       claims; *planned* modules (Angular, PHP) shown disabled
