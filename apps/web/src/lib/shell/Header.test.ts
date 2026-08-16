@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { projects, SELECTION_STORAGE_KEY } from '$lib/projects';
+import { stubApi } from '$lib/test/api';
 import { render } from '$lib/test/render';
 import Header from './Header.svelte';
 
 /**
- * The header reads the app-wide analysis store, which is a single instance and
- * survives between the tests below — so the first test here is the one that
- * runs before any repository has been named.
+ * The header reads the app-wide analysis store and the app-wide registry, both
+ * of which are single instances and survive between the tests below — so the
+ * first test here is the one that runs before any repository has been named,
+ * and the last is the one that registers a project.
  */
 
 const report = {
@@ -29,15 +32,30 @@ const report = {
   },
 };
 
+const strata = {
+  id: 'strata',
+  name: 'Strata workbench',
+  root: '/home/dev/workspace/strata',
+  addedAt: '2026-08-01T09:00:00.000Z',
+  lastAnalysis: null,
+};
+
 const reanalyze = (ui: ReturnType<typeof render>) =>
   [...ui.container.querySelectorAll('button')].find((button) =>
     button.textContent?.includes('Re-analyze'),
   )!;
 
+const crumbs = (ui: ReturnType<typeof render>) =>
+  [...ui.container.querySelectorAll('nav li')].map((li) =>
+    li.textContent?.trim(),
+  );
+
 let ui: ReturnType<typeof render>;
+let fetchMock: ReturnType<typeof stubApi>;
 
 beforeEach(() => {
   localStorage.clear();
+  fetchMock = stubApi({ '/projects': { projects: [] }, '/analyze': report });
 });
 
 afterEach(() => {
@@ -58,15 +76,11 @@ describe('Header', () => {
     localStorage.setItem('strata:root', '/home/dev/workspace/strata');
     ui = render(Header, { pathname: '/graph' });
 
-    const crumbs = [...ui.container.querySelectorAll('nav li')].map((li) =>
-      li.textContent?.trim(),
-    );
-    expect(crumbs).toEqual(['strata', '/', 'Dependencies']);
+    // Nothing registered: the repository's folder is all the name there is.
+    expect(crumbs(ui)).toEqual(['strata', '/', 'Dependencies']);
   });
 
   it('re-runs the analysis of the remembered repository', async () => {
-    const fetchMock = vi.fn(async () => Response.json(report));
-    vi.stubGlobal('fetch', fetchMock);
     localStorage.setItem('strata:root', '/home/dev/workspace/strata');
 
     ui = render(Header, { pathname: '/hotspots' });
@@ -76,12 +90,11 @@ describe('Header', () => {
       expect(ui.container.textContent).toContain('982eb56c');
     });
 
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    expect(url).toContain('/analyze');
-    expect(JSON.parse(String(init.body))).toEqual({
+    const run = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    )!;
+    expect(String(run[0])).toContain('/analyze');
+    expect(JSON.parse(String((run[1] as RequestInit).body))).toEqual({
       root: '/home/dev/workspace/strata',
     });
   });
@@ -95,5 +108,15 @@ describe('Header', () => {
     expect(text).toContain('1.2k files');
     expect(text).toContain('2.4 s');
     expect(text).toContain('just now');
+  });
+
+  it('calls a registered project what the registry calls it', async () => {
+    stubApi({ '/projects': { projects: [strata] }, '/analyze': report });
+    localStorage.setItem(SELECTION_STORAGE_KEY, 'strata');
+    await projects.reload();
+
+    ui = render(Header, { pathname: '/graph' });
+
+    expect(crumbs(ui)).toEqual(['Strata workbench', '/', 'Dependencies']);
   });
 });

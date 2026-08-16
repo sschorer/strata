@@ -33,6 +33,7 @@ UI and CI. Keeps transport concerns out of the core.
 | DELETE | `/projects/:id` | Drop the entry and its config (`{ removed: true }`), or 404. Never touches the repository on disk. |
 | GET | `/projects/:id/config` | That project's settings, filled out with the defaults. |
 | PATCH | `/projects/:id/config` | Body: any of `rev`, `historyLimit`, `ignore`, `paths`, `languages`, `metrics`, `convention`, `rules` → the whole config. Merges by field; an array replaces. 400 on a value that cannot be stored or a plugin id nobody loaded. |
+| GET | `/browse` | `?path=&hidden=` → `{ path, parent, repo, entries, roots }` — the subdirectories of one directory on the server's machine, each marked whether it is a git working tree. The folder picker behind *Add project*. Directory names only, and only inside `$STRATA_BROWSE_ROOTS` (default: the server user's home): 403 outside them, 404 for a path that is not a directory. |
 | GET | `/settings` | The app-wide settings, filled out with the defaults: `{ appearance, engine, gates, ai }`. |
 | PATCH | `/settings` | Body: any of those four sections → all of them. Merges two levels deep (section, then field); an array replaces. 400 on a value that cannot be stored, or on a section named with no field in it. |
 | POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary; the cache default comes from the app settings. |
@@ -50,6 +51,7 @@ UI and CI. Keeps transport concerns out of the core.
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
 | `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
 | `routes/plugin-ids.ts` | `requireKnownPlugins()` — refuse settings naming a plugin nobody loaded. |
+| `routes/browse.ts` | `/browse` — hands `listDirectory()` a path and maps its two refusals onto 403 and 404. The confinement itself is the core's (`browse/roots.ts`). |
 | `routes/index.ts` | `registerRoutes()` + the `RouteContext` they share. |
 
 ## 5. Runtime
@@ -98,6 +100,12 @@ once at startup, as does opening the registry.
   the screens only offer loaded plugins, so an id that is not one is a typo or a
   stale client, and stored silently it would look like a plugin that is switched
   on but never runs.
+- **The folder picker is confined by configuration, not by what the process can
+  read** — `GET /browse` would otherwise be a filesystem enumerator on an
+  unauthenticated API. `$STRATA_BROWSE_ROOTS` (the server user's home by
+  default, `/repos` in the container) says where it may look, paths are
+  resolved through symlinks *before* they are checked, and the answer never
+  contains a file name or any content.
 - **Registering a project resolves the path through git**, so a path that is no
   repository is a 400 at *Add project* rather than a failure at the first
   analysis, and a subdirectory registers the repository that owns it instead of
@@ -113,6 +121,11 @@ once at startup, as does opening the registry.
   a trusted network and deployments mount repos read-only under a fixed prefix;
   path allow-listing and auth are on the backlog. Do not expose the port
   publicly.
+- **Risk:** `GET /browse` discloses directory *names* to anyone who can reach
+  the port. **Mitigation:** it is confined to `$STRATA_BROWSE_ROOTS` — the
+  server user's home by default, the read-only `/repos` mount in the container
+  — never follows a symlink out of them, and lists no files. Narrow it to the
+  directory your repositories live in on a shared host.
 - **Risk:** AI provider `env` values are stored and served in plain text.
   **Mitigation:** secret storage is the next item in that area; until it lands,
   nothing sensitive belongs in provider settings.

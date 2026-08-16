@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { analysis } from '$lib/analysis';
+import { SELECTION_STORAGE_KEY } from '$lib/projects';
+import { stubApi } from '$lib/test/api';
 import { render } from '$lib/test/render';
 import Rail from './Rail.svelte';
 
@@ -13,6 +14,18 @@ const pluginsResponse = {
   failures: [],
 };
 
+const registry = {
+  projects: [
+    {
+      id: 'strata',
+      name: 'Strata',
+      root: '/home/dev/workspace/strata',
+      addedAt: '2026-08-01T09:00:00.000Z',
+      lastAnalysis: null,
+    },
+  ],
+};
+
 const entry = (ui: ReturnType<typeof render>, label: string) =>
   [...ui.container.querySelectorAll('a, span[aria-disabled]')].find(
     (element) => element.textContent?.trim().startsWith(label),
@@ -21,10 +34,11 @@ const entry = (ui: ReturnType<typeof render>, label: string) =>
 let ui: ReturnType<typeof render>;
 
 beforeEach(() => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => Response.json(pluginsResponse)),
-  );
+  // The rail holds the app's switcher and plugin count, both of which load
+  // once for the whole session — so the choice has to be in place before the
+  // first mount in this file.
+  localStorage.setItem(SELECTION_STORAGE_KEY, 'strata');
+  stubApi({ '/plugins': pluginsResponse, '/projects': registry });
 });
 
 afterEach(() => {
@@ -77,11 +91,12 @@ describe('Rail', () => {
     expect(ui.container.textContent).toContain('3');
   });
 
-  it('names the repository the workbench is pointed at', () => {
-    analysis.root = '/home/dev/workspace/strata';
+  it('names the project the workbench is on', async () => {
     ui = render(Rail, { pathname: '/' });
 
-    expect(ui.container.textContent).toContain('strata');
+    await vi.waitFor(() => {
+      expect(ui.container.textContent).toContain('Strata');
+    });
     expect(ui.container.textContent).toContain('/home/dev/workspace/strata');
   });
 });

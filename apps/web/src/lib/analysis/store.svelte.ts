@@ -44,6 +44,26 @@ class AnalysisStore {
     if (!this.#root) this.#root = readStoredRoot() ?? '';
   }
 
+  /**
+   * Point the workbench at another repository — what the project switcher does
+   * when a project is picked, and what it does with an empty root when the
+   * selected project is removed.
+   *
+   * The report goes with it: it describes the repository that was analysed, so
+   * leaving it up would draw one project's graph under another project's name.
+   * A run still in flight over the old root is superseded for the same reason.
+   */
+  select(root: string): void {
+    const trimmed = root.trim();
+    if (trimmed === this.#root) return;
+    this.#run++;
+    this.#root = trimmed;
+    this.#report = null;
+    this.#error = '';
+    this.#status = 'idle';
+    storeRoot(trimmed);
+  }
+
   async run(root = this.#root): Promise<void> {
     const trimmed = root.trim();
     if (!trimmed) {

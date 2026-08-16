@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
+import { analysis } from '$lib/analysis';
 import { render } from '$lib/test/render';
 import Page from './+page.svelte';
 
@@ -6,9 +8,9 @@ import Page from './+page.svelte';
  * The screen end to end: a run against the API, the report folded into tiles
  * and rows, and one selection shared by both panels.
  *
- * The analysis store is the app's single instance, so it survives between the
- * tests below — each run therefore carries its own `rev`, and a test waits for
- * that `rev` on screen before touching anything.
+ * The repository is chosen in the switcher, which the shell holds — so a test
+ * of this screen runs the analysis on the store first and then mounts the page
+ * against the report that run left behind.
  */
 
 function reportWith(rev: string) {
@@ -59,16 +61,13 @@ function reportWith(rev: string) {
   };
 }
 
-/** Run the analysis from the form, as a user would. */
-function submit(container: HTMLElement, root: string): void {
-  const input = container.querySelector<HTMLInputElement>(
-    'input[name="root"]',
-  )!;
-  input.value = root;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  container
-    .querySelector('form')!
-    .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+/** Analyse a repository, as picking a project and running it would. */
+async function run(rev: string): Promise<void> {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json(reportWith(rev))),
+  );
+  await analysis.run('/repo/strata');
 }
 
 const tiles = (container: HTMLElement) =>
@@ -83,23 +82,16 @@ afterEach(() => {
 });
 
 describe('hotspots page', () => {
-  it('asks for a repository before anything has run', () => {
+  it('asks for a project before anything has run', () => {
     ui = render(Page);
-    expect(ui.container.textContent).toContain('Point Strata at a repository');
+    expect(ui.container.textContent).toContain('Pick a project');
   });
 
   it('renders the treemap and the ranked table from one run', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json(reportWith('11111111aaaa'))),
-    );
+    await run('11111111aaaa');
 
     ui = render(Page);
-    submit(ui.container, '/repo/strata');
-
-    await vi.waitFor(() => {
-      expect(ui.container.textContent).toContain('rev 11111111');
-    });
+    await tick();
 
     expect(tiles(ui.container)).toHaveLength(2);
     expect(ui.container.querySelectorAll('tbody tr')).toHaveLength(2);
@@ -109,17 +101,11 @@ describe('hotspots page', () => {
   });
 
   it('shows the details of the tile that was clicked', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json(reportWith('22222222bbbb'))),
-    );
+    await run('22222222bbbb');
 
     ui = render(Page);
-    submit(ui.container, '/repo/strata');
-
-    await vi.waitFor(() => {
-      expect(ui.container.textContent).toContain('rev 22222222');
-    });
+    // The mount's effects run first: a new report clears the selection.
+    await tick();
 
     [...tiles(ui.container)]
       .find((tile) => tile.title.includes('src/mid.ts'))!
@@ -143,12 +129,10 @@ describe('hotspots page', () => {
         Response.json({ message: 'not a repository' }, { status: 400 }),
       ),
     );
+    await analysis.run('/nope');
 
     ui = render(Page);
-    submit(ui.container, '/nope');
 
-    await vi.waitFor(() => {
-      expect(ui.container.textContent).toContain('not a repository');
-    });
+    expect(ui.container.textContent).toContain('not a repository');
   });
 });

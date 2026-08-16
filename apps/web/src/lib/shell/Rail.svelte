@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CurrentProject from './CurrentProject.svelte';
+  import { ProjectSwitcher } from '$lib/projects';
   import Logo from './Logo.svelte';
   import NavList from './NavList.svelte';
   import PluginCount from './PluginCount.svelte';
@@ -25,7 +25,7 @@
   </div>
 
   <div class="px-3 pb-2">
-    <CurrentProject />
+    <ProjectSwitcher />
   </div>
 
   <nav class="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-label="Workbench">

@@ -1,9 +1,9 @@
 # Module: `@strata/web` — Architecture (arc42)
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
-> Status: **in progress** — theme layer, API client, the workbench shell and
-> the hotspot and dependency-graph screens in place; the project switcher and
-> the remaining analysis and settings screens are still to build.
+> Status: **in progress** — theme layer, API client, the workbench shell, the
+> project switcher and the hotspot and dependency-graph screens in place; the
+> remaining analysis and settings screens are still to build.
 
 ## 1. Purpose & Goals
 
@@ -24,7 +24,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 ## 3. Interfaces (Context)
 
 - **Depends on:** the `@strata/server` REST API (`/health`, `/plugins`,
-  `/analyze`, `/cache`).
+  `/analyze`, `/cache`, `/projects`, `/browse`).
 - **Consumed by:** end users (browser / desktop).
 
 ## 4. Building Blocks
@@ -36,16 +36,17 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/theme/tokens.css` | The palette, twice — dark and light, keyed on `data-theme` |
 | `src/lib/theme/*` | `mode` (types + resolution), `storage`, `apply`, `controller.svelte` (state) |
 | `src/lib/api/*` | `base` (origin), `request` (fetch + `ApiError`), one module per endpoint, `types` |
-| `src/lib/analysis/*` | The app-wide last report (`store.svelte`), the remembered repo path, and `RunForm` |
+| `src/lib/analysis/*` | The app-wide last report (`store.svelte`) and the remembered repo path |
+| `src/lib/projects/*` | The project registry end to end: `store.svelte` (the registered projects and which one the workbench is on), `entries` (project → a switcher row), `label` (root → name), `crumbs` (path → the picker's steps), `selection` (the remembered choice), and the views — `ProjectSwitcher`, `ProjectList`, `AddProject`, `FolderPicker` |
 | `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
-| `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `project` (root → name), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `CurrentProject`, `PluginCount`, `Logo` |
+| `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `PluginCount`, `Logo` |
 | `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
 | `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `summary` (report → the panel's numbers), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
-| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph from an edge list |
+| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph from an edge list, `api` stubs `fetch` per endpoint |
 
 A screen is a **feature folder**: its pure functions and the components that
 render them sit together (`lib/hotspots/`), because they change together. Only
@@ -56,8 +57,10 @@ what more than one screen uses moves up into `lib/components/`.
 1. `app.html` reads `strata:theme` from `localStorage` and sets `data-theme`.
 2. The root layout starts the theme controller, which adopts the stored mode
    and tracks `prefers-color-scheme` while the app is open.
-3. A view calls `lib/api`; failures arrive as one `ApiError` shape.
-4. In dev, Vite proxies the API paths to `:4000`; in production the server
+3. The switcher loads the registry and adopts the project the workbench was
+   last on, which points `lib/analysis` at that repository.
+4. A view calls `lib/api`; failures arrive as one `ApiError` shape.
+5. In dev, Vite proxies the API paths to `:4000`; in production the server
    serves this build, so the same relative URLs hold.
 
 ## 6. Decisions
@@ -85,6 +88,10 @@ what more than one screen uses moves up into `lib/components/`.
 | 19 | **The window is the frame: only the main pane scrolls** | The rail and the header hold still and the content column scrolls inside them. That is what lets a treemap or a graph canvas size itself against the room it is given — a page that scrolls as a whole gives a canvas a viewport that moves out from under it — and it keeps the branch, revision and *Re-analyze* reachable from the bottom of a long table |
 | 20 | **The shell takes the route as a prop** | `+layout.svelte` is the only thing that reads `$app/state`; `Shell` and everything under it is handed a `pathname`. The frame then mounts in a test the same way every other component does, without SvelteKit's runtime, and the nav's active-entry rule stays a pure function (`nav.ts`) |
 | 21 | **Screens on the backlog are listed, disabled** | The rail is the map of the workbench. Hiding *Commits*, *Dead code* and the two settings scopes until they exist would make each one appear as a surprise; showing them as `soon` says what Strata is going to be, and an inert entry cannot navigate to a route that is not there |
+| 22 | **The switcher points the workbench; the analysis store runs it** | Which project is open is one fact, so one store owns it: `lib/projects` holds the registry and the choice, and hands `lib/analysis` the root. That is also why picking another project drops the report on screen — a report describes the repository that was analysed, and leaving it up would draw one project's graph under another project's name |
+| 23 | **The registry replaces the repo-path form** | Every screen used to run its own *Repository path* field, which made the typed path and the registered projects two answers to the same question. The path is now typed once, in *Add project*, and the screens read whatever the switcher is on |
+| 24 | **The path is browsed, not only typed** | An absolute server-side path is the one thing a reader of a web UI cannot see, and on a remote or containerised workbench they may never have seen it at all. `FolderPicker` walks `GET /browse` and marks the repositories, so *Add project* is a tree with the answers already highlighted; the field stays beside it, because pasting a path is faster when you know it |
+| 25 | **A first analysis can be started from the switcher** | A project that has just been registered has nothing to show on any screen. *Project settings → Analyze / run* is where that run belongs, and the entry moves there when the screen lands; until then the switcher offers it, because the alternative is an empty workbench with no visible way out |
 
 ## 7. Quality & Risks
 
@@ -96,10 +103,12 @@ what more than one screen uses moves up into `lib/components/`.
 - **Risk:** the palette here is derived from the mockup's description rather
   than exported from it; expect a tuning pass when the screens land. The light
   heat ramp already took one, so a single light ink clears 4.5:1 on every step.
-- **Debt:** the hotspot screen types the repo path into a form and remembers it
-  in `localStorage`, and the rail names *that* path as the current project.
-  That is the project switcher's job — a dropdown over the registered projects,
-  with *Add project* — and `CurrentProject` is the slot it takes over.
+- **Debt:** *Add project* should land on *Project settings → Analyze / run* for
+  the first analysis; that screen is not built, so the switcher carries the run
+  itself (decision 24) and the entry moves the day the screen exists.
+- **Debt:** a project can be registered and removed from the switcher but not
+  renamed or re-pointed — `PATCH /projects/:id` is wired on the server and
+  waits for *Project settings → General*.
 - **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
   in the table. A zoom or a directory roll-up is the fix if it starts to bite.
 - **Decision:** the graph summary (nodes, edges, cycles, fan-in) is read, not
@@ -125,8 +134,14 @@ what more than one screen uses moves up into `lib/components/`.
   ranking, edge classification,
   and the viewport's zoom, clamping, letterboxing and carrying across a resize) with its canvas, folder tree and
   cycle list, the analysis store (including a superseded run), the shell (the
-  nav's active entry and its planned ones, the project label, the run summary's
-  fold, the rail, the header's breadcrumb and *Re-analyze*, and the frame
-  itself), the plugin store's load-once, plus the `/hotspots` and `/graph`
-  routes end to end. Components mount through `lib/test/render`; graphs come
-  from `lib/test/graph`.
+  nav's active entry and its planned ones, the run summary's fold, the rail,
+  the header's breadcrumb and *Re-analyze*, and the frame itself), the project
+  registry (its rows, the project label, the store's selection, adoption after
+  a reload, add, remove and the fold of a finished run) with the switcher end
+  to end, the plugin store's load-once, plus the `/hotspots` and `/graph`
+  routes end to end, and the folder picker (listing, walking in and back out,
+  the path bar, picking a repository or the current folder, the hidden toggle,
+  a refusal from the server, and a server that browses nothing) including the
+  path it hands *Add project*. Components mount through `lib/test/render`;
+  graphs come from `lib/test/graph`; an API of more than one endpoint from
+  `lib/test/api`.

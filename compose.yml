@@ -7,6 +7,10 @@ services:
       - "4000:4000"
     environment:
       PORT: "4000"
+      # What the *Add project* folder picker may browse: the mount below.
+      # Without it the picker would offer the container user's home, which is
+      # empty — and it must never be wider than what is mounted.
+      STRATA_BROWSE_ROOTS: "/repos"
       # AI provider (optional) — see .env.example.
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_API_KEY: ${AI_API_KEY:-}

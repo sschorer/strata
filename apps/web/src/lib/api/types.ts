@@ -66,6 +66,65 @@ export interface AnalysisReport {
   cache: CacheReport;
 }
 
+/** The last run over a registered project, as the registry keeps it. */
+export interface ProjectAnalysis extends RunReport {
+  rev: string;
+}
+
+/** One repository this workbench knows about — a row of the switcher. */
+export interface Project {
+  id: string;
+  name: string;
+  /** Absolute working-tree root, as the server resolved it. */
+  root: string;
+  /** When it was registered, ISO 8601. */
+  addedAt: string;
+  /** Summary of the last analysis of this root; null until one has run. */
+  lastAnalysis: ProjectAnalysis | null;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+}
+
+/**
+ * What *Add project* sends. The root is a path on the server's machine: it
+ * resolves it to the repository containing it, so a subdirectory registers
+ * the repo rather than a second entry for it.
+ */
+export interface AddProjectRequest {
+  name: string;
+  root: string;
+}
+
+export interface RemoveProjectResponse {
+  removed: boolean;
+}
+
+/** One subdirectory, as the folder picker lists it. */
+export interface DirectoryEntry {
+  name: string;
+  /** Absolute path on the server's machine. */
+  path: string;
+  /** Whether it is a git working tree — the folders worth registering. */
+  repo: boolean;
+}
+
+/**
+ * A directory on the machine running the server. Directory names only: the
+ * endpoint never lists files or reads anything, and only reaches inside the
+ * browse roots it reports here.
+ */
+export interface DirectoryListing {
+  path: string;
+  /** One level up, or `null` at a browse root. */
+  parent: string | null;
+  repo: boolean;
+  entries: DirectoryEntry[];
+  /** Everywhere browsing may start; empty when the server browses nothing. */
+  roots: string[];
+}
+
 export interface AnalyzeRequest {
   /** Absolute path of the repo working tree to analyse. */
   root: string;

@@ -8,5 +8,4 @@ export {
   type NavItem,
   type NavStatus,
 } from './nav';
-export { projectLabel } from './project';
 export { runDisplay, type RunDisplay } from './summary';

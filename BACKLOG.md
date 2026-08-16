@@ -187,9 +187,16 @@ Sans/Mono.
       scrolling main pane. Screens still on this list are in the nav, disabled,
       so the map of the workbench is whole; below `md` the rail gives way to a
       nav strip in the header. The project slot is the switcher's, below.
-- [ ] **P0** Project switcher — dropdown listing registered projects with file
-      count and last-analysis age, select / remove / *Add project* (which lands on
-      *Project settings → Analyze / run* for the first analysis)
+- [x] Project switcher — the rail slot (and, below `md`, the header's) is a
+      dropdown over the registered projects, each with the file count and age of
+      its last run: select, remove (registry only — the repo on disk is
+      untouched), *Add project*. Picking a project points the workbench at it
+      and drops a report belonging to another one. *Add project* lands on the
+      new project; until *Project settings → Analyze / run* exists, the
+      switcher offers the first analysis itself. It replaces the repo-path form
+      the hotspot and dependency screens used to carry. *Add project* also
+      browses: `GET /browse` walks the server's folders inside
+      `STRATA_BROWSE_ROOTS` and marks which are repositories.
 - [ ] **P1** Cycle count badge on the *Dependencies* nav item, driven by the last run
 - [ ] **P1** Empty and error states — no projects registered, never analysed,
       analysis failed, plugin threw
@@ -201,8 +208,8 @@ Sans/Mono.
       cycle path, loaded-plugins list, commit-type strip
 - [x] Hotspot treemap (`/hotspots`) — heat legend, squarified tiles sized by
       score and coloured by complexity, the ranked table (churn / complexity /
-      LOC / score), and a shared selection between the two. Runs the analysis
-      from a repo-path form until the project switcher replaces it.
+      LOC / score), and a shared selection between the two. Reads the run the
+      project switcher's project last had.
 - [x] Dependency graph view (`/graph`) — an in-repo SVG layout, no Cytoscape/d3
       (`apps/web` decision 10), in the shape of **Nx's project graph**: uniform
       cards in ranks running down, what a card imports below it, folders as
@@ -233,7 +240,8 @@ Sans/Mono.
       `conventional` / `gitmoji` / `custom` convention selector
 - [ ] **P1** Architecture rules — list and edit `X may not import Y` rules with an
       *enforced* marker
-- [ ] **P1** Danger zone — remove the project from Strata (repo on disk untouched)
+- [ ] **P1** Danger zone — remove the project from Strata (repo on disk
+      untouched); the switcher already does this, so this is the second door to it
 
 ### Application settings
 
