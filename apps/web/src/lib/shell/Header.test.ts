@@ -119,4 +119,23 @@ describe('Header', () => {
 
     expect(crumbs(ui)).toEqual(['Strata workbench', '/', 'Dependencies']);
   });
+
+  it('swaps the narrow-screen strip for the settings sections', () => {
+    ui = render(Header, { pathname: '/settings/project' });
+
+    const text = ui.container.textContent ?? '';
+    expect(text).toContain('Back to workbench');
+    expect(text).toContain('Danger zone');
+    // The strip's own nav and switcher go with the rail's.
+    expect(text).not.toContain('Dead code');
+    expect(
+      ui.container.querySelector('[aria-label="Current project"]'),
+    ).toBeNull();
+  });
+
+  it('breadcrumbs the app settings under the workbench, not the project', () => {
+    ui = render(Header, { pathname: '/settings/app' });
+
+    expect(crumbs(ui)).toEqual(['Strata', '/', 'App settings']);
+  });
 });

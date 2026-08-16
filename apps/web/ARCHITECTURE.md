@@ -2,8 +2,9 @@
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
 > Status: **in progress** — theme layer, API client, the workbench shell, the
-> project switcher and the overview, hotspot and dependency-graph screens in
-> place; the commit, dead-code and settings screens are still to build.
+> project switcher, the overview, hotspot and dependency-graph screens and the
+> settings shell in place; the commit and dead-code screens, and every settings
+> section, are still to build.
 
 ## 1. Purpose & Goals
 
@@ -40,6 +41,7 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/projects/*` | The project registry end to end: `store.svelte` (the registered projects and which one the workbench is on), `entries` (project → a switcher row), `label` (root → name), `crumbs` (path → the picker's steps), `selection` (the remembered choice), and the views — `ProjectSwitcher`, `ProjectList`, `AddProject`, `FolderPicker` |
 | `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
 | `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `PluginCount`, `Logo` |
+| `src/lib/settings/*` | The settings area's frame: `scope` (path → project or app), `sections` (what each scope holds), `heading` (scope + project → what the area calls itself), and the views — `SettingsNav` (the rail in settings mode), `SettingsScreen` and `SectionList` (a scope's landing screen) |
 | `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/overview/*` | The overview feature end to end: `stats` (report + plugins → the six cards), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
@@ -95,6 +97,9 @@ what more than one screen uses moves up into `lib/components/`.
 | 25 | **A first analysis can be started from the switcher** | A project that has just been registered has nothing to show on any screen. *Project settings → Analyze / run* is where that run belongs, and the entry moves there when the screen lands; until then the switcher offers it, because the alternative is an empty workbench with no visible way out |
 | 26 | **The overview folds nothing of its own that another screen already folds** | Its cards read `hotspotRows`, `reportSummary` and `cycleViews` — the same functions the hotspot and dependency screens read. An overview is a second opinion about one run, and a second implementation of "how many cycles" would eventually be a *different* opinion. What is new here is only what no other screen needed: the six cards, the bar shares, the change types and the dead-code count |
 | 27 | **Change types are a bar list, not a coloured strip** | The mockup's commit strip wants six hues; the palette has none to give. `h1…h5` is a *sequential* ramp — validated as a categorical set it fails on adjacent pairs no reader can separate, colour-blind or not — and the status colours are reserved for status. Painting `docs` and `test` from a heat ramp would also say "hotter = worse" about neither. So identity is the label and magnitude is the bar, which is what the two facts are; breaking changes are marked with the danger token *and* the word, as a status should be |
+| 28 | **Settings is a place, so the rail swaps rather than grows** | A settings area with seven project sections and five app ones cannot hang off a nav entry, and hanging it under the analysis screens would make the rail a list of everything Strata can do. `settingsScope(pathname)` is the whole mechanism: inside `/settings/*` the rail — and the narrow-screen strip, for the same reason — shows *Back to workbench*, the scope's heading and its sections, and nothing else. The route decides, so a link into a section arrives with the right frame already up |
+| 29 | **The scoped heading replaces the switcher, it does not sit beside it** | Project settings belong to the project the workbench is on; leaving the switcher up would let a reader change *which* project while looking at its settings, and two ways to say which one is being configured eventually disagree. The heading names the project and prints its root, so the scope is visible without being changeable — and app settings say *This workbench* in the same slot, because that is what they reach |
+| 30 | **Each scope has a landing screen listing its own sections** | The rail lists section names; a name like *Scope & ignore* only means something with a line beside it. The landing screen is that line, and it is also what a scope's route can honestly show while every section is still on the backlog. `SettingsScreen` renders both scopes — the scope is the only thing that differs, and a second copy would be a second answer to "what can be configured here" |
 
 ## 7. Quality & Risks
 
@@ -112,6 +117,11 @@ what more than one screen uses moves up into `lib/components/`.
 - **Debt:** a project can be registered and removed from the switcher but not
   renamed or re-pointed — `PATCH /projects/:id` is wired on the server and
   waits for *Project settings → General*.
+- **Debt:** the settings area is a frame with nothing inside it yet: every
+  section is listed and inert, so `/settings/project` and `/settings/app` are
+  landing screens only. Each section is its own issue, and the day one lands it
+  becomes `ready` in `sections.ts` and the rail links to it — nothing else in
+  the shell has to change.
 - **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
   in the table. A zoom or a directory roll-up is the fix if it starts to bite.
 - **Decision:** the graph summary (nodes, edges, cycles, fan-in) is read, not
@@ -150,7 +160,10 @@ what more than one screen uses moves up into `lib/components/`.
   the header's breadcrumb and *Re-analyze*, and the frame itself), the project
   registry (its rows, the project label, the store's selection, adoption after
   a reload, add, remove and the fold of a finished run) with the switcher end
-  to end, the plugin store's load-once, the overview's pure layer (the six
+  to end, the settings shell (the scope a path is in, each scope's sections and
+  that every one of them stays inside its scope, the scoped heading with and
+  without a project, the rail in settings mode — both orientations — and the
+  two landing routes), the plugin store's load-once, the overview's pure layer (the six
   cards' order, values, tones and links, a clean report reading as *none*, bar
   shares held against the whole ranking, change types grouped and tied by name,
   and dead code counted per finding *and* per file) with its views — the stat

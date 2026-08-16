@@ -2,6 +2,7 @@
   import { analysis } from '$lib/analysis';
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { projectLabel, projects, ProjectSwitcher } from '$lib/projects';
+  import { SettingsNav, settingsScope } from '$lib/settings';
   import NavList from './NavList.svelte';
   import RunSummary from './RunSummary.svelte';
   import { ANALYSIS_NAV, sectionLabel, SETTINGS_NAV } from './nav';
@@ -16,12 +17,16 @@
   // remembered path even on a reload that has not run anything yet.
   analysis.init();
 
+  let scope = $derived(settingsScope(pathname));
   let section = $derived(sectionLabel(pathname));
   // What the switcher calls the project, falling back to the folder's name for
   // a repository that was analysed without being registered.
   let project = $derived(
     projects.current?.name ?? projectLabel(analysis.root),
   );
+  // The app-wide settings are not the project's, so the crumb above them is
+  // the workbench rather than whichever repository happens to be open.
+  let owner = $derived(scope === 'app' ? 'Strata' : project || 'Strata');
   let running = $derived(analysis.status === 'running');
 </script>
 
@@ -35,8 +40,11 @@
   <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
     <nav class="min-w-0 flex-1" aria-label="Breadcrumb">
       <ol class="flex min-w-0 items-center gap-2 text-sm">
-        <li class="text-muted min-w-0 truncate" title={analysis.root}>
-          {project || 'Strata'}
+        <li
+          class="text-muted min-w-0 truncate"
+          title={scope === 'app' ? undefined : analysis.root}
+        >
+          {owner}
         </li>
         <li class="text-subtle" aria-hidden="true">/</li>
         <li class="truncate font-medium" aria-current="page">{section}</li>
@@ -63,16 +71,21 @@
   <!--
     No room for the rail on a narrow screen: the same nav, laid across, and the
     same switcher above it — it is the only way to point the workbench at a
-    project, so it cannot be the one thing the rail takes away with it.
+    project, so it cannot be the one thing the rail takes away with it. Inside
+    settings the strip swaps with the rail, for the same reason the rail does.
   -->
   <div class="border-line space-y-2 border-t px-2 py-2 md:hidden">
-    <ProjectSwitcher />
+    {#if scope}
+      <SettingsNav {scope} {pathname} orientation="row" />
+    {:else}
+      <ProjectSwitcher />
 
-    <NavList
-      items={[...ANALYSIS_NAV, ...SETTINGS_NAV]}
-      {pathname}
-      orientation="row"
-      label="Workbench"
-    />
+      <NavList
+        items={[...ANALYSIS_NAV, ...SETTINGS_NAV]}
+        {pathname}
+        orientation="row"
+        label="Workbench"
+      />
+    {/if}
   </div>
 </header>

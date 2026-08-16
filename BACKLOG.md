@@ -233,8 +233,13 @@ Sans/Mono.
 
 ### Project settings
 
-- [ ] **P0** Settings shell — sidebar swaps to a settings nav with *Back to
-      workbench*, scoped title, and section list
+- [x] Settings shell — `/settings/project` and `/settings/app`. Inside either
+      one the rail (and, below `md`, the header's strip) swaps the switcher and
+      the analysis nav for that scope's nav: *Back to workbench*, the scope's
+      title over what it applies to — the project and its root, or the
+      workbench — and the section list. The landing screen of each scope prints
+      the same sections with a line on what each one holds. Sections still on
+      this list are listed disabled, as the analysis screens are.
 - [ ] **P0** General — display name, root path (read-only mount), revision, history limit
 - [ ] **P0** Analyze / run — root, revision, history limit, the plugin chips that
       will run, *Run analysis* (`POST /analyze`), and a recents list

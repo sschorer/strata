@@ -25,6 +25,10 @@ describe('nav', () => {
     );
   });
 
+  it('opens both settings scopes', () => {
+    expect(SETTINGS_NAV.every((item) => item.status === 'ready')).toBe(true);
+  });
+
   it('finds the entry a path is on', () => {
     expect(activeNav('/hotspots')?.label).toBe('Hotspots');
     expect(activeNav('/hotspots/')?.label).toBe('Hotspots');
@@ -39,6 +43,17 @@ describe('nav', () => {
     expect(activeNav('/settings/project/scope')?.label).toBe(
       'Project settings',
     );
+  });
+
+  it('answers within the list it is given', () => {
+    const sections = [
+      { href: '/settings/app/appearance', label: 'Appearance' },
+      { href: '/settings/app/about', label: 'About' },
+    ].map((item) => ({ ...item, status: 'planned' as const }));
+
+    expect(activeNav('/settings/app/about', sections)?.label).toBe('About');
+    // The scope's own route is not one of its sections.
+    expect(activeNav('/settings/app', sections)).toBeNull();
   });
 
   it('names the section, and falls back on an unknown path', () => {
