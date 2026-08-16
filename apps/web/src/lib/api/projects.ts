@@ -14,7 +14,9 @@ export function fetchProjects(signal?: AbortSignal): Promise<ProjectsResponse> {
 
 /**
  * `POST /projects` — register a repository. Fails with 400 when the path is
- * not inside a git repository and 409 when its root is already registered.
+ * not inside a git repository, 403 when it — or the repository it belongs to —
+ * is outside the roots the server may reach, and 409 when its root is already
+ * registered.
  */
 export function addProject(
   request: AddProjectRequest,
@@ -30,8 +32,9 @@ export function addProject(
 /**
  * `PATCH /projects/:id` — rename a project, or re-point it at another
  * repository. Identity only; what an analysis of it *does* is its config.
- * Fails with 400 on an empty patch or a path outside a repository, 404 for an
- * unknown id and 409 when another project already holds the root.
+ * Fails with 400 on an empty patch or a path outside a repository, 403 for one
+ * outside the roots the server may reach, 404 for an unknown id and 409 when
+ * another project already holds the root.
  */
 export function updateProject(
   id: string,

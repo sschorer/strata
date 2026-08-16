@@ -1,7 +1,11 @@
-import { access, readdir, realpath, stat } from 'node:fs/promises';
+import { access, readdir, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { BrowseDeniedError, NoSuchDirectoryError } from './errors.js';
-import { resolveRoots, withinRoots } from './roots.js';
+import {
+  allowedDirectory,
+  resolveRoots,
+  RootDeniedError,
+  withinRoots,
+} from '../roots/index.js';
 import type { BrowseOptions, DirectoryEntry, DirectoryListing } from './types.js';
 
 /**
@@ -9,7 +13,7 @@ import type { BrowseOptions, DirectoryEntry, DirectoryListing } from './types.js
  * are git working trees, and the way back up.
  *
  * Directory names only — never a file, never any content. What it may reach is
- * `roots.ts`'s decision, and the path is resolved through symlinks *before* it
+ * `roots/`'s decision, and the path is resolved through symlinks *before* it
  * is checked, so a link inside a root cannot step outside one.
  */
 export async function listDirectory(
@@ -23,8 +27,7 @@ export async function listDirectory(
     return { path: '', parent: null, repo: false, entries: [], roots: [] };
   }
 
-  const path = await resolved(requested);
-  if (!withinRoots(path, roots)) throw new BrowseDeniedError(requested);
+  const path = await allowedDirectory(requested, roots);
 
   const parent = dirname(path);
   return {
@@ -36,21 +39,6 @@ export async function listDirectory(
     entries: await children(path, options.hidden ?? false),
     roots,
   };
-}
-
-/** The path as it is on disk. A symlink is followed before anything else. */
-async function resolved(path: string): Promise<string> {
-  let real: string;
-  try {
-    real = await realpath(path);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'EACCES') {
-      throw new BrowseDeniedError(path);
-    }
-    throw new NoSuchDirectoryError(path);
-  }
-  if (!(await stat(real)).isDirectory()) throw new NoSuchDirectoryError(path);
-  return real;
 }
 
 async function children(
@@ -68,7 +56,7 @@ async function children(
       .filter((name) => hidden || !name.startsWith('.'));
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'EACCES' || code === 'EPERM') throw new BrowseDeniedError(path);
+    if (code === 'EACCES' || code === 'EPERM') throw new RootDeniedError(path);
     throw err;
   }
 

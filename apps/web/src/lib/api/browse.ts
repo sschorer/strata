@@ -9,8 +9,8 @@ interface BrowseQuery {
 
 /**
  * `GET /browse` — the subdirectories of one directory on the server's machine,
- * and which of them are repositories. 403 outside the browse roots, 404 for a
- * directory that is not there.
+ * and which of them are repositories. 403 outside the roots the server may
+ * reach, 404 for a directory that is not there.
  */
 export function browseDirectory(
   { path, hidden }: BrowseQuery = {},

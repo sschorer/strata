@@ -101,9 +101,11 @@ analysis screens built so far and the settings shell:
   entry from Strata without touching the repository on disk. Below `md`, where
   there is no rail, the header carries the same switcher.
 
-  What the browser may reach is `STRATA_BROWSE_ROOTS` on the server (the server
-  user's home by default, `/repos` in the container); it lists directory names
-  only.
+  What the browser may reach is `STRATA_ROOTS` on the server (the server user's
+  home by default, `/repos` in the container); it lists directory names only,
+  and the same allow-list decides what may be registered or analysed — a path
+  typed by hand is confined exactly like one that was clicked, so a root
+  outside it comes back as a 403 the picker shows.
 - **Hotspots** (`/hotspots`) — a squarified treemap sized by score and coloured
   by complexity, its heat legend, and the ranked table.
 - **Dependencies** (`/graph`) — the import graph as uniform cards in ranks, in

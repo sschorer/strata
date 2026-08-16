@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { DuplicateRootError, gitUtil, type Project } from '@strata/core';
+import { requireAllowedRoot } from './allowed-root.js';
 import type { RouteContext } from './context.js';
 import { httpError } from './http-error.js';
 import { requirePatch } from './patch.js';
@@ -126,13 +127,19 @@ export function projectsRoute(app: FastifyInstance, ctx: RouteContext): void {
  * Store the repository, not the path that was typed: a subdirectory analyses
  * the whole repo anyway, so it would register a second entry for a project
  * that is already there.
+ *
+ * Both ends are confined to `$STRATA_ROOTS`: the path that arrived, and the
+ * repository it turns out to belong to. A subdirectory inside a root whose
+ * working tree begins *above* one would otherwise register a project every
+ * later analysis is refused — or, worse, would not be.
  */
 async function repoRoot(path: string): Promise<string> {
-  const root = await gitUtil.toplevel(path);
+  const dir = await requireAllowedRoot(path);
+  const root = await gitUtil.toplevel(dir);
   if (root === null) {
     throw httpError(400, `${path} is not inside a git repository.`);
   }
-  return root;
+  return await requireAllowedRoot(root);
 }
 
 function found(project: Project | undefined, id: string): Project {

@@ -120,9 +120,9 @@
       {/if}
     {:else if listing && listing.roots.length === 0}
       <p class="text-muted px-2 py-3 text-xs">
-        This server browses nothing. Set <code class="font-mono"
-          >STRATA_BROWSE_ROOTS</code
-        > to the directory your repositories live in, or type the path above.
+        This server reaches nothing. Set <code class="font-mono">STRATA_ROOTS</code
+        > to the directory your repositories live in — it is also what may be
+        registered and analysed.
       </p>
     {:else if listing && listing.entries.length === 0}
       <p class="text-subtle px-2 py-3 text-xs">No folders in here.</p>

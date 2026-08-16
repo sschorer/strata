@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { realpath } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   memoryProjectStore,
@@ -9,13 +13,31 @@ import {
   type SettingsStore,
   type Strata,
 } from '@strata/core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 import { analyzeRoute } from './analyze.js';
 
 /**
- * `/analyze` is a thin delegation, with one thing of its own: a run over a
- * registered root refreshes what the switcher shows about that project — and a
- * registry that will not take the update must not cost the caller the report.
+ * `/analyze` is a thin delegation, with two things of its own: the root it is
+ * handed is confined to `$STRATA_ROOTS` before anything reads it, and a run
+ * over a registered root refreshes what the switcher shows about that project
+ * — where a registry that will not take the update must not cost the caller
+ * the report.
+ *
+ * The roots are read per request, so the test points them at a tree of its own:
+ *
+ *   <base>/            ← the root
+ *     strata/          the registered repository
+ *     unregistered/
+ *     link -> strata   a symlink that stays inside
+ *   <outside>/         a directory the allow-list never names
  */
 
 const report = {
@@ -49,9 +71,31 @@ const strata = {
   },
 } as unknown as Strata;
 
+let base: string;
+let repo: string;
+let unregistered: string;
+let outside: string;
 let projects: ProjectStore;
 let settings: SettingsStore;
 let app: FastifyInstance;
+
+beforeAll(async () => {
+  base = await realpath(mkdtempSync(join(tmpdir(), 'strata-analyze-api-')));
+  repo = join(base, 'strata');
+  unregistered = join(base, 'unregistered');
+  mkdirSync(repo);
+  mkdirSync(unregistered);
+  symlinkSync(repo, join(base, 'link'));
+  outside = await realpath(mkdtempSync(join(tmpdir(), 'strata-outside-api-')));
+  process.env.STRATA_ROOTS = base;
+});
+
+afterAll(() => {
+  delete process.env.STRATA_ROOTS;
+  for (const dir of [base, outside]) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 function build(
   store: ProjectStore,
@@ -89,9 +133,9 @@ afterEach(async () => {
 
 describe('POST /analyze', () => {
   it('records the run against the project registered for that root', async () => {
-    const project = projects.add({ name: 'Strata', root: '/repos/strata' });
+    const project = projects.add({ name: 'Strata', root: repo });
 
-    const response = await analyze('/repos/strata');
+    const response = await analyze(repo);
 
     expect(response.json()).toEqual(report);
     expect(projects.get(project.id)?.lastAnalysis).toEqual({
@@ -101,27 +145,27 @@ describe('POST /analyze', () => {
   });
 
   it('runs a registered project the way its settings say', async () => {
-    const { id } = projects.add({ name: 'Strata', root: '/repos/strata' });
+    const { id } = projects.add({ name: 'Strata', root: repo });
     projects.setConfig(id, { rev: 'develop', historyLimit: 500 });
 
-    await analyze('/repos/strata');
+    await analyze(repo);
 
     expect(requested).toMatchObject({ rev: 'develop', historyLimit: 500 });
   });
 
   it('lets the request override what the settings say', async () => {
-    const { id } = projects.add({ name: 'Strata', root: '/repos/strata' });
+    const { id } = projects.add({ name: 'Strata', root: repo });
     projects.setConfig(id, { rev: 'develop', historyLimit: 500 });
 
-    await analyze('/repos/strata', { rev: 'v1.0.0', historyLimit: 10 });
+    await analyze(repo, { rev: 'v1.0.0', historyLimit: 10 });
 
     expect(requested).toMatchObject({ rev: 'v1.0.0', historyLimit: 10 });
   });
 
   it('leaves the core its own defaults for an unconfigured project', async () => {
-    projects.add({ name: 'Strata', root: '/repos/strata' });
+    projects.add({ name: 'Strata', root: repo });
 
-    await analyze('/repos/strata');
+    await analyze(repo);
 
     // `HEAD` and no cap are what the core does anyway; a null limit must not
     // reach it as a number.
@@ -129,21 +173,21 @@ describe('POST /analyze', () => {
   });
 
   it('runs with the cache the app settings leave switched on', async () => {
-    await analyze('/repos/strata');
+    await analyze(repo);
     expect(requested).toMatchObject({ cache: true });
 
     settings.patch({ engine: { cache: false } });
-    await analyze('/repos/strata');
+    await analyze(repo);
 
     expect(requested).toMatchObject({ cache: false });
   });
 
   it('lets a request ask for a cold run whatever the settings say', async () => {
-    await analyze('/repos/strata', { cache: false });
+    await analyze(repo, { cache: false });
     expect(requested).toMatchObject({ cache: false });
 
     settings.patch({ engine: { cache: false } });
-    await analyze('/repos/strata', { cache: true });
+    await analyze(repo, { cache: true });
 
     expect(requested).toMatchObject({ cache: true });
   });
@@ -158,7 +202,7 @@ describe('POST /analyze', () => {
     await app.close();
     app = build(projects, broken);
 
-    const response = await analyze('/repos/strata');
+    const response = await analyze(repo);
 
     expect(response.statusCode).toBe(200);
     // No preference reaches the core, so it keeps its own default.
@@ -166,10 +210,37 @@ describe('POST /analyze', () => {
   });
 
   it('analyses a root nobody registered without recording anything', async () => {
-    const response = await analyze('/repos/unregistered');
+    const response = await analyze(unregistered);
 
     expect(response.statusCode).toBe(200);
     expect(projects.list()).toEqual([]);
+  });
+
+  it('refuses a root outside the allowed ones, without reading it', async () => {
+    const response = await analyze(outside);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toContain('may reach');
+    expect(requested).toBeUndefined();
+  });
+
+  it('answers 404 for a root inside them that is not there', async () => {
+    const response = await analyze(join(base, 'ghost'));
+
+    expect(response.statusCode).toBe(404);
+    expect(requested).toBeUndefined();
+  });
+
+  it('analyses the path as it is on disk, not as it was written', async () => {
+    const project = projects.add({ name: 'Strata', root: repo });
+
+    // A symlink inside the roots: what runs is what was checked, so the
+    // registered project is found through it.
+    const response = await analyze(join(base, 'link'));
+
+    expect(response.statusCode).toBe(200);
+    expect(requested).toMatchObject({ root: repo });
+    expect(projects.get(project.id)?.lastAnalysis).not.toBeNull();
   });
 
   it('still returns the report when the registry refuses the update', async () => {
@@ -182,7 +253,7 @@ describe('POST /analyze', () => {
     await app.close();
     app = build(broken);
 
-    const response = await analyze('/repos/strata');
+    const response = await analyze(repo);
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(report);

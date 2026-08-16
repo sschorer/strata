@@ -1,11 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { BrowseDeniedError, NoSuchDirectoryError } from './errors.js';
+import { NoSuchDirectoryError, RootDeniedError } from '../roots/index.js';
 import { listDirectory } from './list.js';
-import { configuredRoots, withinRoots } from './roots.js';
 
 /**
  * The folder picker's listing, over a real tree:
@@ -38,32 +37,6 @@ beforeAll(async () => {
 
 afterAll(() => {
   rmSync(base, { recursive: true, force: true });
-});
-
-describe('configuredRoots', () => {
-  it('reads the configured list, absolute and deduplicated', () => {
-    expect(configuredRoots(['/repos', '/repos', '/srv/code'].join(delimiter))).toEqual([
-      '/repos',
-      '/srv/code',
-    ]);
-  });
-
-  it('falls back to the home directory when nothing is configured', () => {
-    expect(configuredRoots('')).toHaveLength(1);
-    expect(configuredRoots(undefined)).toEqual(configuredRoots(''));
-  });
-});
-
-describe('withinRoots', () => {
-  it('accepts a root and what is under it', () => {
-    expect(withinRoots('/repos', ['/repos'])).toBe(true);
-    expect(withinRoots('/repos/strata/src', ['/repos'])).toBe(true);
-  });
-
-  it('is not fooled by a name that merely starts the same', () => {
-    expect(withinRoots('/repos-private/x', ['/repos'])).toBe(false);
-    expect(withinRoots('/', ['/repos'])).toBe(false);
-  });
 });
 
 describe('listDirectory', () => {
@@ -118,14 +91,14 @@ describe('listDirectory', () => {
   it('refuses a path outside the roots', async () => {
     await expect(
       listDirectory({ path: join(base, 'secret'), roots: [root] }),
-    ).rejects.toBeInstanceOf(BrowseDeniedError);
+    ).rejects.toBeInstanceOf(RootDeniedError);
   });
 
   it('refuses a symlink that leaves the roots', async () => {
     // Resolved before it is checked: the link is inside, its target is not.
     await expect(
       listDirectory({ path: join(root, 'out'), roots: [root] }),
-    ).rejects.toBeInstanceOf(BrowseDeniedError);
+    ).rejects.toBeInstanceOf(RootDeniedError);
   });
 
   it('refuses a file, and a path that is not there', async () => {

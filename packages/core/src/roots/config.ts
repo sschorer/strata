@@ -1,19 +1,25 @@
 import { realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { delimiter, resolve, sep } from 'node:path';
+import { delimiter, resolve } from 'node:path';
 
 /**
- * Where the folder picker may look. The server user's home by default — that
- * is where repositories live on a workstation — and `$STRATA_BROWSE_ROOTS`
+ * Where Strata may reach on disk. The server user's home by default — that is
+ * where repositories live on a workstation — and `$STRATA_ROOTS`
  * (`PATH`-separated) for anything else: `/repos` in the container, a scratch
- * disk, a second checkout area.
+ * disk, a second checkout area. `$STRATA_ROOTS=/` opts out of the confinement
+ * entirely, for a deployment that would rather trust its callers.
  *
- * This is the whole of the confinement: the browse endpoint lists directory
- * *names* to whoever can reach the API, so what it can reach is a deployment
- * decision rather than "wherever the process happens to have read access".
+ * This is the whole of the sandbox: the API browses directory *names*, walks
+ * repositories and registers them for whoever can reach it, so what it can
+ * reach is a deployment decision rather than "wherever the process happens to
+ * have read access".
+ *
+ * `$STRATA_BROWSE_ROOTS` is the name this had while it confined the folder
+ * picker alone; it is still read, so an existing deployment keeps working.
  */
 export function configuredRoots(
-  configured: string | undefined = process.env.STRATA_BROWSE_ROOTS,
+  configured: string | undefined = process.env.STRATA_ROOTS ??
+    process.env.STRATA_BROWSE_ROOTS,
 ): string[] {
   const named = (configured ?? '')
     .split(delimiter)
@@ -26,7 +32,7 @@ export function configuredRoots(
 /**
  * The roots as they actually are on disk: resolved through symlinks, and
  * without the ones that are not there. A root that does not exist is dropped
- * rather than reported — `/repos` unmounted is a deployment that browses
+ * rather than reported — `/repos` unmounted is a deployment that reaches
  * nothing, not a broken request — and an empty result says exactly that.
  */
 export async function resolveRoots(
@@ -43,14 +49,4 @@ export async function resolveRoots(
     }),
   );
   return [...new Set(resolved.filter((path): path is string => path !== null))];
-}
-
-/**
- * Whether a *resolved* path is a root or sits inside one. Compared with a
- * separator on the end, so `/repos-private` is not inside `/repos`.
- */
-export function withinRoots(path: string, roots: readonly string[]): boolean {
-  return roots.some(
-    (root) => path === root || path.startsWith(root.endsWith(sep) ? root : root + sep),
-  );
 }

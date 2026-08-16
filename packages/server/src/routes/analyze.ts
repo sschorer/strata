@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Project, ProjectConfig } from '@strata/core';
+import { requireAllowedRoot } from './allowed-root.js';
 import type { RouteContext } from './context.js';
 
 interface AnalyzeBody {
@@ -26,10 +27,19 @@ const schema = {
   },
 };
 
-/** Run an analysis and return the full report. */
+/**
+ * Run an analysis and return the full report.
+ *
+ * The `root` is confined to `$STRATA_ROOTS` first — 403 outside them — because
+ * everything below this line reads a repository, and the API is
+ * unauthenticated. The resolved path is what gets analysed and what the
+ * registry is looked up by, so a symlink cannot point the run somewhere else
+ * after the check.
+ */
 export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
   app.post<{ Body: AnalyzeBody }>('/analyze', { schema }, async (req) => {
-    const { root, rev, historyLimit, cache } = req.body;
+    const { rev, historyLimit, cache } = req.body;
+    const root = await requireAllowedRoot(req.body.root);
 
     // A registered project's settings are the defaults for a run over it, so
     // clicking *Re-analyze* honours what *Project settings* says. What the
