@@ -240,7 +240,14 @@ Sans/Mono.
       workbench — and the section list. The landing screen of each scope prints
       the same sections with a line on what each one holds. Sections still on
       this list are listed disabled, as the analysis screens are.
-- [ ] **P0** General — display name, root path (read-only mount), revision, history limit
+- [x] General — `/settings/project/general`. The display name renames the
+      registry entry (`PATCH /projects/:id`) and the revision and history limit
+      are written to the project's config (`PATCH /projects/:id/config`), which
+      every run over that root already honours; the reader sees one form and
+      only the half they edited is sent. The root is printed as a read-only
+      mount: re-pointing an entry would keep its name, settings and last run
+      while all three now described another repository, so moving a project is
+      remove-and-add-again.
 - [ ] **P0** Analyze / run — root, revision, history limit, the plugin chips that
       will run, *Run analysis* (`POST /analyze`), and a recents list
 - [ ] **P1** Scope & ignore — ignore globs and analyze paths as editable chip lists

@@ -39,10 +39,19 @@ describe('settings sections', () => {
     }
   });
 
-  it('says what each section holds, and none is built yet', () => {
+  it('says what each section holds', () => {
     for (const section of [...PROJECT_SECTIONS, ...APP_SECTIONS]) {
       expect(section.description.length).toBeGreaterThan(0);
-      expect(section.status).toBe('planned');
     }
+  });
+
+  it('marks the sections that are built, and only those', () => {
+    const ready = [...PROJECT_SECTIONS, ...APP_SECTIONS].filter(
+      (section) => section.status === 'ready',
+    );
+
+    expect(ready.map((section) => section.href)).toEqual([
+      '/settings/project/general',
+    ]);
   });
 });

@@ -53,12 +53,19 @@ describe('project settings page', () => {
     }
   });
 
-  it('links to no section that is not built yet', () => {
+  it('links to the sections that are built, and to no other', () => {
     ui = render(Page);
 
-    expect(ui.container.querySelectorAll('a')).toHaveLength(0);
+    const built = PROJECT_SECTIONS.filter(
+      (section) => section.status === 'ready',
+    );
+    expect(
+      [...ui.container.querySelectorAll('a')].map((link) =>
+        link.getAttribute('href'),
+      ),
+    ).toEqual(built.map((section) => section.href));
     expect(ui.container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      PROJECT_SECTIONS.length,
+      PROJECT_SECTIONS.length - built.length,
     );
   });
 });

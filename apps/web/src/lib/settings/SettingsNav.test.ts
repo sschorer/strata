@@ -95,12 +95,29 @@ describe('SettingsNav', () => {
     expect(text).not.toContain('AI providers');
   });
 
-  it('shows a section that is not built yet without linking to it', async () => {
+  it('links to a section that is built', async () => {
     ui = await mount({ scope: 'project', pathname: '/settings/project' });
 
     const general = link(ui, 'General');
-    expect(general?.tagName).toBe('SPAN');
-    expect(general?.getAttribute('aria-disabled')).toBe('true');
+    expect(general?.tagName).toBe('A');
+    expect(general?.getAttribute('href')).toBe('/settings/project/general');
+  });
+
+  it('shows a section that is not built yet without linking to it', async () => {
+    ui = await mount({ scope: 'project', pathname: '/settings/project' });
+
+    const danger = link(ui, 'Danger zone');
+    expect(danger?.tagName).toBe('SPAN');
+    expect(danger?.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('marks the section the reader is inside as the current one', async () => {
+    ui = await mount({
+      scope: 'project',
+      pathname: '/settings/project/general',
+    });
+
+    expect(link(ui, 'General')?.getAttribute('aria-current')).toBe('page');
   });
 
   it('lays the same two things across on a narrow screen', async () => {

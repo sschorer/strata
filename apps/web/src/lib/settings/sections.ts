@@ -23,7 +23,7 @@ export const PROJECT_SECTIONS: readonly SettingsSection[] = [
     label: 'General',
     description:
       'Display name, the root it is mounted at, the revision to analyse and how far back the history is read.',
-    status: 'planned',
+    status: 'ready',
   },
   {
     href: '/settings/project/analyze',

@@ -4,6 +4,7 @@ import type {
   Project,
   ProjectsResponse,
   RemoveProjectResponse,
+  UpdateProjectRequest,
 } from './types';
 
 /** `GET /projects` — the registry, oldest registration first. */
@@ -22,6 +23,24 @@ export function addProject(
   return apiRequest<Project>('/projects', {
     method: 'POST',
     body: request,
+    signal,
+  });
+}
+
+/**
+ * `PATCH /projects/:id` — rename a project, or re-point it at another
+ * repository. Identity only; what an analysis of it *does* is its config.
+ * Fails with 400 on an empty patch or a path outside a repository, 404 for an
+ * unknown id and 409 when another project already holds the root.
+ */
+export function updateProject(
+  id: string,
+  update: UpdateProjectRequest,
+  signal?: AbortSignal,
+): Promise<Project> {
+  return apiRequest<Project>(`/projects/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: update,
     signal,
   });
 }

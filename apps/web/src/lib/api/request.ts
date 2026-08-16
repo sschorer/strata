@@ -15,7 +15,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   /** Serialised as JSON; sets the content-type. */
   body?: unknown;
   signal?: AbortSignal;

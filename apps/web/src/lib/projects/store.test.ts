@@ -155,6 +155,31 @@ describe('projects store', () => {
     expect(store.projects).toHaveLength(2);
   });
 
+  it('renames a project to what the registry kept', async () => {
+    const store = await loaded({
+      'PATCH /projects/strata': { ...strata, name: 'Strata core' },
+    });
+    store.select('strata');
+
+    await store.update('strata', { name: 'Strata core' });
+
+    expect(store.current?.name).toBe('Strata core');
+    // A rename is identity only: the repository it points at is untouched.
+    expect(analysis.root).toBe('/home/dev/workspace/strata');
+  });
+
+  it('re-points the workbench when the selected project moves', async () => {
+    const store = await loaded({
+      'PATCH /projects/strata': { ...strata, root: '/mnt/repos/strata' },
+    });
+    store.select('strata');
+
+    await store.update('strata', { root: '/mnt/repos/strata' });
+
+    expect(store.current?.root).toBe('/mnt/repos/strata');
+    expect(analysis.root).toBe('/mnt/repos/strata');
+  });
+
   it('removes the selected project and points the workbench at nothing', async () => {
     const store = await loaded({
       'DELETE /projects/kernel': { removed: true },
