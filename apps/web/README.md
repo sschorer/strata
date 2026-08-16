@@ -50,6 +50,7 @@ src/
     projects/         the registered projects and the switcher over them
     plugins/          what the workbench loaded, fetched once for the app
     shell/            the workbench frame: rail, sticky header, scrolling pane
+    settings/         the settings frame: the two scopes, their sections, the rail in settings mode
     format/           compact numbers, repo paths, durations and ages
     geometry/         squarify — the treemap layout
     overview/         the overview feature: stat cards, hotspot bars, cycles, plugins, commit types
@@ -81,8 +82,8 @@ storage key on purpose, so keep the two in step.
 
 ## Status
 
-The theme layer, the typed API client, the app shell, the project switcher and
-the first two analysis screens:
+The theme layer, the typed API client, the app shell, the project switcher, the
+analysis screens built so far and the settings shell:
 
 - **The shell** (`lib/shell`) — a left rail (logo, the project switcher, the
   analysis nav, the settings entries and the plugin count), a header that
@@ -114,6 +115,13 @@ the first two analysis screens:
   side panel carries the graph summary (nodes, edges, cycles, max fan-in) and
   every cycle as a path, `a.ts → b.ts → a.ts`. Selecting a card lights up its
   neighbourhood; selecting a cycle lights up the knot.
+- **Settings** (`lib/settings`) — two scopes, `/settings/project` and
+  `/settings/app`. Opening either swaps the rail (and, below `md`, the header's
+  strip) for that scope's nav: *Back to workbench*, the scope's heading over
+  what it applies to — the project and its root, or the workbench — and the
+  section list. Each scope's landing screen prints the same sections with a
+  line on what each one holds. The sections themselves are still to build, so
+  they are listed disabled, as the analysis screens on the backlog are.
 
 A repository is named once, in *Add project*; the screens then read whatever
 run the selected project last had, the header's *Re-analyze* repeats it, and a

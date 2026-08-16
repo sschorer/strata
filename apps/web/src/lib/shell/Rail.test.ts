@@ -99,4 +99,34 @@ describe('Rail', () => {
     });
     expect(ui.container.textContent).toContain('/home/dev/workspace/strata');
   });
+
+  it('swaps to the settings nav of the scope the reader is in', async () => {
+    ui = render(Rail, { pathname: '/settings/project/general' });
+
+    await vi.waitFor(() => {
+      expect(ui.container.textContent).toContain('Strata');
+    });
+    const text = ui.container.textContent ?? '';
+    expect(text).toContain('Back to workbench');
+    expect(text).toContain('Project settings');
+    expect(text).toContain('Danger zone');
+    // The workbench nav — and the switcher it sits under — is gone with it.
+    expect(text).not.toContain('Hotspots');
+    expect(
+      ui.container.querySelector('[aria-label="Current project"]'),
+    ).toBeNull();
+    // The plugin count is the frame's, so it stays.
+    await vi.waitFor(() => {
+      expect(ui.container.textContent).toContain('plugins loaded');
+    });
+  });
+
+  it('lists the sections of whichever scope the reader is in', () => {
+    ui = render(Rail, { pathname: '/settings/app' });
+
+    const text = ui.container.textContent ?? '';
+    expect(text).toContain('App settings');
+    expect(text).toContain('AI providers');
+    expect(text).not.toContain('Danger zone');
+  });
 });

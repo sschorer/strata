@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ProjectSwitcher } from '$lib/projects';
+  import { SettingsNav, settingsScope } from '$lib/settings';
   import Logo from './Logo.svelte';
   import NavList from './NavList.svelte';
   import PluginCount from './PluginCount.svelte';
@@ -10,6 +11,10 @@
   }
 
   let { pathname }: Props = $props();
+
+  // Settings is a place, not a screen: the rail swaps to that scope's sections
+  // for as long as the reader is inside it, with the way back at the top.
+  let scope = $derived(settingsScope(pathname));
 </script>
 
 <!--
@@ -24,21 +29,27 @@
     <Logo />
   </div>
 
-  <div class="px-3 pb-2">
-    <ProjectSwitcher />
-  </div>
+  {#if scope}
+    <SettingsNav {scope} {pathname} />
+  {:else}
+    <div class="px-3 pb-2">
+      <ProjectSwitcher />
+    </div>
 
-  <nav class="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-label="Workbench">
-    <p class="text-subtle px-3 pb-1 text-[0.625rem] tracking-wide uppercase">
-      Analysis
-    </p>
-    <NavList items={ANALYSIS_NAV} {pathname} label="Analysis" />
+    <nav class="min-h-0 flex-1 overflow-y-auto px-3 py-3" aria-label="Workbench">
+      <p class="text-subtle px-3 pb-1 text-[0.625rem] tracking-wide uppercase">
+        Analysis
+      </p>
+      <NavList items={ANALYSIS_NAV} {pathname} label="Analysis" />
 
-    <p class="text-subtle px-3 pt-5 pb-1 text-[0.625rem] tracking-wide uppercase">
-      Settings
-    </p>
-    <NavList items={SETTINGS_NAV} {pathname} label="Settings" />
-  </nav>
+      <p
+        class="text-subtle px-3 pt-5 pb-1 text-[0.625rem] tracking-wide uppercase"
+      >
+        Settings
+      </p>
+      <NavList items={SETTINGS_NAV} {pathname} label="Settings" />
+    </nav>
+  {/if}
 
   <div class="border-line border-t px-4 py-3">
     <PluginCount />

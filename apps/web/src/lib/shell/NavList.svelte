@@ -12,7 +12,9 @@
 
   let { items, pathname, orientation = 'column', label }: Props = $props();
 
-  let current = $derived(activeNav(pathname)?.href ?? null);
+  // Against the items it renders, not the whole map: the settings sections are
+  // a list of their own, and asking the workbench nav about them finds nothing.
+  let current = $derived(activeNav(pathname, items)?.href ?? null);
   let base = $derived(
     orientation === 'column'
       ? 'w-full justify-between px-3 py-2'

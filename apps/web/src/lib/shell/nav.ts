@@ -23,8 +23,8 @@ export const ANALYSIS_NAV: readonly NavItem[] = [
 
 /** The two settings scopes: what this project does, and what the app does. */
 export const SETTINGS_NAV: readonly NavItem[] = [
-  { href: '/settings/project', label: 'Project settings', status: 'planned' },
-  { href: '/settings/app', label: 'App settings', status: 'planned' },
+  { href: '/settings/project', label: 'Project settings', status: 'ready' },
+  { href: '/settings/app', label: 'App settings', status: 'ready' },
 ];
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -33,14 +33,21 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /**
- * The entry a path sits inside. The longest matching href wins, so a future
+ * The entry a path sits inside. The longest matching href wins, so
  * `/settings/project/scope` highlights *Project settings* rather than falling
  * back to the root entry.
+ *
+ * The list is a parameter because the settings area lists its own sections:
+ * a list highlights the entry the reader is on *within itself*, rather than
+ * asking a map it is not part of.
  */
-export function activeNav(pathname: string): NavItem | null {
+export function activeNav(
+  pathname: string,
+  items: readonly NavItem[] = NAV_ITEMS,
+): NavItem | null {
   const path = normalise(pathname);
   let best: NavItem | null = null;
-  for (const item of NAV_ITEMS) {
+  for (const item of items) {
     if (!contains(item.href, path)) continue;
     if (!best || item.href.length > best.href.length) best = item;
   }
