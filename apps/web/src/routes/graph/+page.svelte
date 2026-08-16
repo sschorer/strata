@@ -2,7 +2,6 @@
   import { untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { analysis } from '$lib/analysis';
-  import RunForm from '$lib/analysis/RunForm.svelte';
   import Card from '$lib/components/Card.svelte';
   import { compactNumber } from '$lib/format';
   import CycleList from '$lib/graph/CycleList.svelte';
@@ -172,18 +171,14 @@
     </p>
   </header>
 
-  <div class="mb-6">
-    <Card title="Analysis" hint={report ? `rev ${report.rev.slice(0, 8)}` : ''}>
-      <RunForm />
-      {#if analysis.status === 'error'}
-        <p class="text-danger mt-3 text-sm">{analysis.error}</p>
-      {/if}
-    </Card>
-  </div>
+  {#if analysis.status === 'error'}
+    <p class="text-danger mb-6 text-sm">{analysis.error}</p>
+  {/if}
 
-  {#if analysis.status === 'idle'}
+  {#if !report && analysis.status !== 'running'}
     <p class="text-muted text-sm">
-      Point Strata at a repository above to see how it imports itself.
+      Pick a project in the switcher — or add one — and analyse it to see how it
+      imports itself.
     </p>
   {:else if analysis.status === 'running' && !report}
     <p class="text-muted text-sm">Running the pipeline…</p>

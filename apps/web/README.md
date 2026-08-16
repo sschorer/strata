@@ -15,8 +15,9 @@ make web        # terminal 2 — the UI on :5173
 ```
 
 The dev server proxies the API paths (`/health`, `/plugins`, `/analyze`,
-`/cache`) to `http://localhost:4000`, so the UI uses the same relative URLs in
-dev as in production, where the server serves this build itself. Two knobs:
+`/cache`, `/projects`, `/browse`) to `http://localhost:4000`, so the UI uses
+the same relative URLs in dev as in production, where the server serves this
+build itself. Two knobs:
 
 | Variable | Where | Default | Purpose |
 |----------|-------|---------|---------|
@@ -45,7 +46,8 @@ src/
   lib/
     theme/            tokens.css (both palettes) + the appearance controller
     api/              one module per endpoint over a shared request helper
-    analysis/         the last report, held app-wide, + the form that runs one
+    analysis/         the last report, held app-wide, and the repo it ran over
+    projects/         the registered projects and the switcher over them
     plugins/          what the workbench loaded, fetched once for the app
     shell/            the workbench frame: rail, sticky header, scrolling pane
     format/           compact numbers, repo paths, durations and ages
@@ -53,7 +55,7 @@ src/
     hotspots/         the hotspot feature: report → rows, heat, views
     graph/            the dependency feature: folder tree, collapse, rank, layered, views
     components/       reusable UI pieces
-    test/             test helpers (component mounting, graph fixtures)
+    test/             test helpers (component mounting, graph fixtures, API stubs)
   routes/             SvelteKit routes (SPA: `ssr = false`)
 static/               favicon and anything else served verbatim
 ```
@@ -78,16 +80,28 @@ storage key on purpose, so keep the two in step.
 
 ## Status
 
-The theme layer, the typed API client, the app shell and the first two analysis
-screens:
+The theme layer, the typed API client, the app shell, the project switcher and
+the first two analysis screens:
 
-- **The shell** (`lib/shell`) — a left rail (logo, the current project, the
+- **The shell** (`lib/shell`) — a left rail (logo, the project switcher, the
   analysis nav, the settings entries and the plugin count), a header that
   sticks to the content column (breadcrumb, branch and revision chips, the last
   run's files/duration/age, *Re-analyze*, appearance), and one scrolling main
   pane. Screens that are on the backlog are listed in the nav, disabled, so the
   map of the workbench is complete. Below `md` the rail gives way to a nav
   strip in the header.
+- **The project switcher** (`lib/projects`) — the rail's project slot is a
+  dropdown over the registered projects (`GET /projects`), each with the file
+  count and age of its last run. Picking one points the whole workbench at it;
+  *Add project* registers a repository from any path inside it — typed, or
+  found with the folder browser, which walks the server's directories
+  (`GET /browse`) and marks which ones are repositories — and the × removes the
+  entry from Strata without touching the repository on disk. Below `md`, where
+  there is no rail, the header carries the same switcher.
+
+  What the browser may reach is `STRATA_BROWSE_ROOTS` on the server (the server
+  user's home by default, `/repos` in the container); it lists directory names
+  only.
 - **Hotspots** (`/hotspots`) — a squarified treemap sized by score and coloured
   by complexity, its heat legend, and the ranked table.
 - **Dependencies** (`/graph`) — the import graph as uniform cards in ranks, in
@@ -100,12 +114,13 @@ screens:
   every cycle as a path, `a.ts → b.ts → a.ts`. Selecting a card lights up its
   neighbourhood; selecting a cycle lights up the knot.
 
-Until the project switcher lands, the repo to analyse is typed into the form on
-those pages and remembered in `localStorage`; the rail names it and the header
-re-runs it.
+A repository is named once, in *Add project*; the screens then read whatever
+run the selected project last had, the header's *Re-analyze* repeats it, and a
+project that has never been analysed is offered its first run in the switcher —
+until *Project settings → Analyze / run* takes that over.
 
-The project switcher and the remaining analysis and settings screens are next —
-see [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
+The remaining analysis and settings screens are next — see
+[`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
 
 Where each screen's data comes from:
 

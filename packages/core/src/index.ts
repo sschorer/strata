@@ -46,6 +46,17 @@ export {
   type ProjectUpdate,
 } from './projects/index.js';
 export {
+  listDirectory,
+  configuredRoots,
+  resolveRoots,
+  withinRoots,
+  BrowseDeniedError,
+  NoSuchDirectoryError,
+  type BrowseOptions,
+  type DirectoryEntry,
+  type DirectoryListing,
+} from './browse/index.js';
+export {
   DEFAULT_PROJECT_CONFIG,
   withDefaults,
   InvalidConfigError,

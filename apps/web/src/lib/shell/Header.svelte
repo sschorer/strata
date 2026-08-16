@@ -1,10 +1,10 @@
 <script lang="ts">
   import { analysis } from '$lib/analysis';
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
+  import { projectLabel, projects, ProjectSwitcher } from '$lib/projects';
   import NavList from './NavList.svelte';
   import RunSummary from './RunSummary.svelte';
   import { ANALYSIS_NAV, sectionLabel, SETTINGS_NAV } from './nav';
-  import { projectLabel } from './project';
 
   interface Props {
     pathname: string;
@@ -17,7 +17,11 @@
   analysis.init();
 
   let section = $derived(sectionLabel(pathname));
-  let project = $derived(projectLabel(analysis.root));
+  // What the switcher calls the project, falling back to the folder's name for
+  // a repository that was analysed without being registered.
+  let project = $derived(
+    projects.current?.name ?? projectLabel(analysis.root),
+  );
   let running = $derived(analysis.status === 'running');
 </script>
 
@@ -56,8 +60,14 @@
     </div>
   </div>
 
-  <!-- No room for the rail on a narrow screen: the same nav, laid across. -->
-  <div class="border-line border-t px-2 py-2 md:hidden">
+  <!--
+    No room for the rail on a narrow screen: the same nav, laid across, and the
+    same switcher above it — it is the only way to point the workbench at a
+    project, so it cannot be the one thing the rail takes away with it.
+  -->
+  <div class="border-line space-y-2 border-t px-2 py-2 md:hidden">
+    <ProjectSwitcher />
+
     <NavList
       items={[...ANALYSIS_NAV, ...SETTINGS_NAV]}
       {pathname}

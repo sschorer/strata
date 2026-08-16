@@ -203,6 +203,14 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   repository is one entry; every `/analyze` over a registered root refreshes
   that entry's summary. Removing a project drops the row and nothing else — the
   repository on disk is never touched.
+- **Folder browsing** — `/browse` lists the subdirectories of one directory on
+  the server's machine and marks which are git working trees, so *Add project*
+  can be a tree rather than a path the reader has to know by heart. Names of
+  directories only — no files, no contents — and confined to
+  `$STRATA_BROWSE_ROOTS` (the server user's home by default, the read-only
+  `/repos` mount in the image), with paths resolved through their symlinks
+  before they are checked. On an unauthenticated API that confinement is the
+  feature: see *Security* below.
 - **Project configuration** — what an analysis of a project does (revision,
   history window, ignore globs and analyze paths, which language/metric plugins
   run, the commit convention, architecture rules), behind
@@ -231,8 +239,10 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 - **Security** — analysed repos mounted read-only; AI is opt-in. The HTTP API
   is unauthenticated and assumes a trusted network: `/analyze` takes any `root`
   on disk and `DELETE /cache` discards cached results (cost: a recomputation).
-  Path allow-listing and an auth story are on the backlog; until then, do not
-  expose the port beyond a trusted network.
+  `/browse` is the one endpoint that reads outside a repository, and it is the
+  one with an allow-list already: `$STRATA_BROWSE_ROOTS`, directory names only.
+  Path allow-listing for `/analyze` and an auth story are on the backlog; until
+  then, do not expose the port beyond a trusted network.
 
 ## 9. Architecture Decisions
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRawSnippet } from 'svelte';
+import { stubApi } from '$lib/test/api';
 import { render } from '$lib/test/render';
 import Shell from './Shell.svelte';
 
@@ -17,12 +18,10 @@ afterEach(() => {
 
 describe('Shell', () => {
   it('frames a screen with the rail, the header and one scrolling pane', () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        Response.json({ directory: '/plugins', plugins: [], failures: [] }),
-      ),
-    );
+    stubApi({
+      '/plugins': { directory: '/plugins', plugins: [], failures: [] },
+      '/projects': { projects: [] },
+    });
 
     ui = render(Shell, { pathname: '/hotspots', children });
 

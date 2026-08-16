@@ -63,6 +63,9 @@ itself behaves.
 | `projects/memory.ts` | The process-lifetime registry (fallback, tests). |
 | `projects/schema.ts` | Table, pragmas, schema stamp. |
 | `projects/id.ts`, `projects/input.ts`, `projects/errors.ts` | Slugged ids, normalised input, `DuplicateRootError`. |
+| `browse/list.ts` | `listDirectory()` — the subdirectories of one directory, each marked whether it is a git working tree. Names only, never a file. |
+| `browse/roots.ts` | `configuredRoots()` / `resolveRoots()` / `withinRoots()` — where browsing may look (`STRATA_BROWSE_ROOTS`, else `$HOME`) and whether a resolved path is inside it. |
+| `browse/types.ts`, `browse/errors.ts` | `DirectoryListing`, `DirectoryEntry`, `BrowseOptions`; `BrowseDeniedError`, `NoSuchDirectoryError`. |
 | `config/types.ts` | `ProjectConfig`, `ProjectConfigPatch`, `ArchitectureRule`. |
 | `config/defaults.ts` | `DEFAULT_PROJECT_CONFIG` + `withDefaults()` — fill a stored config out. |
 | `config/patch.ts` | `applyPatch()` — merge, normalise, refuse what cannot be stored. |
@@ -170,6 +173,15 @@ section keeps its value — because each section is one settings screen.
   migration, and a `PATCH` that names one section says exactly what the screen
   it came from can promise.
 
+- **Browsing is confined by configuration, not by process permissions**
+  (`browse/roots.ts`). A folder picker needs to read directories the analysis
+  never would, so what it may reach is a deployment decision —
+  `STRATA_BROWSE_ROOTS`, else the server user's home — and a path is resolved
+  through its symlinks *before* it is checked, so a link inside a root cannot
+  step outside one. `.git` existence marks a repository rather than a `git`
+  call per entry: a listing is one screenful of hints, and registering resolves
+  the real thing anyway.
+
 ## 7. Quality & Risks
 
 - **Risk:** unbounded history/churn on huge repos. **Mitigation:** `historyLimit`
@@ -193,6 +205,10 @@ section keeps its value — because each section is one settings screen.
   **Mitigation:** none yet — secret storage (write-only, redacted on read) is
   the next step in this area, and until it lands nothing sensitive belongs in
   provider settings. The store is local and the API assumes a trusted network.
+- **Risk:** `listDirectory()` reads directories outside any repository, so a
+  caller that exposes it exposes directory names. **Mitigation:** the roots
+  above, no file names in the answer, and no content read at any point — plus
+  the endpoint's own note in the server's architecture.
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
 - **Risk:** a plugin runs **in-process, with the server's privileges** — the

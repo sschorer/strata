@@ -8,7 +8,16 @@ const target = process.env.STRATA_API_PROXY ?? 'http://localhost:4000';
 // The API lives at the root of its origin (`/health`, not `/api/health`), so
 // the dev proxy mirrors those exact paths. Dev and production then use the
 // same URLs and the client needs no base-path juggling.
-const apiPaths = ['/health', '/plugins', '/analyze', '/cache'];
+// `/settings` is deliberately absent: the UI's own settings screens live under
+// that path, so proxying it would send the reader's navigation to the API.
+const apiPaths = [
+  '/health',
+  '/plugins',
+  '/analyze',
+  '/cache',
+  '/projects',
+  '/browse',
+];
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],

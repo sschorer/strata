@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { projectLabel } from './project';
+import { projectLabel } from './label';
 
 describe('projectLabel', () => {
-  it('names a project after its folder', () => {
+  it('names a repository after its folder', () => {
     expect(projectLabel('/home/dev/workspace/strata')).toBe('strata');
     expect(projectLabel('  /home/dev/workspace/strata/  ')).toBe('strata');
     expect(projectLabel('C:\\code\\strata')).toBe('strata');
   });
 
-  it('is empty when no repository has been named', () => {
+  it('has nothing to say about no path', () => {
     expect(projectLabel('')).toBe('');
     expect(projectLabel('   ')).toBe('');
   });
