@@ -184,28 +184,22 @@
         {#if unanalysed}
           <!--
             A project that has never been analysed has nothing to show on any
-            screen, so the switcher offers the first run itself. *Project
-            settings → Analyze / run* is where this belongs once that screen
-            exists; until then this is the shortest way out of an empty
-            workbench.
+            screen, so the switcher says so and points at the way out. The run
+            itself belongs to *Project settings → Analyze / run*: what a run
+            reads and who takes part in it are settings, and a second door to
+            the same thing in a dropdown would eventually be a different one.
           -->
           <div class="border-line mt-1 border-t pt-2">
             <p class="text-subtle px-2 pb-1.5 text-[0.6875rem]">
               {current?.name} has not been analysed yet.
             </p>
-            <button
-              type="button"
-              class="bg-accent text-accent-ink hover:bg-accent-strong w-full rounded-md px-2 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
-              disabled={analysis.status === 'running'}
-              onclick={() => {
-                void analysis.run();
-                close();
-              }}
+            <a
+              href="/settings/project/analyze"
+              class="bg-accent text-accent-ink hover:bg-accent-strong block w-full rounded-md px-2 py-1.5 text-center text-sm font-medium transition-colors"
+              onclick={close}
             >
-              {analysis.status === 'running'
-                ? 'Analysing…'
-                : 'Run first analysis'}
-            </button>
+              Set up the first analysis
+            </a>
           </div>
         {/if}
       {/if}

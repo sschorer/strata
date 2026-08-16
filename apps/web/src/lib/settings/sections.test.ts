@@ -52,6 +52,7 @@ describe('settings sections', () => {
 
     expect(ready.map((section) => section.href)).toEqual([
       '/settings/project/general',
+      '/settings/project/analyze',
     ]);
   });
 });

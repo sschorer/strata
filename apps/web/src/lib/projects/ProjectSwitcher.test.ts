@@ -108,15 +108,19 @@ describe('ProjectSwitcher', () => {
     });
   });
 
-  it('offers the first analysis of a project that has never had one', async () => {
+  it('points a project that has never been analysed at its first run', async () => {
     ({ ui } = await open());
 
     button(ui.container, 'Kernel').click();
 
     await vi.waitFor(() => {
-      expect(button(ui.container, 'Run first analysis')).toBeTruthy();
+      expect(ui.container.textContent).toContain('has not been analysed yet');
     });
-    expect(ui.container.textContent).toContain('has not been analysed yet');
+    // The run belongs to *Analyze / run*; the switcher only says it is missing.
+    const link = [...ui.container.querySelectorAll('a')].find((element) =>
+      element.textContent?.includes('Set up the first analysis'),
+    );
+    expect(link?.getAttribute('href')).toBe('/settings/project/analyze');
   });
 
   it('registers a repository and lands on it', async () => {
