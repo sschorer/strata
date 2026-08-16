@@ -180,9 +180,13 @@ Sans/Mono.
       switchable dark / light / system), a typed REST client per endpoint, and
       IBM Plex self-hosted. The palette is derived from the mockup's
       description, so expect a tuning pass as screens land.
-- [ ] **P0** App shell — left rail (logo, project switcher, analysis nav, plugin
-      count, settings entries), sticky header (breadcrumb, branch + rev chips,
-      last-run summary, *Re-analyze*), scrollable main pane
+- [x] App shell (`lib/shell`) — left rail (logo, the analysed project, the
+      analysis nav, the settings entries, the plugin count), a header that
+      sticks to the content column (breadcrumb, branch + rev chips, the last
+      run's files / duration / age, *Re-analyze*, appearance), and one
+      scrolling main pane. Screens still on this list are in the nav, disabled,
+      so the map of the workbench is whole; below `md` the rail gives way to a
+      nav strip in the header. The project slot is the switcher's, below.
 - [ ] **P0** Project switcher — dropdown listing registered projects with file
       count and last-analysis age, select / remove / *Add project* (which lands on
       *Project settings → Analyze / run* for the first analysis)

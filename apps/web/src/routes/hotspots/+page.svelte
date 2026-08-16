@@ -2,7 +2,6 @@
   import { analysis } from '$lib/analysis';
   import RunForm from '$lib/analysis/RunForm.svelte';
   import Card from '$lib/components/Card.svelte';
-  import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { compactNumber } from '$lib/format';
   import HeatLegend from '$lib/hotspots/HeatLegend.svelte';
   import RankedTable from '$lib/hotspots/RankedTable.svelte';
@@ -33,23 +32,14 @@
   <title>Hotspots · Strata</title>
 </svelte:head>
 
-<main class="mx-auto max-w-6xl px-6 py-12">
-  <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <p class="text-subtle text-xs">
-        <a class="hover:text-ink underline-offset-4 hover:underline" href="/">
-          Strata
-        </a>
-        <span aria-hidden="true">/</span> Hotspots
-      </p>
-      <h1 class="mt-1 text-2xl font-semibold">Hotspots</h1>
-      <p class="text-muted mt-1 text-sm">
-        Churn × complexity: files that change often <em>and</em> are dense are
-        where maintenance cost concentrates. Tiles are sized by score and
-        coloured by complexity.
-      </p>
-    </div>
-    <ThemeSwitch />
+<div>
+  <header class="mb-8">
+    <h1 class="text-2xl font-semibold">Hotspots</h1>
+    <p class="text-muted mt-1 max-w-3xl text-sm">
+      Churn × complexity: files that change often <em>and</em> are dense are
+      where maintenance cost concentrates. Tiles are sized by score and coloured
+      by complexity.
+    </p>
   </header>
 
   <div class="mb-6">
@@ -118,4 +108,4 @@
       </Card>
     </div>
   {/if}
-</main>
+</div>

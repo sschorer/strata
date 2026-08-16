@@ -4,7 +4,6 @@
   import { analysis } from '$lib/analysis';
   import RunForm from '$lib/analysis/RunForm.svelte';
   import Card from '$lib/components/Card.svelte';
-  import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { compactNumber } from '$lib/format';
   import CycleList from '$lib/graph/CycleList.svelte';
   import EdgeLegend from '$lib/graph/EdgeLegend.svelte';
@@ -162,24 +161,15 @@
   <title>Dependencies · Strata</title>
 </svelte:head>
 
-<main class="mx-auto max-w-6xl px-6 py-12">
-  <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <p class="text-subtle text-xs">
-        <a class="hover:text-ink underline-offset-4 hover:underline" href="/">
-          Strata
-        </a>
-        <span aria-hidden="true">/</span> Dependencies
-      </p>
-      <h1 class="mt-1 text-2xl font-semibold">Dependencies</h1>
-      <p class="text-muted mt-1 text-sm">
-        The import graph, grouped by folder. Closed folders are one node, so the
-        picture starts as the architecture; open the ones you care about to see
-        their files. A file inside an import cycle is red, and so is every edge
-        of that knot.
-      </p>
-    </div>
-    <ThemeSwitch />
+<div>
+  <header class="mb-8">
+    <h1 class="text-2xl font-semibold">Dependencies</h1>
+    <p class="text-muted mt-1 max-w-3xl text-sm">
+      The import graph, grouped by folder. Closed folders are one node, so the
+      picture starts as the architecture; open the ones you care about to see
+      their files. A file inside an import cycle is red, and so is every edge of
+      that knot.
+    </p>
   </header>
 
   <div class="mb-6">
@@ -273,4 +263,4 @@
       </div>
     </div>
   {/if}
-</main>
+</div>

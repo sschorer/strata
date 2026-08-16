@@ -46,7 +46,9 @@ src/
     theme/            tokens.css (both palettes) + the appearance controller
     api/              one module per endpoint over a shared request helper
     analysis/         the last report, held app-wide, + the form that runs one
-    format/           compact numbers and repo paths, shared by every screen
+    plugins/          what the workbench loaded, fetched once for the app
+    shell/            the workbench frame: rail, sticky header, scrolling pane
+    format/           compact numbers, repo paths, durations and ages
     geometry/         squarify — the treemap layout
     hotspots/         the hotspot feature: report → rows, heat, views
     graph/            the dependency feature: folder tree, collapse, rank, layered, views
@@ -76,8 +78,16 @@ storage key on purpose, so keep the two in step.
 
 ## Status
 
-The theme layer, the typed API client and the first two analysis screens:
+The theme layer, the typed API client, the app shell and the first two analysis
+screens:
 
+- **The shell** (`lib/shell`) — a left rail (logo, the current project, the
+  analysis nav, the settings entries and the plugin count), a header that
+  sticks to the content column (breadcrumb, branch and revision chips, the last
+  run's files/duration/age, *Re-analyze*, appearance), and one scrolling main
+  pane. Screens that are on the backlog are listed in the nav, disabled, so the
+  map of the workbench is complete. Below `md` the rail gives way to a nav
+  strip in the header.
 - **Hotspots** (`/hotspots`) — a squarified treemap sized by score and coloured
   by complexity, its heat legend, and the ranked table.
 - **Dependencies** (`/graph`) — the import graph as uniform cards in ranks, in
@@ -91,10 +101,11 @@ The theme layer, the typed API client and the first two analysis screens:
   neighbourhood; selecting a cycle lights up the knot.
 
 Until the project switcher lands, the repo to analyse is typed into the form on
-those pages and remembered in `localStorage`.
+those pages and remembered in `localStorage`; the rail names it and the header
+re-runs it.
 
-The app shell (left rail, header, project switcher) and the remaining analysis
-screens are next — see [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
+The project switcher and the remaining analysis and settings screens are next —
+see [`BACKLOG.md`](../../BACKLOG.md) and the *web-ui* issues.
 
 Where each screen's data comes from:
 

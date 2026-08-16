@@ -1,5 +1,7 @@
 <script lang="ts">
   import '../app.css';
+  import { page } from '$app/state';
+  import { Shell } from '$lib/shell';
   import { theme } from '$lib/theme';
 
   let { children } = $props();
@@ -8,6 +10,6 @@
   $effect(() => theme.start());
 </script>
 
-<div class="min-h-screen bg-bg text-ink">
+<Shell pathname={page.url.pathname}>
   {@render children()}
-</div>
+</Shell>
