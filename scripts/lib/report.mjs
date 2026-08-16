@@ -38,13 +38,25 @@ function printCoupling(report, limit = 15) {
   }
 }
 
-function printCommits(report) {
-  const valid = report.commits.filter((c) => c.valid).length;
-  const breaking = report.commits.filter((c) => c.breaking).length;
+function printCommits(report, typeLimit = 8) {
+  const { total, valid, breaking, validRate, types, weeks } =
+    report.commitAnalytics;
   console.log(
-    `\nCommits: ${report.commits.length} analysed, ${valid} conventional, ` +
-      `${breaking} breaking`,
+    `\nCommits: ${total} analysed, ${valid} conventional ` +
+      `(${Math.round(validRate * 100)}%), ${breaking} breaking`,
   );
+
+  const byType = types
+    .slice(0, typeLimit)
+    .map((t) => `${t.name ?? 'unconventional'} ${t.count}`)
+    .join(', ');
+  if (byType) console.log(`  by type: ${byType}`);
+
+  const recent = weeks.slice(-8);
+  if (recent.length > 0) {
+    const series = recent.map((w) => w.commits).join(' ');
+    console.log(`  weekly (from ${recent[0].week}): ${series}`);
+  }
 }
 
 function printCache({ cache }) {

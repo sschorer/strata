@@ -35,6 +35,14 @@ export {
   type CacheStats,
 } from './cache/index.js';
 export {
+  analyseCommits,
+  bucketBy,
+  weeklyActivity,
+  type CommitAnalytics,
+  type CommitBucket,
+  type CommitWeek,
+} from './commits/index.js';
+export {
   openProjectStore,
   memoryProjectStore,
   DuplicateRootError,

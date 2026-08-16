@@ -8,6 +8,7 @@ import {
   openAnalysisCache,
   type AnalysisCache,
 } from './cache/index.js';
+import { analyseCommits } from './commits/index.js';
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { consoleLogger } from './logger.js';
 import type { PluginRegistry } from './registry.js';
@@ -115,9 +116,12 @@ export class Strata {
       cache.flush();
     }
 
-    // 3. Commit-convention parsing (first registered convention wins).
+    // 3. Commit-convention parsing (first registered convention wins), then the
+    // aggregates over the parsed log — folded once here rather than by every
+    // screen, card and gate that wants them.
     const [convention] = this.registry.byKind('commit-convention');
     const commits = convention ? commitLog.map((c) => convention.parse(c)) : [];
+    const commitAnalytics = analyseCommits(commitLog, commits);
 
     cache.flush();
     return {
@@ -131,6 +135,7 @@ export class Strata {
       languages,
       metrics,
       commits,
+      commitAnalytics,
       cache: {
         enabled: cache.path !== null,
         ...(cache.path ? { path: cache.path } : {}),

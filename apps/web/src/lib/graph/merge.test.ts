@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { noCommits } from '$lib/test/commits';
 import { graphOf, languageOf } from '$lib/test/graph';
 import { mergedGraph } from './merge';
 
@@ -17,6 +18,7 @@ function reportWith(
     languages,
     metrics: [],
     commits: [],
+    commitAnalytics: noCommits(),
     cache: {
       enabled: false,
       hits: 0,

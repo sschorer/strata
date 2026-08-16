@@ -104,9 +104,13 @@ New area — the mockup's settings screens need somewhere to write to.
 ## Git / history intelligence
 
 - [x] Hotspots (churn × complexity)
-- [ ] **P0** Commit analytics aggregates behind the *Commit analytics* screen —
+- [x] Commit analytics aggregates behind the *Commit analytics* screen —
       per-type and per-scope counts, convention-validity rate (`96% valid ·
       6 non-conforming`), breaking-change count, and a weekly activity series.
+      The core folds them once, onto `report.commitAnalytics`, rather than
+      leaving every reader to walk the log its own way; the weeks are
+      Monday-started (UTC) and contiguous, so a quiet week is a zero and not a
+      gap. The *Commit analytics* screen reads them as it lands.
 - [x] Change coupling — files that change together (temporal coupling).
       Thresholds (min changes/shared/degree) are still fixed constants; they
       become the *Project settings → Metrics* toggles.

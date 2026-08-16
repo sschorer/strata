@@ -51,6 +51,16 @@ const report = {
   languages: {},
   metrics: [],
   commits: [],
+  commitAnalytics: {
+    total: 0,
+    valid: 0,
+    invalid: 0,
+    validRate: 0,
+    breaking: 0,
+    types: [],
+    scopes: [],
+    weeks: [],
+  },
   cache: {
     enabled: false,
     hits: 0,

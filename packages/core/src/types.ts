@@ -1,5 +1,6 @@
 import type { LanguageAnalysis, MetricSeries, ParsedCommit } from '@strata/sdk';
 import type { CacheOptions, CacheStats } from './cache/index.js';
+import type { CommitAnalytics } from './commits/index.js';
 
 export interface AnalyzeOptions {
   /** Working-tree root of the repo to analyse. */
@@ -46,5 +47,7 @@ export interface AnalysisReport {
   languages: Record<string, LanguageAnalysis>;
   metrics: MetricSeries[];
   commits: ParsedCommit[];
+  /** The same window, folded: per type and scope, conformance, activity. */
+  commitAnalytics: CommitAnalytics;
   cache: CacheReport;
 }
