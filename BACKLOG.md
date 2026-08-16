@@ -203,9 +203,14 @@ Sans/Mono.
 
 ### Analysis screens
 
-- [ ] **P0** Overview — six stat cards (files, top hotspot, import cycles, commits,
-      dead code, plugins), top-hotspot bar list, import-cycle alert card with the
-      cycle path, loaded-plugins list, commit-type strip
+- [x] Overview (`/`) — six stat cards (files, top hotspot, import cycles,
+      commits, dead code, plugins), top-hotspot bar list, import-cycle alert
+      card with the cycle path, loaded-plugins list, commit-type strip. The
+      hotspot and cycle cards link to the screens that show those numbers in
+      full; the commit types are a bar list rather than a stacked strip, because
+      the palette is a heat ramp with no categorical set (`apps/web` decision
+      26). Reads the run the project switcher's project last had, and lists the
+      loaded plugins even before one.
 - [x] Hotspot treemap (`/hotspots`) — heat legend, squarified tiles sized by
       score and coloured by complexity, the ranked table (churn / complexity /
       LOC / score), and a shared selection between the two. Reads the run the
