@@ -1,9 +1,9 @@
 # Module: `@strata/web` — Architecture (arc42)
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
-> Status: **in progress** — theme layer, API client and the hotspot and
-> dependency-graph screens in place; the workbench shell and the remaining
-> analysis screens are still to build.
+> Status: **in progress** — theme layer, API client, the workbench shell and
+> the hotspot and dependency-graph screens in place; the project switcher and
+> the remaining analysis and settings screens are still to build.
 
 ## 1. Purpose & Goals
 
@@ -37,7 +37,9 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/theme/*` | `mode` (types + resolution), `storage`, `apply`, `controller.svelte` (state) |
 | `src/lib/api/*` | `base` (origin), `request` (fetch + `ApiError`), one module per endpoint, `types` |
 | `src/lib/analysis/*` | The app-wide last report (`store.svelte`), the remembered repo path, and `RunForm` |
-| `src/lib/format/*` | `number` (compact counts) and `path` (repo path → dir + name), used by every screen |
+| `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
+| `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `project` (root → name), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `CurrentProject`, `PluginCount`, `Logo` |
+| `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
 | `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `summary` (report → the panel's numbers), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
@@ -80,6 +82,9 @@ what more than one screen uses moves up into `lib/components/`.
 | 16 | **Pan and zoom move a `viewBox`, never the layout** | Re-running the layout at each zoom step would rearrange the picture under the reader. `viewport.ts` holds the window as plain values, so the clamping — never out past the whole graph, never off its edge — is one tested thing rather than arithmetic in event handlers |
 | 17 | **The canvas fills the room the page gives it** | The window takes the *canvas's* shape, not the drawing's, and a drawing that does not match is letterboxed and centred. Sizing the element to the drawing instead would leave a tall graph as a thin ribbon and a short one as a sliver, wasting the space either way. Resizing the page carries the window across rather than resetting it |
 | 18 | **Cycles ordered into a path in the UI** | Tarjan emits a component, not a route through it, and `a → b → a` is what a reader can act on. `cycles.ts` walks the component over real edges until the language result carries the path itself |
+| 19 | **The window is the frame: only the main pane scrolls** | The rail and the header hold still and the content column scrolls inside them. That is what lets a treemap or a graph canvas size itself against the room it is given — a page that scrolls as a whole gives a canvas a viewport that moves out from under it — and it keeps the branch, revision and *Re-analyze* reachable from the bottom of a long table |
+| 20 | **The shell takes the route as a prop** | `+layout.svelte` is the only thing that reads `$app/state`; `Shell` and everything under it is handed a `pathname`. The frame then mounts in a test the same way every other component does, without SvelteKit's runtime, and the nav's active-entry rule stays a pure function (`nav.ts`) |
+| 21 | **Screens on the backlog are listed, disabled** | The rail is the map of the workbench. Hiding *Commits*, *Dead code* and the two settings scopes until they exist would make each one appear as a surprise; showing them as `soon` says what Strata is going to be, and an inert entry cannot navigate to a route that is not there |
 
 ## 7. Quality & Risks
 
@@ -92,7 +97,9 @@ what more than one screen uses moves up into `lib/components/`.
   than exported from it; expect a tuning pass when the screens land. The light
   heat ramp already took one, so a single light ink clears 4.5:1 on every step.
 - **Debt:** the hotspot screen types the repo path into a form and remembers it
-  in `localStorage`. That is the project switcher's job — this goes away with it.
+  in `localStorage`, and the rail names *that* path as the current project.
+  That is the project switcher's job — a dropdown over the registered projects,
+  with *Add project* — and `CurrentProject` is the slot it takes over.
 - **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
   in the table. A zoom or a directory roll-up is the fix if it starts to bite.
 - **Decision:** the graph summary (nodes, edges, cycles, fan-in) is read, not
@@ -117,6 +124,9 @@ what more than one screen uses moves up into `lib/components/`.
   summary fold across languages, cycle paths over real edges, the focus
   ranking, edge classification,
   and the viewport's zoom, clamping, letterboxing and carrying across a resize) with its canvas, folder tree and
-  cycle list, the analysis store (including a superseded run), plus the
-  `/hotspots` and `/graph` routes end to end. Components mount through
-  `lib/test/render`; graphs come from `lib/test/graph`.
+  cycle list, the analysis store (including a superseded run), the shell (the
+  nav's active entry and its planned ones, the project label, the run summary's
+  fold, the rail, the header's breadcrumb and *Re-analyze*, and the frame
+  itself), the plugin store's load-once, plus the `/hotspots` and `/graph`
+  routes end to end. Components mount through `lib/test/render`; graphs come
+  from `lib/test/graph`.
