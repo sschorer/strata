@@ -49,6 +49,54 @@ describe('runPlugins', () => {
     expect(entries[1]?.note).toContain('another convention');
   });
 
+  it('calls only the plugins the project enables', () => {
+    const entries = runPlugins(
+      [
+        plugin(),
+        plugin({ id: 'strata-language-php' }),
+        plugin({ id: 'strata-git-hotspots', kind: 'git-metric' }),
+        plugin({ id: 'strata-git-coupling', kind: 'git-metric' }),
+      ],
+      {
+        languages: ['strata-language-typescript'],
+        metrics: [],
+        convention: null,
+      },
+    );
+
+    expect(entries.map((entry) => entry.runs)).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(entries[1]?.note).toContain('leaves it out');
+  });
+
+  it('parses with the convention the project chose, not the first loaded', () => {
+    const entries = runPlugins(
+      [
+        plugin({ id: 'conventional', kind: 'commit-convention' }),
+        plugin({ id: 'gitmoji', kind: 'commit-convention' }),
+      ],
+      { languages: null, metrics: null, convention: 'gitmoji' },
+    );
+
+    expect(entries[0]).toMatchObject({ id: 'conventional', runs: false });
+    expect(entries[0]?.note).toContain('another convention');
+    expect(entries[1]).toMatchObject({ id: 'gitmoji', runs: true });
+  });
+
+  it('stands every convention by when the chosen one is not installed', () => {
+    const entries = runPlugins(
+      [plugin({ id: 'conventional', kind: 'commit-convention' })],
+      { languages: null, metrics: null, convention: 'jira' },
+    );
+
+    expect(entries[0]?.runs).toBe(false);
+    expect(entries[0]?.note).toContain('nobody loaded');
+  });
+
   it('leaves an AI provider out of a run', () => {
     const [entry] = runPlugins([plugin({ id: 'codex', kind: 'ai-provider' })]);
 

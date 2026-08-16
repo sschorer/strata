@@ -44,11 +44,20 @@ export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
     // A registered project's settings are the defaults for a run over it, so
     // clicking *Re-analyze* honours what *Project settings* says. What the
     // request states wins: a CI job asking for a specific revision means it.
+    //
+    // Scope, the enabled-plugin lists and the convention have no request field
+    // to override them — they describe the project rather than one run, and a
+    // caller that wants a different scope is describing a different project.
     const { project, config } = registered(ctx, root, req.log);
     const report = await ctx.strata.analyze({
       root,
       rev: rev ?? config?.rev,
       historyLimit: historyLimit ?? config?.historyLimit ?? undefined,
+      paths: config?.paths,
+      ignore: config?.ignore,
+      languages: config?.languages,
+      metrics: config?.metrics,
+      convention: config?.convention,
       // The incremental cache is app-scoped, not per project: it is keyed on
       // blob shas and shared across every repository this workbench analyses.
       cache: cache ?? cacheEnabled(ctx, req.log),

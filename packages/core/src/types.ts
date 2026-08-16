@@ -9,6 +9,25 @@ export interface AnalyzeOptions {
   rev?: string;
   /** Cap the history window (number of commits). */
   historyLimit?: number;
+  /**
+   * Repo-relative paths (or globs) to analyse; omitted or empty is the whole
+   * repository.
+   */
+  paths?: readonly string[] | null;
+  /** Globs excluded from it. */
+  ignore?: readonly string[] | null;
+  /**
+   * Ids of the `language` plugins that may run; omitted or `null` is every
+   * registered one. A list is an allow-list, and an empty one runs none.
+   */
+  languages?: readonly string[] | null;
+  /** Ids of the `git-metric` plugins that may run; same rule. */
+  metrics?: readonly string[] | null;
+  /**
+   * Id of the `commit-convention` plugin that parses the history; omitted or
+   * `null` takes the first registered one.
+   */
+  convention?: string | null;
   /** Set false to recompute everything for this run (nothing is read or written). */
   cache?: boolean;
 }
@@ -33,7 +52,11 @@ export interface CacheReport extends CacheStats {
 export interface RunReport {
   /** Branch the analysed revision names; null for a detached HEAD, sha or tag. */
   branch: string | null;
-  /** Tracked files at that revision. */
+  /**
+   * Files the run analysed — tracked at that revision and inside the project's
+   * scope, so a repository narrowed to `src` reports what `src` holds rather
+   * than what the checkout does.
+   */
   files: number;
   /** Wall-clock time of the whole run, in milliseconds. */
   durationMs: number;

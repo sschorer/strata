@@ -163,6 +163,27 @@ describe('POST /analyze', () => {
     expect(requested).toMatchObject({ rev: 'develop', historyLimit: 500 });
   });
 
+  it('hands the core the project scope, its plugins and its convention', async () => {
+    const { id } = projects.add({ name: 'Strata', root: repo });
+    projects.setConfig(id, {
+      paths: ['src'],
+      ignore: ['**/*.test.ts'],
+      languages: ['language-typescript'],
+      metrics: [],
+      convention: 'commit-gitmoji',
+    });
+
+    await analyze(repo);
+
+    expect(requested).toMatchObject({
+      paths: ['src'],
+      ignore: ['**/*.test.ts'],
+      languages: ['language-typescript'],
+      metrics: [],
+      convention: 'commit-gitmoji',
+    });
+  });
+
   it('lets the request override what the settings say', async () => {
     const { id } = projects.add({ name: 'Strata', root: repo });
     projects.setConfig(id, { rev: 'develop', historyLimit: 500 });
@@ -177,9 +198,31 @@ describe('POST /analyze', () => {
 
     await analyze(repo);
 
-    // `HEAD` and no cap are what the core does anyway; a null limit must not
-    // reach it as a number.
-    expect(requested).toMatchObject({ rev: 'HEAD', historyLimit: undefined });
+    // `HEAD`, no cap, the whole repository and every plugin are what the core
+    // does anyway; a null limit must not reach it as a number.
+    expect(requested).toMatchObject({
+      rev: 'HEAD',
+      historyLimit: undefined,
+      paths: [],
+      ignore: [],
+      languages: null,
+      metrics: null,
+      convention: null,
+    });
+  });
+
+  it('leaves the core its own defaults for a root nobody registered', async () => {
+    await analyze(unregistered);
+
+    // No project, so nothing narrows the run: the whole repository, every
+    // plugin, and the convention the registry loaded first.
+    expect(requested).toMatchObject({
+      paths: undefined,
+      ignore: undefined,
+      languages: undefined,
+      metrics: undefined,
+      convention: undefined,
+    });
   });
 
   it('runs with the cache the app settings leave switched on', async () => {

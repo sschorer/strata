@@ -72,7 +72,7 @@
     config.status === 'error' && config.projectId === project?.id,
   );
 
-  let entries = $derived(runPlugins(plugins.response?.plugins ?? []));
+  let entries = $derived(runPlugins(plugins.response?.plugins ?? [], stored));
   let running = $derived(analysis.status === 'running');
   // A failure belongs to the repository it was raised for: the header can be
   // re-analysing something else by the time this screen is opened.
@@ -189,11 +189,12 @@
           error={plugins.error}
         />
         <p class="text-subtle mt-4 text-[0.6875rem]">
-          Who takes part is a workbench-wide question today: what loaded here
-          runs over every project, and a language module whose file types this
-          repository does not hold is skipped when the run reaches it.
-          Narrowing it per project is what <em>Language plugins</em> and
-          <em>Metrics &amp; convention</em> will do.
+          What loaded here is workbench-wide; who takes part is this project's
+          own setting, and a run calls exactly the plugins listed above. A
+          language module whose file types this repository does not hold is
+          skipped when the run reaches it. Editing the lists is what
+          <em>Language plugins</em> and <em>Metrics &amp; convention</em> will
+          do.
         </p>
       </Card>
 

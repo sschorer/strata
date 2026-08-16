@@ -36,7 +36,7 @@ UI and CI. Keeps transport concerns out of the core.
 | GET | `/browse` | `?path=&hidden=` → `{ path, parent, repo, entries, roots }` — the subdirectories of one directory on the server's machine, each marked whether it is a git working tree. The folder picker behind *Add project*. Directory names only, and only inside `$STRATA_ROOTS` (default: the server user's home): 403 outside them, 404 for a path that is not a directory. |
 | GET | `/settings` | The app-wide settings, filled out with the defaults: `{ appearance, engine, gates, ai }`. |
 | PATCH | `/settings` | Body: any of those four sections → all of them. Merges two levels deep (section, then field); an array replaces. 400 on a value that cannot be stored, or on a section named with no field in it. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). The root is confined to `$STRATA_ROOTS` first: 403 outside them, 404 for a path inside them that is not a directory. Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary; the cache default comes from the app settings. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). The root is confined to `$STRATA_ROOTS` first: 403 outside them, 404 for a path inside them that is not a directory. Over a registered root, the project's config supplies the defaults (`rev`, `historyLimit`) and its scope, plugin lists and convention outright, and the run updates its last-analysis summary; the cache default comes from the app settings. |
 | DELETE | `/cache` | Empty the incremental cache — the *Clear cache* button, which is an action rather than a setting. Registered projects and app settings are untouched: both live in their own databases. |
 
 ## 4. Building Blocks
@@ -96,6 +96,13 @@ restart of nothing.
   it: `/analyze` fills in `rev` and `historyLimit` from the settings and lets an
   explicit request field win, so *Re-analyze* follows *Project settings* while a
   CI job asking for a revision still gets that revision.
+- **…except for what describes the project rather than the run.** The scope
+  (analyse paths, ignore globs), the enabled-plugin lists and the commit
+  convention reach the core from the config with no request field to override
+  them. A revision is a question you ask of a repository; a scope is part of
+  what the repository *is* to this workbench, and a caller wanting a different
+  one is describing a different project. Keeping them off the request body also
+  keeps two reports of the same project comparable.
 - **Settings are two resources, split by who can promise what** — `/projects/:id`
   owns identity (the root has to stay unique across projects), `/projects/:id/config`
   owns what an analysis does. One PATCH each, merging by field.
