@@ -28,8 +28,21 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       each plugin's source, and anything skipped. The *Settings → Plugins &
       engine → Plugins directory* screen that renders it is still to build
       (*mockup*), with the UI work below.
-- [ ] **P0** Path allow-listing / sandbox for the `root` a request may analyse —
-      a prerequisite now that the UI lets a user register arbitrary project roots.
+- [x] Path allow-listing / sandbox for the `root` a request may analyse —
+      `$STRATA_ROOTS` (`PATH`-separated, the server user's home by default,
+      `/repos` in the image) is one allow-list for every path a request names:
+      what `/browse` lists, what `/projects` registers or re-points to, and what
+      `/analyze` walks. Symlinks are resolved before the check and the resolved
+      path is what runs; registering checks the repository git resolves to as
+      well as the path that arrived. 403 outside, 404 for a non-directory
+      inside. `$STRATA_BROWSE_ROOTS` is still read as the former name. The
+      allow-list says *what* may be reached; *who* may reach it is the auth item
+      below.
+- [ ] **P1** Authentication for the HTTP API — the allow-list confines what a
+      request may reach, not who may send one. Everything reachable on the port
+      is still unauthenticated (`DELETE /cache`, `DELETE /projects/:id`,
+      `PATCH /settings` and the plugins directory it names), so a deployment
+      outside a trusted network needs this.
 - [ ] **P1** Worker queue for heavy analyses (BullMQ / worker_threads); progress
       events so *Re-analyze* can show a running state instead of blocking.
 - [ ] **P1** Analyse a bare/remote repo (clone-on-demand) and a specific `rev` range
@@ -201,8 +214,8 @@ Sans/Mono.
       *Project settings → Analyze / run*, which owns the run. It replaces the
       repo-path form the hotspot and dependency screens used to carry. *Add
       project* also
-      browses: `GET /browse` walks the server's folders inside
-      `STRATA_BROWSE_ROOTS` and marks which are repositories.
+      browses: `GET /browse` walks the server's folders inside `STRATA_ROOTS`
+      and marks which are repositories.
 - [ ] **P1** Cycle count badge on the *Dependencies* nav item, driven by the last run
 - [ ] **P1** Empty and error states — no projects registered, never analysed,
       analysis failed, plugin threw

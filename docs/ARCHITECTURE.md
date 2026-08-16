@@ -203,14 +203,23 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   repository is one entry; every `/analyze` over a registered root refreshes
   that entry's summary. Removing a project drops the row and nothing else — the
   repository on disk is never touched.
+- **Path allow-list** — one list says what Strata may reach on disk
+  (`$STRATA_ROOTS`, `PATH`-separated; the server user's home by default, the
+  read-only `/repos` mount in the image), and every path that arrives in a
+  request is confined to it: what `/browse` lists, what `/projects` may
+  register or re-point to, and what `/analyze` may walk. Paths are resolved
+  through their symlinks *before* they are checked and the resolved path is
+  what gets used, so a link cannot step outside a root — and a subdirectory
+  whose repository begins above one is refused rather than registered. Outside
+  is a 403; a path inside a root that is not a directory is a 404, and a
+  missing path outside one gets the same 403 as anything else out there, so the
+  API is no way to ask what exists on the disk. On an unauthenticated API that
+  confinement is what stands between a caller and the filesystem: see
+  *Security* below.
 - **Folder browsing** — `/browse` lists the subdirectories of one directory on
   the server's machine and marks which are git working trees, so *Add project*
   can be a tree rather than a path the reader has to know by heart. Names of
-  directories only — no files, no contents — and confined to
-  `$STRATA_BROWSE_ROOTS` (the server user's home by default, the read-only
-  `/repos` mount in the image), with paths resolved through their symlinks
-  before they are checked. On an unauthenticated API that confinement is the
-  feature: see *Security* below.
+  directories only — no files, no contents — inside the allow-list above.
 - **Project configuration** — what an analysis of a project does (revision,
   history window, ignore globs and analyze paths, which language/metric plugins
   run, the commit convention, architecture rules), behind
@@ -236,13 +245,14 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   `@strata/sdk`) therefore stay stable as internals move. See CONTRIBUTING.
 - **Configuration** — `.env` (see `.env.example`); AI creds never committed.
 - **Logging** — structured logger injected via `RepoContext.log`.
-- **Security** — analysed repos mounted read-only; AI is opt-in. The HTTP API
-  is unauthenticated and assumes a trusted network: `/analyze` takes any `root`
-  on disk and `DELETE /cache` discards cached results (cost: a recomputation).
-  `/browse` is the one endpoint that reads outside a repository, and it is the
-  one with an allow-list already: `$STRATA_BROWSE_ROOTS`, directory names only.
-  Path allow-listing for `/analyze` and an auth story are on the backlog; until
-  then, do not expose the port beyond a trusted network.
+- **Security** — analysed repos mounted read-only; AI is opt-in. Every path a
+  request names is confined to `$STRATA_ROOTS` (see *Path allow-list* above),
+  so browsing, registering and analysing all stop at the same boundary. The
+  HTTP API is otherwise unauthenticated and assumes a trusted network:
+  `DELETE /cache` discards cached results (cost: a recomputation),
+  `DELETE /projects/:id` drops a registry entry, and `PATCH /settings` names
+  the directory the next start loads plugins from. An auth story is on the
+  backlog; until it lands, do not expose the port beyond a trusted network.
 
 ## 9. Architecture Decisions
 

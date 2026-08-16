@@ -27,16 +27,16 @@ UI and CI. Keeps transport concerns out of the core.
 | GET | `/health` | Liveness. |
 | GET | `/plugins` | What loaded, from where, and what was skipped: `{ directory, plugins, failures }` — each plugin its manifest plus a `source` (`builtin`/`user`). `directory` is the one actually scanned at startup. |
 | GET | `/projects` | `{ projects }` — the registry, in registration order; each entry carries its id, display name, root and last-analysis summary. |
-| POST | `/projects` | Body `{ name, root }` → the created `Project` (201). The root is resolved to the repository that owns it; 400 if it owns none, 409 if that repository is already registered. |
+| POST | `/projects` | Body `{ name, root }` → the created `Project` (201). The root is confined to `$STRATA_ROOTS` (403 outside, 404 for a path inside them that is not a directory) and resolved to the repository that owns it — which has to be inside them too; 400 if it owns none, 409 if that repository is already registered. |
 | GET | `/projects/:id` | One project, or 404. |
-| PATCH | `/projects/:id` | Body `{ name?, root? }` → the updated `Project`. Identity only; same root resolution and 409 as `POST`. |
+| PATCH | `/projects/:id` | Body `{ name?, root? }` → the updated `Project`. Identity only; same confinement, root resolution and 409 as `POST`. |
 | DELETE | `/projects/:id` | Drop the entry and its config (`{ removed: true }`), or 404. Never touches the repository on disk. |
 | GET | `/projects/:id/config` | That project's settings, filled out with the defaults. |
 | PATCH | `/projects/:id/config` | Body: any of `rev`, `historyLimit`, `ignore`, `paths`, `languages`, `metrics`, `convention`, `rules` → the whole config. Merges by field; an array replaces. 400 on a value that cannot be stored or a plugin id nobody loaded. |
-| GET | `/browse` | `?path=&hidden=` → `{ path, parent, repo, entries, roots }` — the subdirectories of one directory on the server's machine, each marked whether it is a git working tree. The folder picker behind *Add project*. Directory names only, and only inside `$STRATA_BROWSE_ROOTS` (default: the server user's home): 403 outside them, 404 for a path that is not a directory. |
+| GET | `/browse` | `?path=&hidden=` → `{ path, parent, repo, entries, roots }` — the subdirectories of one directory on the server's machine, each marked whether it is a git working tree. The folder picker behind *Add project*. Directory names only, and only inside `$STRATA_ROOTS` (default: the server user's home): 403 outside them, 404 for a path that is not a directory. |
 | GET | `/settings` | The app-wide settings, filled out with the defaults: `{ appearance, engine, gates, ai }`. |
 | PATCH | `/settings` | Body: any of those four sections → all of them. Merges two levels deep (section, then field); an array replaces. 400 on a value that cannot be stored, or on a section named with no field in it. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary; the cache default comes from the app settings. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). The root is confined to `$STRATA_ROOTS` first: 403 outside them, 404 for a path inside them that is not a directory. Over a registered root, the project's config supplies the defaults and the run updates its last-analysis summary; the cache default comes from the app settings. |
 | DELETE | `/cache` | Empty the incremental cache — the *Clear cache* button, which is an action rather than a setting. Registered projects and app settings are untouched: both live in their own databases. |
 
 ## 4. Building Blocks
@@ -51,14 +51,17 @@ UI and CI. Keeps transport concerns out of the core.
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
 | `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
 | `routes/plugin-ids.ts` | `requireKnownPlugins()` — refuse settings naming a plugin nobody loaded. |
-| `routes/browse.ts` | `/browse` — hands `listDirectory()` a path and maps its two refusals onto 403 and 404. The confinement itself is the core's (`browse/roots.ts`). |
+| `routes/allowed-root.ts` | `requireAllowedRoot()` / `rootError()` — confine a path from a request to `$STRATA_ROOTS`, and map the two refusals onto 403 and 404. The policy itself is the core's (`roots/`). |
+| `routes/browse.ts` | `/browse` — hands `listDirectory()` a path and maps its refusals the same way. |
 | `routes/index.ts` | `registerRoutes()` + the `RouteContext` they share. |
 
 ## 5. Runtime
 
-Request → validate body → `Strata.analyze()` → JSON report, plus a write to the
-project registry when the analysed root is registered. Plugin discovery happens
-once at startup, as does opening the registry.
+Request → validate body → confine the root to `$STRATA_ROOTS` →
+`Strata.analyze()` → JSON report, plus a write to the project registry when the
+analysed root is registered. Plugin discovery happens once at startup, as does
+opening the registry; the roots are read per request, so widening them is a
+restart of nothing.
 
 ## 6. Decisions
 
@@ -100,12 +103,19 @@ once at startup, as does opening the registry.
   the screens only offer loaded plugins, so an id that is not one is a typo or a
   stale client, and stored silently it would look like a plugin that is switched
   on but never runs.
-- **The folder picker is confined by configuration, not by what the process can
-  read** — `GET /browse` would otherwise be a filesystem enumerator on an
-  unauthenticated API. `$STRATA_BROWSE_ROOTS` (the server user's home by
-  default, `/repos` in the container) says where it may look, paths are
-  resolved through symlinks *before* they are checked, and the answer never
-  contains a file name or any content.
+- **Every path from a request passes through the same allow-list** — the API is
+  unauthenticated, so `root` would otherwise be "any directory this process can
+  read": `GET /browse` a filesystem enumerator, `POST /analyze` a way to walk
+  someone else's repository through it. `$STRATA_ROOTS` (the server user's home
+  by default, `/repos` in the container) says what may be reached, one
+  `requireAllowedRoot()` at the top of each handler applies it, and the
+  *resolved* path is what the handler goes on to use — so a symlink cannot
+  point the run somewhere the check never saw. Browsing adds its own limits on
+  top: no file names, no content.
+- **Registering checks both ends** — the path that arrived and the repository
+  git resolves it to. A subdirectory inside a root can belong to a working tree
+  that starts above one, and registering that would hand every later analysis a
+  tree this deployment said no to.
 - **Registering a project resolves the path through git**, so a path that is no
   repository is a 400 at *Add project* rather than a failure at the first
   analysis, and a subdirectory registers the repository that owns it instead of
@@ -113,19 +123,20 @@ once at startup, as does opening the registry.
 
 ## 7. Quality & Risks
 
-- **Risk:** `root` points anywhere on disk, and the API is unauthenticated —
-  `DELETE /cache` is reachable by anyone who can reach the port (cost: a
-  recomputation), and so is `DELETE /projects/:id` (cost: a registry entry, and
-  nothing on disk). `PATCH /settings` is reachable too, and it names a plugins
-  directory the next start will load code from. **Mitigation:** the API assumes
-  a trusted network and deployments mount repos read-only under a fixed prefix;
-  path allow-listing and auth are on the backlog. Do not expose the port
-  publicly.
-- **Risk:** `GET /browse` discloses directory *names* to anyone who can reach
-  the port. **Mitigation:** it is confined to `$STRATA_BROWSE_ROOTS` — the
-  server user's home by default, the read-only `/repos` mount in the container
-  — never follows a symlink out of them, and lists no files. Narrow it to the
-  directory your repositories live in on a shared host.
+- **Risk:** the API is unauthenticated, so everything it can do is reachable by
+  anyone who can reach the port: `DELETE /cache` (cost: a recomputation),
+  `DELETE /projects/:id` (cost: a registry entry, and nothing on disk), and
+  `PATCH /settings`, which names a plugins directory the next start will load
+  code from. **Mitigation:** paths are allow-listed (below), but the rest is
+  not — the API assumes a trusted network and auth is on the backlog. Do not
+  expose the port publicly.
+- **Risk:** `POST /analyze` and `POST /projects` take a path from the caller,
+  and `GET /browse` discloses directory *names*. **Mitigation:**
+  `$STRATA_ROOTS` — the server user's home by default, the read-only `/repos`
+  mount in the container — confines all three, symlinks are resolved before the
+  check, and a browse answer lists no files. Narrow it to the directory your
+  repositories live in on a shared host; the default is only reasonable on a
+  workstation.
 - **Risk:** AI provider `env` values are stored and served in plain text.
   **Mitigation:** secret storage is the next item in that area; until it lands,
   nothing sensitive belongs in provider settings.

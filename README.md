@@ -81,6 +81,13 @@ curl -X DELETE localhost:4000/cache
 curl -s localhost:4000/plugins
 ```
 
+Every path a request names — the folder picker's, a project's root, `/analyze`'s
+`root` — is confined to `$STRATA_ROOTS` (`PATH`-separated, the server user's
+home by default, `/repos` in the image). Anything outside is a 403, symlinks
+included: the API is unauthenticated, so what it may walk is a deployment
+decision rather than whatever the process can read. Point it at the directory
+your repositories live in — or at `/` to opt out of the confinement.
+
 Repositories can be registered, so the workbench remembers them (and what the
 last analysis of each one found) instead of being handed a path every time:
 
@@ -148,6 +155,8 @@ docker run --rm -p 4000:4000 \
   -v /path/to/repo:/repos/target:ro \
   ghcr.io/sschorer/strata:latest
 # then POST /analyze with {"root":"/repos/target"}
+# the image confines requests to /repos ($STRATA_ROOTS); mount elsewhere and
+# set it to match
 ```
 
 Or `docker compose up` (see `compose.yml`).

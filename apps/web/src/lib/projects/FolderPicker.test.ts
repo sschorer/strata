@@ -53,7 +53,7 @@ function stubBrowse(override?: Record<string, unknown>) {
       return (
         tree[path] ??
         Response.json(
-          { message: `${path} is not inside a directory Strata may browse.` },
+          { message: `${path} is not inside a directory Strata may reach.` },
           { status: 403 },
         )
       );
@@ -188,19 +188,19 @@ describe('FolderPicker', () => {
     folder(ui.container, 'notes').click();
 
     await vi.waitFor(() => {
-      expect(ui.container.textContent).toContain('may browse');
+      expect(ui.container.textContent).toContain('may reach');
     });
     expect(button(ui.container, `Back to ${ROOT}`)).toBeTruthy();
   });
 
-  it('says so when the server browses nothing at all', async () => {
+  it('says so when the server reaches nothing at all', async () => {
     stubApi({
       '/browse': { path: '', parent: null, repo: false, entries: [], roots: [] },
     });
     ui = render(FolderPicker, { onpick: () => {} });
 
     await vi.waitFor(() => {
-      expect(ui.container.textContent).toContain('STRATA_BROWSE_ROOTS');
+      expect(ui.container.textContent).toContain('STRATA_ROOTS');
     });
   });
 });

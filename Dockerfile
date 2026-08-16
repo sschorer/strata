@@ -35,6 +35,10 @@ COPY --from=build /out ./
 # plugin into /app/.strata/plugins (see docs/PLUGINS.md).
 ENV STRATA_CACHE_DIR=/app/.strata STRATA_DATA_DIR=/app/.strata \
     STRATA_PLUGINS_DIR=/app/.strata/plugins
+# The paths a request may name — browsed, registered or analysed — are confined
+# to these. /repos is where the image expects repositories to be mounted; widen
+# it only to another mount, never to the whole filesystem.
+ENV STRATA_ROOTS=/repos
 RUN mkdir -p /app/.strata/plugins && chown -R node:node /app/.strata
 
 EXPOSE 4000

@@ -47,15 +47,18 @@ export {
 } from './projects/index.js';
 export {
   listDirectory,
-  configuredRoots,
-  resolveRoots,
-  withinRoots,
-  BrowseDeniedError,
-  NoSuchDirectoryError,
   type BrowseOptions,
   type DirectoryEntry,
   type DirectoryListing,
 } from './browse/index.js';
+export {
+  allowedDirectory,
+  configuredRoots,
+  resolveRoots,
+  withinRoots,
+  NoSuchDirectoryError,
+  RootDeniedError,
+} from './roots/index.js';
 export {
   DEFAULT_PROJECT_CONFIG,
   withDefaults,

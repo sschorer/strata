@@ -18,29 +18,45 @@ import { projectsRoute } from './projects.js';
 const exec = promisify(execFile);
 
 /**
- * The registry endpoints behind the sidebar switcher. They run against a real
- * repository, because *Add project* resolves the path it is given through git
- * — that resolution is the part worth testing.
+ * The registry endpoints behind the sidebar switcher. They run against real
+ * repositories, because *Add project* resolves the path it is given through
+ * git and confines both ends to `$STRATA_ROOTS` — that resolution is the part
+ * worth testing.
+ *
+ *   <base>/          ← the allowed root
+ *     repo/.git      with a src/ inside it
+ *     other/.git
+ *     plain/         no repository
+ *   <outside>/.git   a repository the allow-list never names
  */
 
+let base: string;
 let repo: string;
 let other: string;
 let plain: string;
+let outside: string;
 let projects: ProjectStore;
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  repo = await realpath(mkdtempSync(join(tmpdir(), 'strata-projects-api-')));
-  mkdirSync(join(repo, 'src'));
+  base = await realpath(mkdtempSync(join(tmpdir(), 'strata-projects-api-')));
+  repo = join(base, 'repo');
+  other = join(base, 'other');
+  plain = join(base, 'plain');
+  mkdirSync(join(repo, 'src'), { recursive: true });
+  mkdirSync(other);
+  mkdirSync(plain);
   await exec('git', ['init', '-q'], { cwd: repo });
-  other = await realpath(mkdtempSync(join(tmpdir(), 'strata-other-api-')));
   await exec('git', ['init', '-q'], { cwd: other });
-  plain = await realpath(mkdtempSync(join(tmpdir(), 'strata-plain-api-')));
+  outside = await realpath(mkdtempSync(join(tmpdir(), 'strata-outside-api-')));
+  await exec('git', ['init', '-q'], { cwd: outside });
+  process.env.STRATA_ROOTS = base;
 }, 30_000);
 
 afterAll(async () => {
   await app.close();
-  for (const dir of [repo, other, plain]) {
+  delete process.env.STRATA_ROOTS;
+  for (const dir of [base, outside]) {
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -110,6 +126,35 @@ describe('POST /projects', () => {
     expect(projects.list()).toEqual([]);
   });
 
+  it('refuses a repository outside the allowed roots', async () => {
+    const response = await add({ name: 'Elsewhere', root: outside });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toContain('may reach');
+    expect(projects.list()).toEqual([]);
+  });
+
+  it('refuses a path inside them whose repository begins above them', async () => {
+    // The picker may only reach src/, but the repository that owns it starts
+    // one level up — registering it would hand every later run the whole tree.
+    process.env.STRATA_ROOTS = join(repo, 'src');
+    try {
+      const response = await add({ name: 'Subdirectory', root: join(repo, 'src') });
+
+      expect(response.statusCode).toBe(403);
+      expect(projects.list()).toEqual([]);
+    } finally {
+      process.env.STRATA_ROOTS = base;
+    }
+  });
+
+  it('answers 404 for a path inside them that is not there', async () => {
+    const response = await add({ name: 'Ghost', root: join(base, 'ghost') });
+
+    expect(response.statusCode).toBe(404);
+    expect(projects.list()).toEqual([]);
+  });
+
   it('refuses a root that is already registered', async () => {
     await add({ name: 'Strata', root: repo });
 
@@ -175,6 +220,10 @@ describe('PATCH /projects/:id', () => {
 
     expect(response.json()).toMatchObject({ id: 'strata', root: repo });
     expect((await patch({ root: plain })).statusCode).toBe(400);
+    // And confined the same way, so a project cannot be re-pointed out of the
+    // roots it was registered inside.
+    expect((await patch({ root: outside })).statusCode).toBe(403);
+    expect(projects.get('strata')?.root).toBe(repo);
   });
 
   it('refuses a root another project already holds', async () => {

@@ -7,10 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { browseRoute } from './browse.js';
 
 /**
- * The folder picker's endpoint. It reads `$STRATA_BROWSE_ROOTS` per request,
+ * The folder picker's endpoint. It reads `$STRATA_ROOTS` per request,
  * so the test points that at a tree of its own:
  *
- *   <base>/work/     ← the browse root
+ *   <base>/work/     ← the root it may reach
  *     repo/.git/
  *     plain/
  *   <base>/secret/   outside it
@@ -26,7 +26,7 @@ beforeAll(async () => {
   mkdirSync(join(root, 'repo', '.git'), { recursive: true });
   mkdirSync(join(root, 'plain'), { recursive: true });
   mkdirSync(join(base, 'secret'));
-  process.env.STRATA_BROWSE_ROOTS = root;
+  process.env.STRATA_ROOTS = root;
 
   app = Fastify();
   browseRoute(app);
@@ -35,12 +35,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app.close();
-  delete process.env.STRATA_BROWSE_ROOTS;
+  delete process.env.STRATA_ROOTS;
   rmSync(base, { recursive: true, force: true });
 });
 
 describe('GET /browse', () => {
-  it('lists the browse root when no path is given', async () => {
+  it('lists the first root when no path is given', async () => {
     const res = await app.inject({ method: 'GET', url: '/browse' });
 
     expect(res.statusCode).toBe(200);
@@ -71,14 +71,14 @@ describe('GET /browse', () => {
     expect(body.parent).toBe(root);
   });
 
-  it('refuses a path outside the browse roots', async () => {
+  it('refuses a path outside the roots', async () => {
     const res = await app.inject({
       method: 'GET',
       url: `/browse?path=${encodeURIComponent(join(base, 'secret'))}`,
     });
 
     expect(res.statusCode).toBe(403);
-    expect(res.json().message).toContain('may browse');
+    expect(res.json().message).toContain('may reach');
   });
 
   it('is a 404 for a directory that is not there', async () => {

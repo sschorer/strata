@@ -64,8 +64,11 @@ itself behaves.
 | `projects/schema.ts` | Table, pragmas, schema stamp. |
 | `projects/id.ts`, `projects/input.ts`, `projects/errors.ts` | Slugged ids, normalised input, `DuplicateRootError`. |
 | `browse/list.ts` | `listDirectory()` — the subdirectories of one directory, each marked whether it is a git working tree. Names only, never a file. |
-| `browse/roots.ts` | `configuredRoots()` / `resolveRoots()` / `withinRoots()` — where browsing may look (`STRATA_BROWSE_ROOTS`, else `$HOME`) and whether a resolved path is inside it. |
-| `browse/types.ts`, `browse/errors.ts` | `DirectoryListing`, `DirectoryEntry`, `BrowseOptions`; `BrowseDeniedError`, `NoSuchDirectoryError`. |
+| `browse/types.ts` | `DirectoryListing`, `DirectoryEntry`, `BrowseOptions`. |
+| `roots/config.ts` | `configuredRoots()` / `resolveRoots()` — where Strata may reach (`STRATA_ROOTS`, else `$HOME`), as configured and as it is on disk. |
+| `roots/within.ts` | `withinRoots()` — whether a resolved path is a root or inside one. |
+| `roots/allowed.ts` | `allowedDirectory()` — resolve a requested path and confine it to the roots, or refuse. |
+| `roots/errors.ts` | `RootDeniedError`, `NoSuchDirectoryError`. |
 | `config/types.ts` | `ProjectConfig`, `ProjectConfigPatch`, `ArchitectureRule`. |
 | `config/defaults.ts` | `DEFAULT_PROJECT_CONFIG` + `withDefaults()` — fill a stored config out. |
 | `config/patch.ts` | `applyPatch()` — merge, normalise, refuse what cannot be stored. |
@@ -173,14 +176,24 @@ section keeps its value — because each section is one settings screen.
   migration, and a `PATCH` that names one section says exactly what the screen
   it came from can promise.
 
-- **Browsing is confined by configuration, not by process permissions**
-  (`browse/roots.ts`). A folder picker needs to read directories the analysis
-  never would, so what it may reach is a deployment decision —
-  `STRATA_BROWSE_ROOTS`, else the server user's home — and a path is resolved
-  through its symlinks *before* it is checked, so a link inside a root cannot
-  step outside one. `.git` existence marks a repository rather than a `git`
-  call per entry: a listing is one screenful of hints, and registering resolves
-  the real thing anyway.
+- **What may be reached is configuration, not process permissions** (`roots/`).
+  One allow-list — `STRATA_ROOTS`, else the server user's home — covers every
+  path that arrives from outside, browsed or analysed alike, because they are
+  the same question asked by different endpoints. A path is resolved through
+  its symlinks *before* it is checked and the resolved path is what the caller
+  gets back, so a link cannot step outside a root and what runs is what was
+  checked. A path that cannot be resolved is refused as *outside* unless it
+  would lie inside a root anyway, so a refusal never doubles as an existence
+  check.
+- **The confinement is applied at the boundary, not inside the pipeline.**
+  `Strata.analyze()` takes the root it is given: a library caller and
+  `scripts/analyze.mjs` choose their own path in code, and an environment
+  variable has no business overruling them. It is requests that are untrusted,
+  so `@strata/server` is where every one of them passes through
+  `allowedDirectory()`.
+- **`.git` existence marks a repository** in a listing rather than a `git` call
+  per entry: a listing is one screenful of hints, and registering resolves the
+  real thing anyway.
 
 ## 7. Quality & Risks
 
@@ -209,6 +222,12 @@ section keeps its value — because each section is one settings screen.
   caller that exposes it exposes directory names. **Mitigation:** the roots
   above, no file names in the answer, and no content read at any point — plus
   the endpoint's own note in the server's architecture.
+- **Risk:** `allowedDirectory()` resolves a path that is used a moment later,
+  so a root replaced by a symlink in between would be read at its new target.
+  **Mitigation:** none in-process — the window is a local race that needs write
+  access to a directory inside the roots, which is already write access to the
+  repositories being analysed. Keep the roots on a mount the API's own user
+  cannot write to (`:ro` in the image).
 - **Risk:** `git` output parsing edge cases (root commit, renames). **Mitigation:**
   record-separator parsing; covered by analysis smoke runs.
 - **Risk:** a plugin runs **in-process, with the server's privileges** — the

@@ -27,8 +27,8 @@ export interface BrowseOptions {
   /** Include dot-directories. Off by default: they are rarely repositories. */
   hidden?: boolean;
   /**
-   * The directories browsing is confined to. Defaults to what
-   * `$STRATA_BROWSE_ROOTS` names, else the server user's home.
+   * The directories browsing is confined to. Defaults to what `$STRATA_ROOTS`
+   * names, else the server user's home.
    */
   roots?: string[];
 }
