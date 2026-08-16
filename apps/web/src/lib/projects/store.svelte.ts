@@ -4,9 +4,11 @@ import {
   ApiError,
   fetchProjects,
   removeProject,
+  updateProject,
   type AddProjectRequest,
   type AnalysisReport,
   type Project,
+  type UpdateProjectRequest,
 } from '$lib/api';
 import { readSelection, storeSelection } from './selection';
 
@@ -89,6 +91,26 @@ export class ProjectsStore {
     this.#projects = [...this.#projects, project];
     this.select(project.id);
     return project;
+  }
+
+  /**
+   * Rename a project, or re-point it — what *Project settings → General*
+   * writes. The entry the server hands back replaces the one held here, so the
+   * switcher and the settings heading are renamed by the same round-trip.
+   *
+   * A root that moved re-points the analysis too: the report on screen
+   * describes the repository that was analysed, and `analysis.select` drops it
+   * for the same reason picking another project does. Throws what the server
+   * said — an unknown id, a path outside a repository, a root another project
+   * already holds — for the form to show next to the field.
+   */
+  async update(id: string, input: UpdateProjectRequest): Promise<Project> {
+    const updated = await updateProject(id, input);
+    this.#projects = this.#projects.map((project) =>
+      project.id === id ? updated : project,
+    );
+    if (this.#selected === id) analysis.select(updated.root);
+    return updated;
   }
 
   /**

@@ -97,9 +97,60 @@ export interface AddProjectRequest {
   root: string;
 }
 
+/**
+ * What *Project settings → General* sends. Both fields are optional and a
+ * field left out keeps its value; the server refuses a patch that names
+ * neither.
+ */
+export interface UpdateProjectRequest {
+  name?: string;
+  root?: string;
+}
+
 export interface RemoveProjectResponse {
   removed: boolean;
 }
+
+/** One architecture fitness rule: `from` may not import `to`. */
+export interface ArchitectureRule {
+  /** Path glob the rule constrains, e.g. `src/ui/**`. */
+  from: string;
+  /** Path glob it may not reach, e.g. `src/db/**`. */
+  to: string;
+  /** Enforced rules are meant to fail a CI gate; the rest only report. */
+  enforced: boolean;
+}
+
+/**
+ * What an analysis of one project *does* — everything the *Project settings*
+ * sections configure except identity, which belongs to the registry entry.
+ * The server stores it sparsely and answers with the defaults filled in, so
+ * every field here always has a value.
+ */
+export interface ProjectConfig {
+  /** Revision to analyse; `HEAD` follows whatever is checked out. */
+  rev: string;
+  /** Cap on the history window, in commits; `null` for the whole history. */
+  historyLimit: number | null;
+  /** Globs excluded from the analysis. */
+  ignore: string[];
+  /** Repo-relative paths to analyse; empty means the whole repository. */
+  paths: string[];
+  /** Ids of the language plugins that may run, or `null` for every one. */
+  languages: string[] | null;
+  /** Ids of the git-metric plugins that may run, or `null` for all of them. */
+  metrics: string[] | null;
+  /** Id of the commit-convention plugin to parse with, or `null` for the first. */
+  convention: string | null;
+  rules: ArchitectureRule[];
+}
+
+/**
+ * A partial update. A field left out keeps its value and one that is sent
+ * replaces it whole — an array field is the new list, not an addition to the
+ * old one — so a screen can send back exactly what it shows.
+ */
+export type ProjectConfigPatch = Partial<ProjectConfig>;
 
 /** One subdirectory, as the folder picker lists it. */
 export interface DirectoryEntry {
