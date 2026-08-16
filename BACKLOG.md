@@ -68,13 +68,19 @@ New area — the mockup's settings screens need somewhere to write to.
       renames a project or re-points its root. Settings are stored sparsely and
       defaulted on read, and a plugin id nobody loaded is refused. `/analyze`
       over a registered root takes `rev` and `historyLimit` from here (an
-      explicit request field still wins) — the remaining fields are stored and
-      served but not yet honoured by the pipeline, which is the item below.
-- [ ] **P0** Honour the rest of a project's config in the pipeline — ignore
-      globs and analyze paths in the file routing, the enabled-plugin lists in
-      `Strata.analyze`, and the chosen commit convention instead of
-      first-registered-wins. (Architecture rules need the rule engine under
-      *Architecture fitness*.)
+      explicit request field still wins) and the rest of the config outright,
+      which is the item below.
+- [x] Honour the rest of a project's config in the pipeline — the analyse paths
+      and ignore globs narrow the tracked files once, before any plugin sees
+      them, so the plugins, the file count the report prints and every cache key
+      describe the same set; the enabled-plugin lists are allow-lists in
+      `Strata.analyze` (nothing named is every plugin, an empty list is none);
+      and the chosen commit convention parses instead of first-registered-wins,
+      parsing nothing rather than falling back when a project names one nobody
+      loaded. These describe the project rather than one run, so `/analyze` has
+      no request field to override them. *Analyze / run* reads the same rule, so
+      its plugin chips answer per project. (Architecture rules need the rule
+      engine under *Architecture fitness*.)
 - [x] App-scoped config store + endpoints — `GET`/`PATCH` `/settings` holds
       appearance (theme, density), the plugins directory, third-party plugin
       loading, the incremental cache toggle, the CI gate thresholds and the AI
@@ -275,16 +281,21 @@ Sans/Mono.
       history limit a run reads, printed rather than edited (*General* owns
       them, and this is where they are used); the plugins that will take part
       as chips, with a line for every loaded plugin that stands by and why —
-      the orchestrator's own rule, so the first commit-convention plugin parses
-      and an AI provider never runs; *Run analysis* (`POST /analyze`); and the
+      the orchestrator's own rule, read against this project's config, so a
+      plugin it leaves out stands by, the convention it chose parses and an AI
+      provider never runs; *Run analysis* (`POST /analyze`); and the
       recent runs. Strata keeps one run summary per project, so the list is
       this browser's own log seeded with the registry's last one. The switcher
       no longer carries the first run; it links here.
-- [ ] **P1** Scope & ignore — ignore globs and analyze paths as editable chip lists
+- [ ] **P1** Scope & ignore — ignore globs and analyze paths as editable chip
+      lists. The pipeline honours both already, so this is the editor for a
+      field that works.
 - [ ] **P1** Language plugins — per-project toggles with the extensions each one
-      claims; *planned* modules (Angular, PHP) shown disabled
+      claims; *planned* modules (Angular, PHP) shown disabled. The allow-list is
+      honoured; this writes it.
 - [ ] **P1** Metrics & convention — metric toggles plus a
-      `conventional` / `gitmoji` / `custom` convention selector
+      `conventional` / `gitmoji` / `custom` convention selector. Both are
+      honoured; this writes them.
 - [ ] **P1** Architecture rules — list and edit `X may not import Y` rules with an
       *enforced* marker
 - [ ] **P1** Danger zone — remove the project from Strata (repo on disk

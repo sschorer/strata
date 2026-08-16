@@ -46,6 +46,10 @@ itself behaves.
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
 | `summarise.ts` | `summarised()` — fill in a language result's graph summary when the plugin (or its cached run) predates the field. |
+| `scope/glob.ts` | `globMatcher()` — the ignore/analyse globs compiled to one predicate over repo-relative paths. |
+| `scope/files.ts` | `scopedFiles()` — the tracked files narrowed to a project's `paths` minus its `ignore`. |
+| `scope/plugins.ts` | `enabledPlugins()` — the plugins of one kind a run may call. |
+| `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history. |
 | `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
 | `plugins-dir.ts` | `userPluginsDir()` — where drop-in plugins live (`STRATA_PLUGINS_DIR`). |
 | `git/exec.ts` | Run a read-only git command. |
@@ -90,14 +94,15 @@ itself behaves.
 
 `analyze()`:
 1. `resolveRev` → sha; `branchAt` → branch (or none); `listFiles` → `RepoFile[]`
-   (blob-keyed).
+   (blob-keyed), narrowed once by `scopedFiles()` to the project's analyse
+   paths minus its ignore globs.
 2. Build `RepoContext`, one `cache` scope per plugin.
-3. Route files to `language` plugins by extension — skipping any plugin whose
-   input digest already has a stored result.
-4. Stream `history`; run `git-metric` plugins (same skip).
-5. Parse commits with the first `commit-convention` plugin, then fold the log
-   into `CommitAnalytics` (per type, per scope, conformance, breaking changes,
-   weekly activity).
+3. Route files to the enabled `language` plugins by extension — skipping any
+   plugin whose input digest already has a stored result.
+4. Stream `history`; run the enabled `git-metric` plugins (same skip).
+5. Parse commits with the project's `commit-convention` plugin — the first
+   registered when it names none — then fold the log into `CommitAnalytics`
+   (per type, per scope, conformance, breaking changes, weekly activity).
 6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`.
 
@@ -130,7 +135,25 @@ section keeps its value — because each section is one settings screen.
   is recorded in
   `registry.failures()` rather than thrown: a broken third-party plugin must
   cost only itself, not the process.
-- **First-registered commit convention wins** (single active convention).
+- **One active commit convention**, the project's choice, and the
+  first-registered one when it has made none — two conventions would parse the
+  same commits into two answers. A project naming a convention that is no longer
+  installed parses **nothing**, with a warning, rather than falling back to
+  whichever plugin happens to be first: a report claiming a history conforms to
+  a convention nobody asked for is worse than one that claims nothing.
+- **A project's config is turned into behaviour in one place** (`scope/`), at
+  the top of `analyze()`, and never inside a plugin. Scope narrows the file list
+  before any plugin sees it, so the plugins, the report's file count and every
+  cache key below describe the same set — and a plugin left to re-apply the
+  globs itself could disagree with all three, or forget. The enabled-plugin
+  lists are **allow-lists**: nothing named is every plugin (what an unconfigured
+  project asks for), a list is exactly those, and an empty list is none of them.
+- **Globs are matched, not shelled out.** `*` and `?` stay inside a path
+  segment, `**` crosses them and may stand for no directory at all, and a
+  pattern covers the tree under what it names — so `dist` is the build directory
+  without anyone having to know to write it as a wildcard. The lists are typed
+  by hand into a chip list, and the forgiving reading is the one that matches
+  what the writer meant.
 - **The aggregates are folded in the core, not by each reader.** A plugin says
   what one commit means; how many `feat` commits there were is a question every
   screen, card and gate asks, and three of them counting it three ways is three
@@ -226,7 +249,13 @@ section keeps its value — because each section is one settings screen.
   revision that no longer exists. **Mitigation:** the API checks plugin ids
   against the registry as they are written; a stale one survives only until the
   next edit of that field, and an unknown revision fails the run it is used in
-  rather than the settings screen.
+  rather than the settings screen. In a run, a stale id in an allow-list simply
+  selects nothing — the plugin it names is not there to run — and a stale
+  convention warns, because there the whole commit analysis goes quiet.
+- **Risk:** a scope narrow enough to hide the interesting code makes a report
+  look healthy. **Mitigation:** `run.files` is the count the run actually
+  analysed rather than what the checkout holds, and *Analyze / run* prints who
+  takes part, so a report is readable against the scope that produced it.
 - **Risk:** an AI provider's `env` values are stored and served in plain text,
   so a token put there is readable by anyone who can reach the API.
   **Mitigation:** none yet — secret storage (write-only, redacted on read) is

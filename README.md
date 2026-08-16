@@ -110,9 +110,10 @@ curl -X PATCH localhost:4000/projects/strata/config \
   -d '{"rev":"main","historyLimit":500,"ignore":["**/dist/**"]}'
 ```
 
-An analysis of a registered root uses those settings as its defaults, so
-`POST /analyze {"root":"…"}` runs what *Project settings* says; a request that
-names `rev` or `historyLimit` itself still wins.
+An analysis of a registered root runs what *Project settings* says: the scope,
+the enabled plugins and the commit convention come from the project, and
+`rev` / `historyLimit` are defaults a request naming them itself overrides.
+(Architecture rules are stored and served; enforcing them is on the backlog.)
 
 The registry lives in `$STRATA_DATA_DIR` (default `<cwd>/.strata/projects.db`),
 its own database beside the cache: `DELETE /cache` never touches it.

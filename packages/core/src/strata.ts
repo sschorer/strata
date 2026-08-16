@@ -12,6 +12,11 @@ import { analyseCommits } from './commits/index.js';
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { consoleLogger } from './logger.js';
 import type { PluginRegistry } from './registry.js';
+import {
+  chosenConvention,
+  enabledPlugins,
+  scopedFiles,
+} from './scope/index.js';
 import { summarised } from './summarise.js';
 import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
 
@@ -20,6 +25,12 @@ import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
  * plugins are registered. Everything a plugin sees flows through here, which is
  * also where the incremental cache hooks in: each plugin gets a `cache` scoped
  * to its own id, and a plugin whose entire input is unchanged is skipped.
+ *
+ * It is also where a project's configuration turns into behaviour: the scope
+ * narrows the file list once, before any plugin sees it, and the enabled-plugin
+ * lists and the chosen commit convention decide who is called at all. A caller
+ * that passes none of them gets the whole repository and every plugin, which is
+ * what an unconfigured project asks for.
  */
 export class Strata {
   private cache?: AnalysisCache;
@@ -38,7 +49,9 @@ export class Strata {
     const before = cache.stats();
     const rev = await resolveRev(opts.root, opts.rev);
     const branch = await branchAt(opts.root, opts.rev);
-    const files = await listFiles(opts.root, rev);
+    // Scope is applied to the tracked files once, here: every plugin, the
+    // report's file count and every cache key below then describe the same set.
+    const files = scopedFiles(await listFiles(opts.root, rev), opts);
     const ctx: Omit<RepoContext, 'cache'> = {
       root: opts.root,
       rev,
@@ -47,9 +60,13 @@ export class Strata {
       log: consoleLogger,
     };
 
-    // 1. Per-language static analysis, routed by file extension.
+    // 1. Per-language static analysis, routed by file extension — across the
+    // language plugins this project enabled.
     const languages: Record<string, LanguageAnalysis> = {};
-    for (const { manifest, plugin } of this.registry.loadedByKind('language')) {
+    for (const { manifest, plugin } of enabledPlugins(
+      this.registry.loadedByKind('language'),
+      opts.languages,
+    )) {
       const exts = new Set(plugin.extensions.map((e) => `.${e}`));
       const matched = files.filter((f) => exts.has(extname(f.path)));
       if (matched.length === 0) continue;
@@ -84,8 +101,9 @@ export class Strata {
       maxCount: opts.historyLimit,
     });
     const metrics: MetricSeries[] = [];
-    for (const { manifest, plugin } of this.registry.loadedByKind(
-      'git-metric',
+    for (const { manifest, plugin } of enabledPlugins(
+      this.registry.loadedByKind('git-metric'),
+      opts.metrics,
     )) {
       // Metrics read history as well as files, and a shallow clone can hold a
       // different history for the same sha — so the repo goes into the key too.
@@ -116,10 +134,19 @@ export class Strata {
       cache.flush();
     }
 
-    // 3. Commit-convention parsing (first registered convention wins), then the
-    // aggregates over the parsed log — folded once here rather than by every
-    // screen, card and gate that wants them.
-    const [convention] = this.registry.byKind('commit-convention');
+    // 3. Commit-convention parsing (the project's convention, else the first
+    // registered), then the aggregates over the parsed log — folded once here
+    // rather than by every screen, card and gate that wants them.
+    const conventions = this.registry.loadedByKind('commit-convention');
+    const convention = chosenConvention(conventions, opts.convention);
+    if (opts.convention && !convention) {
+      // Nothing parses, so the report claims nothing about conformance. Worth a
+      // line: the config names a plugin this workbench no longer has.
+      consoleLogger.warn(
+        `commit convention "${opts.convention}" is not loaded; ` +
+          'this run parses no commits.',
+      );
+    }
     const commits = convention ? commitLog.map((c) => convention.parse(c)) : [];
     const commitAnalytics = analyseCommits(commitLog, commits);
 

@@ -140,13 +140,21 @@ builds a `RepoContext` and fans work out.
 ### Analyse a repository
 
 1. `Strata.analyze({root, rev})` resolves `rev` → sha and branch, and lists
-   tracked files (each with its blob sha).
-2. Files are routed to `language` plugins by extension.
-3. Commit history is streamed; `git-metric` plugins compute their series.
+   tracked files (each with its blob sha), narrowed once to the project's
+   scope — its analyse paths, minus its ignore globs.
+2. Files are routed to the enabled `language` plugins by extension.
+3. Commit history is streamed; the enabled `git-metric` plugins compute their
+   series.
 4. The active `commit-convention` plugin parses each commit, and the core folds
    the parsed log into `CommitAnalytics` — per type, per scope, how much of the
    history conforms, breaking changes, weekly activity.
 5. Results merge into an `AnalysisReport`, returned by the API.
+
+Which plugins are "enabled" and which convention is "active" are the project's
+configuration; a project that has configured neither runs every plugin and
+parses with the first convention registered. The scope and those lists are
+applied at the top of the pipeline rather than inside any plugin, so one answer
+serves the plugins, the file count the report prints and the cache keys alike.
 
 Steps 2 and 3 go through the cache. The core skips any plugin whose inputs
 digest to a stored result — that part needs no cooperation. Per-file reuse
@@ -227,9 +235,13 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   run, the commit convention, architecture rules), behind
   `/projects/:id/config`. Stored sparsely beside the registry entry and merged
   with the defaults on read, so an unset field follows the default rather than a
-  copy of it. `/analyze` takes these as its defaults and lets an explicit
-  request field win. Identity — display name and root — stays on the registry
-  entry, which is the only place that can keep a root unique.
+  copy of it. Every run over a registered root reads them: the revision and the
+  history window as defaults an explicit request field may override, the scope,
+  the plugin lists and the convention as the project's own — a caller wanting a
+  different scope is describing a different project, not a different run.
+  Identity — display name and root — stays on the registry entry, which is the
+  only place that can keep a root unique. (Architecture rules are stored and
+  served; enforcing them needs the rule engine.)
 - **App settings** — how the workbench itself behaves (appearance, the plugins
   directory and third-party loading, the incremental cache, the CI gate
   thresholds, the AI provider instances), behind `/settings`. A third SQLite

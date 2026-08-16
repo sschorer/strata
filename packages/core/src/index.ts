@@ -68,6 +68,14 @@ export {
   RootDeniedError,
 } from './roots/index.js';
 export {
+  globMatcher,
+  scopedFiles,
+  enabledPlugins,
+  chosenConvention,
+  type FileScope,
+  type LoadedConvention,
+} from './scope/index.js';
+export {
   DEFAULT_PROJECT_CONFIG,
   withDefaults,
   InvalidConfigError,
