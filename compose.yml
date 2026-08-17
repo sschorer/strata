@@ -7,6 +7,11 @@ services:
       - "4000:4000"
     environment:
       PORT: "4000"
+      # Who may call: with this set, every endpoint but /health needs
+      # `Authorization: Bearer <token>`. The port below is published, so it is
+      # reachable from more than this host — set it in .env
+      # (openssl rand -hex 32) unless you narrow the mapping to 127.0.0.1.
+      STRATA_TOKEN: ${STRATA_TOKEN:-}
       # What this server may reach on disk: the mount below. It confines the
       # *Add project* folder picker, what may be registered, and what
       # /analyze will walk. Without it the default is the container user's

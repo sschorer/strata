@@ -1,3 +1,7 @@
+// The session is imported by module rather than through `$lib/auth`, whose
+// barrel reaches back here for the token check — one import each way through
+// the barrels would be a cycle.
+import { session } from '$lib/auth/session.svelte';
 import { apiUrl } from './base';
 
 /** Every failed call surfaces as this, so views can render one error shape. */
@@ -19,16 +23,26 @@ interface RequestOptions {
   /** Serialised as JSON; sets the content-type. */
   body?: unknown;
   signal?: AbortSignal;
+  /**
+   * A credential to try instead of the session's — and, with it, a promise not
+   * to raise the unlock prompt if it is refused. The unlock panel checks a
+   * token before the session adopts it, and a wrong one there is an answer to
+   * the reader, not a fresh challenge.
+   */
+  token?: string;
 }
 
 /** One JSON round-trip against the server, with failures normalised. */
 export async function apiRequest<T>(
   path: string,
-  { method = 'GET', body, signal }: RequestOptions = {},
+  { method = 'GET', body, signal, token }: RequestOptions = {},
 ): Promise<T> {
   const url = apiUrl(path);
   const headers: Record<string, string> = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
+
+  const credential = token ?? session.token;
+  if (credential) headers.authorization = `Bearer ${credential}`;
 
   let response: Response;
   try {
@@ -47,6 +61,10 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    // A 401 is the whole app's business, not this call's: the workbench is
+    // locked until a token is supplied, so the session raises the prompt once
+    // and every screen behind it stops guessing why its data never came.
+    if (response.status === 401 && token === undefined) session.challenge();
     throw new ApiError(
       url,
       response.status,

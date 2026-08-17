@@ -39,6 +39,8 @@ theme layer and API client wired; the analysis screens are next. See
 - Incremental cache — SQLite, keyed on the git blob sha, so a rerun only
   re-analyses what changed ✅
 - Drop-in third-party plugins from a user plugins directory ✅
+- Path allow-list + a bearer token on the API — what a request may reach, and
+  who may send one ✅
 
 **Architecture & AI**
 - Architecture fitness rules ("`ui` may not import `db`") ⏳
@@ -84,9 +86,29 @@ curl -s localhost:4000/plugins
 Every path a request names — the folder picker's, a project's root, `/analyze`'s
 `root` — is confined to `$STRATA_ROOTS` (`PATH`-separated, the server user's
 home by default, `/repos` in the image). Anything outside is a 403, symlinks
-included: the API is unauthenticated, so what it may walk is a deployment
-decision rather than whatever the process can read. Point it at the directory
-your repositories live in — or at `/` to opt out of the confinement.
+included: what the workbench may walk is a deployment decision rather than
+whatever the process can read. Point it at the directory your repositories live
+in — or at `/` to opt out of the confinement.
+
+### Who may call
+
+Set `$STRATA_TOKEN` and every endpoint but `/health` needs it:
+
+```bash
+STRATA_TOKEN=$(openssl rand -hex 32) make dev
+
+curl -s localhost:4000/plugins                      # 401
+curl -s -H "Authorization: Bearer $STRATA_TOKEN" localhost:4000/plugins
+```
+
+Leave it unset and the API answers anyone who can reach the port — fine on the
+machine you are analysing, which is why it stays the default, and said out loud
+at every startup. Set it before the port is reachable from anywhere else, and
+put TLS in front: the token travels in the clear otherwise. The web UI asks for
+it once and keeps it in the browser.
+
+The two limits are separate — the token says *who* may call, `$STRATA_ROOTS`
+says *what* any caller may reach — and holding the token widens nothing.
 
 Repositories can be registered, so the workbench remembers them (and what the
 last analysis of each one found) instead of being handed a path every time:
@@ -154,11 +176,16 @@ already do; `STRATA_CACHE=0` disables it globally.
 ```bash
 docker run --rm -p 4000:4000 \
   -v /path/to/repo:/repos/target:ro \
+  -e STRATA_TOKEN="$(openssl rand -hex 32)" \
   ghcr.io/sschorer/strata:latest
-# then POST /analyze with {"root":"/repos/target"}
+# then POST /analyze with {"root":"/repos/target"} and the token as
+# `Authorization: Bearer <token>`
 # the image confines requests to /repos ($STRATA_ROOTS); mount elsewhere and
 # set it to match
 ```
+
+Published ports are reachable from more than the host — set the token, or
+publish to `127.0.0.1:4000:4000` only.
 
 Or `docker compose up` (see `compose.yml`).
 

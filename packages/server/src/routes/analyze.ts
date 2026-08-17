@@ -31,10 +31,10 @@ const schema = {
  * Run an analysis and return the full report.
  *
  * The `root` is confined to `$STRATA_ROOTS` first — 403 outside them — because
- * everything below this line reads a repository, and the API is
- * unauthenticated. The resolved path is what gets analysed and what the
- * registry is looked up by, so a symlink cannot point the run somewhere else
- * after the check.
+ * everything below this line reads a repository, and a caller who got this far
+ * is a trusted one rather than an unconfined one. The resolved path is what
+ * gets analysed and what the registry is looked up by, so a symlink cannot
+ * point the run somewhere else after the check.
  */
 export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
   app.post<{ Body: AnalyzeBody }>('/analyze', { schema }, async (req) => {
