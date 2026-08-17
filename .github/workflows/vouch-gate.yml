@@ -1,7 +1,7 @@
 name: Vouch gate
 
 # Produces the required "vouch-gate" status check. A PR passes when either:
-#   - the PR author is an owner (owner bypass), or
+#   - the PR author is an owner or a vouched reviewer (author bypass), or
 #   - at least one approving review comes from an owner or a vouched reviewer.
 # Mark this check as required in branch protection to enforce the vouch system.
 
@@ -31,8 +31,12 @@ jobs:
             const pr = context.payload.pull_request;
             const author = (pr.user.login || '').toLowerCase();
 
-            if (owners.map((s) => s.toLowerCase()).includes(author)) {
-              core.info(`Author @${author} is an owner — bypassing.`);
+            // Trust is symmetric: anyone whose approval unblocks other people's
+            // PRs doesn't need an approval on their own. This is also what lets
+            // dependabot[bot]'s weekly bumps through — a bot never reviews, so
+            // the approval path alone would leave them blocked forever.
+            if (trusted.has(author)) {
+              core.info(`Author @${author} is trusted — bypassing.`);
               return;
             }
 

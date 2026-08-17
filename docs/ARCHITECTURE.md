@@ -170,7 +170,9 @@ render.
 
 `/vouch @user` (issue comment) → `vouch-command` workflow validates the actor is
 an owner, edits `.github/vouched.json`, commits it. The `vouch-gate` check then
-lets that user's approvals unblock others' PRs.
+lets that user's approvals unblock others' PRs, and lets their own PRs through
+without one. `dependabot[bot]` is vouched for the second half alone: a bot never
+files a review, so the approval path would strand its weekly bumps.
 
 ## 7. Deployment View
 
