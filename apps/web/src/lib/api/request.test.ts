@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { session } from '$lib/auth/session.svelte';
 import { ApiError, apiRequest } from './request';
 
 function stubFetch(impl: typeof fetch): ReturnType<typeof vi.fn> {
@@ -9,7 +10,13 @@ function stubFetch(impl: typeof fetch): ReturnType<typeof vi.fn> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  session.forget();
 });
+
+function headersOf(fetchMock: ReturnType<typeof vi.fn>): Record<string, string> {
+  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  return init.headers as Record<string, string>;
+}
 
 describe('apiRequest', () => {
   it('returns the parsed JSON body', async () => {
@@ -98,5 +105,61 @@ describe('apiRequest', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ status: 0, cause });
     expect((error as ApiError).message).toContain('Cannot reach');
+  });
+});
+
+describe('the token it carries', () => {
+  const unauthorized = async () =>
+    Response.json(
+      { statusCode: 401, error: 'Unauthorized', message: 'needs a token' },
+      { status: 401 },
+    );
+
+  it('sends nothing on a workbench that never asked for one', async () => {
+    const fetchMock = stubFetch(async () => Response.json({}));
+
+    await apiRequest('/plugins');
+
+    expect(headersOf(fetchMock).authorization).toBeUndefined();
+  });
+
+  it('sends the session token as a bearer credential', async () => {
+    session.unlock('the-real-token');
+    const fetchMock = stubFetch(async () => Response.json({}));
+
+    await apiRequest('/plugins');
+
+    expect(headersOf(fetchMock).authorization).toBe('Bearer the-real-token');
+  });
+
+  it('locks the workbench on a 401, so one prompt stands for every screen', async () => {
+    session.unlock('stale');
+    stubFetch(unauthorized);
+
+    const error = await apiRequest('/plugins').catch((err: unknown) => err);
+
+    expect(error).toMatchObject({ status: 401 });
+    expect(session.locked).toBe(true);
+    expect(session.refused).toBe(true);
+  });
+
+  it('leaves other failures to the caller', async () => {
+    session.unlock('the-real-token');
+    stubFetch(async () => Response.json({ message: 'nope' }, { status: 403 }));
+
+    await apiRequest('/browse').catch(() => undefined);
+
+    expect(session.locked).toBe(false);
+    expect(session.token).toBe('the-real-token');
+  });
+
+  it('tries a candidate token without touching the session', async () => {
+    const fetchMock = stubFetch(unauthorized);
+
+    await apiRequest('/plugins', { token: 'a-guess' }).catch(() => undefined);
+
+    expect(headersOf(fetchMock).authorization).toBe('Bearer a-guess');
+    // The unlock panel is already up; a wrong guess is its answer to give.
+    expect(session.locked).toBe(false);
   });
 });

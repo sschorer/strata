@@ -9,20 +9,22 @@ import {
   type EngineSettings,
   type SettingsStore,
 } from '@strata/core';
+import { authWarning, configuredToken, requireToken } from './auth/index.js';
 import { buildRegistry } from './registry.js';
 import { registerRoutes } from './routes/index.js';
 
 /**
  * Build the HTTP app: read the app settings, discover plugins the way they say
  * to, hold one `Strata` (so the incremental cache is opened once and closed
- * with the server), one project registry and one settings store, register
- * routes.
+ * with the server), one project registry and one settings store, put the
+ * deployment's token in front of the lot, register routes.
  *
  * The settings come first because *Plugins & engine* decides what gets loaded,
  * and loading happens exactly once, here.
  */
 export async function createServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
+  guardWithToken(app);
   const settings = openSettingsStore();
   const engine = engineSettings(settings);
   const pluginsDir = engine.pluginsDir ?? userPluginsDir();
@@ -43,6 +45,24 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   return app;
+}
+
+/**
+ * Put `$STRATA_TOKEN` in front of every route, and say at startup what that
+ * leaves reachable.
+ *
+ * Before the routes, because a Fastify hook only runs for the routes
+ * registered after it — and before the stores and the plugin scan, so the
+ * order in `createServer` reads the way a request travels.
+ */
+function guardWithToken(app: FastifyInstance): void {
+  const token = configuredToken();
+  if (token !== undefined) requireToken(app, token);
+
+  const warning = authWarning(token);
+  if (warning !== undefined) {
+    createConsoleLogger('strata:auth').warn(warning);
+  }
 }
 
 /**

@@ -20,11 +20,17 @@ UI and CI. Keeps transport concerns out of the core.
 
 - **Depends on:** `@strata/core`, `@strata/sdk`, Fastify.
 - **Consumed by:** `apps/web`, CI, `curl`.
+- **Authentication:** `$STRATA_TOKEN`, if the deployment sets one. Every
+  endpoint below except `/health` then needs
+  `Authorization: Bearer <token>`; without it, or with the wrong one, the
+  answer is `401` and a `WWW-Authenticate: Bearer realm="Strata"` header.
+  Unset means an open API — the default, and what a workstation wants — said
+  out loud in a warning at startup.
 - **Endpoints:**
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/health` | Liveness. |
+| GET | `/health` | Liveness. The one endpoint outside the token, so a probe can watch a container without holding a credential. |
 | GET | `/plugins` | What loaded, from where, and what was skipped: `{ directory, plugins, failures }` — each plugin its manifest plus a `source` (`builtin`/`user`). `directory` is the one actually scanned at startup. |
 | GET | `/projects` | `{ projects }` — the registry, in registration order; each entry carries its id, display name, root and last-analysis summary. |
 | POST | `/projects` | Body `{ name, root }` → the created `Project` (201). The root is confined to `$STRATA_ROOTS` (403 outside, 404 for a path inside them that is not a directory) and resolved to the repository that owns it — which has to be inside them too; 400 if it owns none, 409 if that repository is already registered. |
@@ -44,9 +50,14 @@ UI and CI. Keeps transport concerns out of the core.
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Barrel — the package's public surface. |
-| `app.ts` | `createServer()` — settings, plugin registry, one `Strata`, one project store, routes, shutdown hook. |
+| `app.ts` | `createServer()` — the token guard, settings, plugin registry, one `Strata`, one project store, routes, shutdown hook. |
 | `main.ts` | Process entry point (`node dist/main.js`). |
 | `registry.ts` | `buildRegistry(opts)` — load the built-ins, then the user plugins directory the settings name (unless third-party loading is off). |
+| `auth/token.ts` | `configuredToken()` — the deployment's secret from `$STRATA_TOKEN`, or `undefined` for an open API. |
+| `auth/hook.ts` | `requireToken()` — the `onRequest` hook that turns away anything but a liveness probe without the token. |
+| `auth/presented.ts` | `presentedToken()` — the bearer credential a request carries, read from `Authorization` and nowhere else. |
+| `auth/compare.ts` | `sameToken()` — constant-time comparison over two digests. |
+| `auth/warning.ts` | `authWarning()` — what to say at startup about an open API, or a token short enough to guess. |
 | `routes/health.ts` … `routes/settings.ts` | One module per endpoint. |
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
 | `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
@@ -57,11 +68,12 @@ UI and CI. Keeps transport concerns out of the core.
 
 ## 5. Runtime
 
-Request → validate body → confine the root to `$STRATA_ROOTS` →
-`Strata.analyze()` → JSON report, plus a write to the project registry when the
-analysed root is registered. Plugin discovery happens once at startup, as does
-opening the registry; the roots are read per request, so widening them is a
-restart of nothing.
+Request → check the bearer token → validate body → confine the root to
+`$STRATA_ROOTS` → `Strata.analyze()` → JSON report, plus a write to the project
+registry when the analysed root is registered. Plugin discovery happens once at
+startup, as does opening the registry and reading the token; the roots are read
+per request, so widening them is a restart of nothing while rotating the token
+is a restart.
 
 ## 6. Decisions
 
@@ -110,8 +122,27 @@ restart of nothing.
   the screens only offer loaded plugins, so an id that is not one is a typo or a
   stale client, and stored silently it would look like a plugin that is switched
   on but never runs.
-- **Every path from a request passes through the same allow-list** — the API is
-  unauthenticated, so `root` would otherwise be "any directory this process can
+- **One shared secret, opt-in, in front of everything but the probe** — this is
+  one workbench with one owner, so a token is the whole of the credential; it
+  lives in `$STRATA_TOKEN` beside `$STRATA_ROOTS`, because who may call and
+  what may be reached are both facts about the deployment rather than rows in a
+  database. It is checked in `onRequest`, the first hook of the lifecycle, so a
+  caller without it never reaches a body parser or a path check; unrouted paths
+  get the same 401, so the API is no way to ask which endpoints exist. Not
+  setting one keeps today's open API, because Strata is mostly run on the
+  machine it analyses — but startup says so, every time. `/health` stays open:
+  a probe cannot hold a secret and learns nothing but whether the process is
+  up.
+- **The credential is read from `Authorization` only** — never a query
+  parameter, which Fastify writes into its own request log and a browser writes
+  into history and `Referer`; never a cookie, which the browser would attach to
+  requests this app never made, turning an auth question into a CSRF one.
+- **Auth and the allow-list answer different questions** — a caller holding the
+  token is trusted, not unconfined, so `$STRATA_ROOTS` still bounds every path
+  they name. The token decides whether a request is answered; the allow-list
+  decides what it may reach.
+- **Every path from a request passes through the same allow-list** — `root`
+  would otherwise be "any directory this process can
   read": `GET /browse` a filesystem enumerator, `POST /analyze` a way to walk
   someone else's repository through it. `$STRATA_ROOTS` (the server user's home
   by default, `/repos` in the container) says what may be reached, one
@@ -130,13 +161,27 @@ restart of nothing.
 
 ## 7. Quality & Risks
 
-- **Risk:** the API is unauthenticated, so everything it can do is reachable by
-  anyone who can reach the port: `DELETE /cache` (cost: a recomputation),
+- **Risk:** a deployment that sets no `$STRATA_TOKEN` answers anyone who can
+  reach the port: `DELETE /cache` (cost: a recomputation),
   `DELETE /projects/:id` (cost: a registry entry, and nothing on disk), and
   `PATCH /settings`, which names a plugins directory the next start will load
-  code from. **Mitigation:** paths are allow-listed (below), but the rest is
-  not — the API assumes a trusted network and auth is on the backlog. Do not
-  expose the port publicly.
+  code from. **Mitigation:** set one — it is a single environment variable and
+  every endpoint but `/health` is behind it. Startup warns while it is unset,
+  and warns again if it is short enough to guess. An open API is still the
+  default, so a port that was only ever meant to be local must not be published
+  without one.
+- **Note for cross-origin work:** a bearer header makes every call
+  preflighted, and a browser sends `OPTIONS` without credentials. Nothing
+  serves CORS today (the UI is same-origin, or proxied in dev), so nothing is
+  broken — but whoever adds it has to let `OPTIONS` past the hook, or every
+  cross-origin call fails its preflight with a 401.
+- **Risk:** the token is a static shared secret with no expiry, and rotating it
+  is a restart. Anyone holding it holds all of the API — there is no second
+  credential to revoke on its own. **Mitigation:** enough for one self-hosted
+  workbench, which is what this is; named, revocable keys are the shape to
+  reach for if this ever serves more than one person. Transport is the
+  deployment's job: over plain HTTP the token travels in clear text, so
+  terminate TLS in front of it on anything but localhost.
 - **Risk:** `POST /analyze` and `POST /projects` take a path from the caller,
   and `GET /browse` discloses directory *names*. **Mitigation:**
   `$STRATA_ROOTS` — the server user's home by default, the read-only `/repos`

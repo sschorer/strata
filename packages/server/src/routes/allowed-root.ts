@@ -9,11 +9,12 @@ import { httpError } from './http-error.js';
  * The directory a request named, resolved and confined to the roots this
  * deployment allows (`$STRATA_ROOTS`) — or a 403.
  *
- * Every endpoint that takes a path from a caller goes through here, because
- * the API is unauthenticated: without it, `root` is "any directory this process
- * can read" and the workbench walks whatever it is pointed at. The resolved
- * path is what the caller should use from then on, so what runs is what was
- * checked.
+ * Every endpoint that takes a path from a caller goes through here. Without it,
+ * `root` is "any directory this process can read" and the workbench walks
+ * whatever it is pointed at — and it applies whether or not this deployment set
+ * a token, because holding the credential makes a caller trusted, not
+ * unconfined. The resolved path is what the caller should use from then on, so
+ * what runs is what was checked.
  */
 export async function requireAllowedRoot(path: string): Promise<string> {
   try {

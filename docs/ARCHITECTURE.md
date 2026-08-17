@@ -53,8 +53,9 @@ self-hosted over the browser.
 
 **In scope:** ingesting a local git repo, running analyses, serving and
 rendering results, plugin loading, optional AI calls.
-**Out of scope (today):** hosting git itself, auth/multi-tenant SaaS, writing to
-the analysed repo.
+**Out of scope (today):** hosting git itself, user accounts / multi-tenant SaaS
+(the API takes one shared token, not a directory of users), writing to the
+analysed repo.
 
 ### External interfaces
 
@@ -223,9 +224,18 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   whose repository begins above one is refused rather than registered. Outside
   is a 403; a path inside a root that is not a directory is a 404, and a
   missing path outside one gets the same 403 as anything else out there, so the
-  API is no way to ask what exists on the disk. On an unauthenticated API that
-  confinement is what stands between a caller and the filesystem: see
-  *Security* below.
+  API is no way to ask what exists on the disk. It confines every caller,
+  including one holding the token — the two limits answer different questions:
+  see *API token* below.
+- **API token** — who may call at all. `$STRATA_TOKEN` is one shared secret for
+  the workbench, presented as `Authorization: Bearer <token>` and checked
+  before a request is routed, parsed or resolved; anything but `/health` — the
+  liveness probe, which a container watcher calls without a credential —
+  answers 401 without it. Compared in constant time, over digests, and read
+  from the header alone: a token in a query string lands in the request log and
+  the browser's history, and one in a cookie would need a CSRF story. Leaving
+  it unset keeps the API open, which is the reasonable default on the machine
+  being analysed and a warning at every startup anywhere else.
 - **Folder browsing** — `/browse` lists the subdirectories of one directory on
   the server's machine and marks which are git working trees, so *Add project*
   can be a tree rather than a path the reader has to know by heart. Names of
@@ -259,14 +269,15 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   `@strata/sdk`) therefore stay stable as internals move. See CONTRIBUTING.
 - **Configuration** — `.env` (see `.env.example`); AI creds never committed.
 - **Logging** — structured logger injected via `RepoContext.log`.
-- **Security** — analysed repos mounted read-only; AI is opt-in. Every path a
-  request names is confined to `$STRATA_ROOTS` (see *Path allow-list* above),
-  so browsing, registering and analysing all stop at the same boundary. The
-  HTTP API is otherwise unauthenticated and assumes a trusted network:
-  `DELETE /cache` discards cached results (cost: a recomputation),
-  `DELETE /projects/:id` drops a registry entry, and `PATCH /settings` names
-  the directory the next start loads plugins from. An auth story is on the
-  backlog; until it lands, do not expose the port beyond a trusted network.
+- **Security** — analysed repos mounted read-only; AI is opt-in. Two limits sit
+  in front of the API and neither replaces the other: `$STRATA_TOKEN` says who
+  may call, `$STRATA_ROOTS` says what any caller may reach (see *API token* and
+  *Path allow-list* above). Without a token the port is open to whoever can
+  reach it — `DELETE /cache` discards cached results (cost: a recomputation),
+  `DELETE /projects/:id` drops a registry entry, `PATCH /settings` names the
+  directory the next start loads plugins from — which is why startup says so
+  until one is set. Set it, and terminate TLS in front, before the port is
+  reachable from anywhere but the machine it runs on.
 
 ## 9. Architecture Decisions
 
@@ -279,6 +290,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
 | ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
 | ADR-7 | Web UI is a SvelteKit **static SPA** (Tailwind v4) | The build is plain files: the server can serve it from the same image, and the Tauri shell can load it from disk. Analysis is a local API call, so nothing needs server rendering. |
+| ADR-8 | One shared bearer token (`$STRATA_TOKEN`), opt-in | A self-hosted workbench has one owner: a secret in the environment is the whole credential, with no user store, no session state and nothing for CI to log into. Off by default keeps `docker run` and localhost working; startup warns while it is. Named, revocable keys are the upgrade path if it ever serves more than one person. |
 
 (Promote these into `docs/adr/NNNN-*.md` as they harden.)
 

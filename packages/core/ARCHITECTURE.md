@@ -260,7 +260,9 @@ section keeps its value — because each section is one settings screen.
   so a token put there is readable by anyone who can reach the API.
   **Mitigation:** none yet — secret storage (write-only, redacted on read) is
   the next step in this area, and until it lands nothing sensitive belongs in
-  provider settings. The store is local and the API assumes a trusted network.
+  provider settings. The store is local, and `$STRATA_TOKEN` decides who may
+  read `/settings` at all — but a deployment that set no token serves them to
+  whoever reaches the port.
 - **Risk:** `listDirectory()` reads directories outside any repository, so a
   caller that exposes it exposes directory names. **Mitigation:** the roots
   above, no file names in the answer, and no content read at any point — plus

@@ -26,7 +26,11 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 ## 3. Interfaces (Context)
 
 - **Depends on:** the `@strata/server` REST API (`/health`, `/plugins`,
-  `/analyze`, `/cache`, `/projects`, `/projects/:id/config`, `/browse`).
+  `/analyze`, `/cache`, `/projects`, `/projects/:id/config`, `/browse`,
+  `/settings`).
+- **Authentication:** none of its own. A deployment that set `$STRATA_TOKEN`
+  answers 401 until the reader supplies it once; it is then sent as
+  `Authorization: Bearer <token>` on every call.
 - **Consumed by:** end users (browser / desktop).
 
 ## 4. Building Blocks
@@ -37,7 +41,8 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/app.css` | Tailwind entry: fonts, `@theme inline` token mapping, base layer |
 | `src/lib/theme/tokens.css` | The palette, twice — dark and light, keyed on `data-theme` |
 | `src/lib/theme/*` | `mode` (types + resolution), `storage`, `apply`, `controller.svelte` (state) |
-| `src/lib/api/*` | `base` (origin), `request` (fetch + `ApiError`), one module per endpoint, `types` |
+| `src/lib/api/*` | `base` (origin), `request` (fetch + the bearer header + `ApiError`), one module per endpoint, `types` |
+| `src/lib/auth/*` | The workbench token: `storage` (where the browser keeps it), `session.svelte` (what is held, and whether the server has locked us out), `verify` (does the server answer to this one), and `Unlock` — the panel that takes it |
 | `src/lib/analysis/*` | The app-wide last report (`store.svelte`) and the remembered repo path |
 | `src/lib/projects/*` | The project registry end to end: `store.svelte` (the registered projects and which one the workbench is on), `entries` (project → a switcher row), `label` (root → name), `crumbs` (path → the picker's steps), `selection` (the remembered choice), and the views — `ProjectSwitcher`, `ProjectList`, `AddProject`, `FolderPicker` |
 | `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
@@ -63,7 +68,10 @@ what more than one screen uses moves up into `lib/components/`.
    and tracks `prefers-color-scheme` while the app is open.
 3. The switcher loads the registry and adopts the project the workbench was
    last on, which points `lib/analysis` at that repository.
-4. A view calls `lib/api`; failures arrive as one `ApiError` shape.
+4. A view calls `lib/api`; failures arrive as one `ApiError` shape. Every call
+   carries the workbench token when the browser holds one, and a 401 locks the
+   session, which puts the unlock panel in place of the whole frame until a
+   token is accepted.
 5. In dev, Vite proxies the API paths to `:4000`; in production the server
    serves this build, so the same relative URLs hold.
 
@@ -107,6 +115,8 @@ what more than one screen uses moves up into `lib/components/`.
 | 34 | **The run window is printed where a run is started, edited where it is owned** | *Analyze / run* shows the root, revision and history limit and offers no field for any of them: they are one setting each and *General* is where a setting is set. A second form over the same two values would be a second answer to "what does this project analyse", and the one in front of the button would win by being nearer. What the screen owes the reader is what is about to happen, so it prints the three and links to the screen that changes them |
 | 35 | **The chips say what the orchestrator does, not what the config allows** | `runPlugins` follows the pipeline's own rule — every language module and git metric runs, the first commit-convention plugin parses and the rest stand by, an AI provider takes no part — because a chip in front of *Run analysis* is a promise about the next run. The per-project plugin lists are stored and not yet honoured (`BACKLOG.md` → *Honour the rest of a project's config*), so filtering the chips by them would show a plugin as skipped that in fact runs. A plugin that stands by prints why: "why is my convention plugin doing nothing" is the question this screen exists to answer |
 | 36 | **The recents list is this browser's log, seeded from the registry** | The server records one run per project — the last one — so a list of several has nowhere else to live yet (`BACKLOG.md` → *Run history per project*). `recents-storage` keeps it per project in `localStorage`, and the registry's last run is folded in when the screen opens, so a run from another machine still shows up as the newest entry. `mergeRun` dedupes on the finish timestamp and hands back the **same list** when nothing is new, which is what keeps the effect that records a finished run from watching its own write. The screen also folds that run into the registry itself: the switcher normally does it and is not mounted inside settings |
+| 37 | **A 401 locks the whole app, not the call that got it** | A server started with `$STRATA_TOKEN` refuses *everything*, so a screen that renders "401" per panel would say it five times and explain it nowhere. `request.ts` hands the status to the session, the session locks, and the root layout puts `Unlock` where the frame goes — one prompt, one place, and no store left showing a stale count it can no longer refresh. Unlocking reloads rather than replaying: every store loads once and is holding a failed request by then, and a reload is the honest way to start them over |
+| 38 | **The token is checked before it is adopted, and dropped when it is refused** | `Unlock` calls `/plugins` with the candidate — `apiRequest`'s `token` option, which also promises not to re-raise the prompt — so a typo is answered where it was typed rather than by every screen behind it failing again. A token the server turns down is cleared from `localStorage` on the way into the lock, because keeping it only means the next reload fails the same way with nothing on screen to say why |
 
 ## 7. Quality & Risks
 
@@ -123,6 +133,11 @@ what more than one screen uses moves up into `lib/components/`.
   first analysis costs one click more than it could. Navigating from the
   switcher would put routing inside a component the frame otherwise keeps clear
   of it (decision 20), which is not worth that click yet.
+- **Risk:** the workbench token is kept in `localStorage`, so any script that
+  runs on this origin can read it. Nothing third-party is loaded — no CDN, no
+  analytics, fonts are self-hosted — which is what makes it acceptable; a
+  session cookie the browser cannot read is the upgrade if the UI ever grows
+  a surface that renders untrusted HTML.
 - **Debt:** the recents list is per browser (decision 36), so a workbench used
   from two machines shows two different lists over the same project — each with
   the server's last run at the top. A handful of runs kept in the registry is

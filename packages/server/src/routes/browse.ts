@@ -26,8 +26,9 @@ const schema = {
  *
  * Names of directories, nothing else — no files, no contents — and only inside
  * `$STRATA_ROOTS` (the server user's home by default). That confinement is the
- * point: this endpoint is otherwise a directory enumerator for anyone who can
- * reach the API, and Strata ships without authentication.
+ * point: this endpoint is otherwise a directory enumerator for whoever can
+ * reach the API, and on a deployment that set no `$STRATA_TOKEN` that is
+ * anyone who can reach the port.
  */
 export function browseRoute(app: FastifyInstance): void {
   app.get<{ Querystring: BrowseQuery }>(

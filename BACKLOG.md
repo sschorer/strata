@@ -38,11 +38,17 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       inside. `$STRATA_BROWSE_ROOTS` is still read as the former name. The
       allow-list says *what* may be reached; *who* may reach it is the auth item
       below.
-- [ ] **P1** Authentication for the HTTP API — the allow-list confines what a
-      request may reach, not who may send one. Everything reachable on the port
-      is still unauthenticated (`DELETE /cache`, `DELETE /projects/:id`,
-      `PATCH /settings` and the plugins directory it names), so a deployment
-      outside a trusted network needs this.
+- [x] Authentication for the HTTP API — `$STRATA_TOKEN` is one shared secret
+      for the workbench, sent as `Authorization: Bearer <token>` and checked in
+      `onRequest`, before a body is parsed or a path resolved; everything but
+      `/health` answers 401 without it, unrouted paths included, so the API is
+      no way to ask which endpoints exist. Compared in constant time and read
+      from the header alone — a token in a query string lands in the request
+      log. Leaving it unset keeps the open API, which is what the machine being
+      analysed wants, and startup says so every time (and says so again for a
+      token short enough to guess). The allow-list still bounds every path a
+      caller names: holding the token makes them trusted, not unconfined. The
+      web UI asks for the token once and keeps it in the browser.
 - [ ] **P1** Worker queue for heavy analyses (BullMQ / worker_threads); progress
       events so *Re-analyze* can show a running state instead of blocking.
 - [ ] **P1** Analyse a bare/remote repo (clone-on-demand) and a specific `rev` range
@@ -330,7 +336,9 @@ Sans/Mono.
       nothing reads it yet
 - [ ] **P1** Commit the pnpm lockfile and switch CI to `--frozen-lockfile`
 - [ ] **P1** Serve the built web UI from `@strata/server` so the Docker image is a
-      single deployable workbench
+      single deployable workbench. The static files go outside `$STRATA_TOKEN`
+      (a browser has to load the app before it can be asked for the token);
+      every API path under them stays behind it.
 - [ ] **P2** Tauri desktop app under `apps/desktop` (enable the Linux release job)
 - [ ] **P2** Add macOS/Windows to the desktop release matrix (+ signing)
 
