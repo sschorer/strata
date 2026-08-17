@@ -1,5 +1,5 @@
 {
   "$comment": "Trusted reviewers. A PR from anyone other than an owner needs an approving review from one of these logins before it can merge. Grant with `/vouch @user`, revoke with `/unvouch @user` (owners only). Managed by .github/workflows/vouch-command.yml.",
   "owners": ["sschorer"],
-  "vouched": []
+  "vouched": ["dependabot[bot]"]
 }

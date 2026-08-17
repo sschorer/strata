@@ -10,7 +10,7 @@ make them enforceable, but can't toggle the settings for you.
 
 ## Goal
 
-- **You (owner)** can merge without anyone's approval.
+- **You (owner)** and **vouched** reviewers can merge without anyone's approval.
 - **Everyone else** needs an approving review from a **vouched** reviewer
   before merging.
 
@@ -28,9 +28,12 @@ Enable:
 3. **Require status checks to pass**
    - Add **`build`** (CI) and **`gate`** (from the *Vouch gate* workflow)
    - Require branches to be up to date before merging
-4. **Bypass list → add your account.**
+4. **Bypass list → add your account**, and **Dependabot** if you want its
+   dependency PRs to merge unattended.
    This is what lets *you* merge without an approval while everyone else is held
-   to the rules above.
+   to the rules above. Dependabot is vouched in `.github/vouched.json`, which
+   clears the `gate` check — but *Required approvals: 1* is enforced by GitHub
+   itself, so its PRs still need the bypass entry here to merge on their own.
 
 ## How the two levers combine
 
