@@ -5,17 +5,21 @@ community-vouched contribution flows.
 
 ## The rule
 
-- **Owners** (listed in `.github/vouched.json` → `owners`) can merge their own
-  PRs without any approval.
+- **Owners** (listed in `.github/vouched.json` → `owners`) and **vouched
+  reviewers** (→ `vouched`) can merge their own PRs without any approval.
 - **Everyone else** needs an approving review from an **owner or a vouched
   reviewer** before their PR can merge.
+
+Trust is symmetric: vouching someone says their approval unblocks other
+people's PRs, so their own PRs don't need one either. Vouch accordingly.
 
 Two things enforce it together:
 
 1. **Branch protection** requires a passing `gate` check and (optionally) a
    Code Owner review — see [BRANCH_PROTECTION.md](./BRANCH_PROTECTION.md).
 2. The **Vouch gate** workflow (`.github/workflows/vouch-gate.yml`) fails until
-   an owner or vouched reviewer has approved (owners' own PRs pass immediately).
+   an owner or vouched reviewer has approved (trusted authors' own PRs pass
+   immediately).
 
 ## Granting trust
 
@@ -32,6 +36,18 @@ PRs. Revoke with:
 ```
 /unvouch @username
 ```
+
+## Bots
+
+`dependabot[bot]` is vouched. A bot never files an approving review, so without
+the author bypass its weekly dependency PRs would wait on a human forever.
+
+Note that the vouch gate is only **one** of the two levers. If your ruleset also
+sets *Require a pull request before merging → Required approvals: 1*, GitHub
+enforces that independently of this workflow, and Dependabot's PRs still stall.
+To let them merge unattended, add Dependabot to the ruleset's **bypass list**
+(Settings → Rules → Rulesets → *Bypass list* → Add → Dependabot) — see
+[BRANCH_PROTECTION.md](./BRANCH_PROTECTION.md).
 
 ## Why a file, not a GitHub team?
 
