@@ -6,3 +6,4 @@
 export { createServer } from './app.js';
 export { buildRegistry } from './registry.js';
 export { registerRoutes, type RouteContext } from './routes/index.js';
+export { authWarning, configuredToken, requireToken } from './auth/index.js';
