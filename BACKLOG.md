@@ -65,6 +65,40 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       the job, and waiting is still the default so CI and `curl` keep the
       endpoint they had. A dropped stream is not a failed run: the job outlives
       it and `GET /jobs/:id` still answers.
+- [ ] **P0** Open analysis pipeline: stages, repo-owned config, and a CLI (SDK 0.2.0)
+      — the pipeline becomes a dependency-ordered graph of **stages** declared in
+      plugin manifests, ordered by the core and depending on each other by
+      **output type** rather than by plugin id, so architecture fitness and the
+      commit fold stop being core features. Analysis config moves into a
+      checked-in `strata.config.json` and becomes authoritative, so CI and the
+      workbench cannot disagree about a repository; a new CLI is the CI entry
+      point. A failing stage fails its dependents, not the run, and the report
+      carries a status per stage. One breaking SDK wave to `0.2.0`, landing in
+      five steps, with the rule engine written against the public contract as
+      the acceptance test. Decided in `docs/adr/0010`–`0015`; spec in the issue.
+
+      Broken into 17 tickets, sub-issues of the spec. The stage contract lands
+      *beside* the existing plugin kinds and the old form is deleted only once
+      nothing uses it, so every ticket keeps the local gate green on its own.
+      Ready to start: the three with no blockers.
+
+  - [ ] **P0** Retire the AI provider plugin contract
+  - [ ] **P0** Fold cross-language derivation into the report
+  - [ ] **P0** A named-but-missing plugin fails the run
+  - [ ] **P0** Stage declarations in the plugin manifest (SDK 0.2.0)
+  - [ ] **P0** The scheduler runs its first stage: hotspots
+  - [ ] **P1** Migrate change coupling to a stage
+  - [ ] **P1** Migrate the TypeScript language module to a stage
+  - [ ] **P1** Migrate commit convention and the commit fold to stages
+  - [ ] **P1** A failing stage fails only its dependents
+  - [ ] **P1** Web reads stage entries
+  - [ ] **P1** Delete the legacy plugin kinds and report fields
+  - [ ] **P1** `strata.config.json` is authoritative
+  - [ ] **P1** Retire the project config store
+  - [ ] **P1** Gates move into the repository's file
+  - [ ] **P1** Project settings screens edit the repository's file
+  - [ ] **P1** A command-line entry point for CI
+  - [ ] **P1** Architecture fitness rule engine as a stage
 - [ ] **P1** Analyse a bare/remote repo (clone-on-demand) and a specific `rev` range
 - [ ] **P2** Snapshot & compare two revisions (trend deltas)
 - [ ] **P2** Plugin config schema + per-plugin settings surfaced to the UI
@@ -359,7 +393,13 @@ Sans/Mono.
 ## Docs & DX
 
 - [x] arc42 architecture + per-module docs + Makefile + `analyze`/`new-plugin` scripts
-- [ ] **P1** ADR folder (`docs/adr/`) — promote ADR-1…6 into standalone records
-- [ ] **P1** ADR for the CLI-agent provider model (subprocess + shadow home +
-      secret storage), since it supersedes the HTTP-provider assumption
+- [x] ADR folder (`docs/adr/`) — ADR-1…9 promoted into standalone records, each
+      carrying the rejected alternatives and consequences the table had no room
+      for; `docs/ARCHITECTURE.md` §9 is now the index over them. ADR-10…15 were
+      written straight there. A `CONTEXT-MAP.md` over per-package `CONTEXT.md`
+      files (sdk, core, server, web) landed alongside them.
+- [x] ADR for the CLI-agent provider model — `docs/adr/0013`. It goes further
+      than the line asked for: providers stop being a plugin kind altogether and
+      become configured instances, and nothing in the pipeline may call a model,
+      which is what keeps a run offline and reproducible.
 - [ ] **P2** Example gallery / screenshots once the UI exists
