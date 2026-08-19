@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import { analysis } from '$lib/analysis';
-import { stubApi } from '$lib/test/api';
+import { runRoutes, stubApi } from '$lib/test/api';
 import { render } from '$lib/test/render';
 import Page from './+page.svelte';
 
@@ -102,7 +102,7 @@ const report = {
 
 /** Analyse a repository, as picking a project and running it would. */
 async function run(): Promise<void> {
-  stubApi({ '/plugins': PLUGINS, '/analyze': report });
+  stubApi({ '/plugins': PLUGINS, ...runRoutes(report) });
   await analysis.run('/repo/strata');
 }
 

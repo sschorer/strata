@@ -1,4 +1,10 @@
-import { analyze, ApiError, type AnalysisReport } from '$lib/api';
+import {
+  ApiError,
+  startAnalysis,
+  type AnalysisProgress,
+  type AnalysisReport,
+} from '$lib/api';
+import { followJob } from './follow';
 import { readStoredRoot, storeRoot } from './root-storage';
 
 export type AnalysisStatus = 'idle' | 'running' | 'ready' | 'error';
@@ -8,11 +14,18 @@ export type AnalysisStatus = 'idle' | 'running' | 'ready' | 'error';
  * and the overview, graph and commit screens as they land, so re-entering a
  * view must not re-run the pipeline.
  *
+ * A run is a job on the server, not a request left open: this asks for one,
+ * gets an id back straight away and follows it, so *Re-analyze* shows what the
+ * pipeline is doing while it does it instead of a button that has stopped
+ * responding. The screens read `status` and `progress`; where the work happens
+ * is the server's business.
+ *
  * One instance, exported below — there is one workbench per window.
  */
 class AnalysisStore {
   #status = $state<AnalysisStatus>('idle');
   #report = $state<AnalysisReport | null>(null);
+  #progress = $state<AnalysisProgress | null>(null);
   #error = $state('');
   #root = $state('');
   /** Lets a superseded run drop its result instead of overwriting a newer one. */
@@ -24,6 +37,11 @@ class AnalysisStore {
 
   get report(): AnalysisReport | null {
     return this.#report;
+  }
+
+  /** Where the running analysis has got to; null when none is running. */
+  get progress(): AnalysisProgress | null {
+    return this.#progress;
   }
 
   get error(): string {
@@ -59,11 +77,21 @@ class AnalysisStore {
     this.#run++;
     this.#root = trimmed;
     this.#report = null;
+    this.#progress = null;
     this.#error = '';
     this.#status = 'idle';
     storeRoot(trimmed);
   }
 
+  /**
+   * Ask for a run and follow it to the end.
+   *
+   * The job on the server outlives this call — a run the workbench walked away
+   * from still finishes, and still updates the project's last-run summary. What
+   * `#run` guards is only whether *this* window adopts the result: pointing the
+   * workbench elsewhere mid-run must not drop another project's report onto the
+   * screen when the old one lands.
+   */
   async run(root = this.#root): Promise<void> {
     const trimmed = root.trim();
     if (!trimmed) {
@@ -75,16 +103,27 @@ class AnalysisStore {
     const run = ++this.#run;
     this.#root = trimmed;
     this.#status = 'running';
+    this.#progress = null;
     this.#error = '';
     storeRoot(trimmed);
 
     try {
-      const report = await analyze({ root: trimmed });
+      const { job } = await startAnalysis({ root: trimmed });
+      const finished = await followJob(job.id, (update) => {
+        if (run === this.#run) this.#progress = update.progress;
+      });
       if (run !== this.#run) return;
-      this.#report = report;
-      this.#status = 'ready';
+      this.#progress = null;
+      if (finished.report) {
+        this.#report = finished.report;
+        this.#status = 'ready';
+        return;
+      }
+      this.#error = finished.error ?? 'The analysis failed.';
+      this.#status = 'error';
     } catch (err) {
       if (run !== this.#run) return;
+      this.#progress = null;
       this.#error =
         err instanceof ApiError ? err.message : 'Unexpected client error.';
       this.#status = 'error';

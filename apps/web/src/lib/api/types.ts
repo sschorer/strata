@@ -218,6 +218,64 @@ export interface AnalyzeRequest {
   historyLimit?: number;
   /** Set false to recompute everything, ignoring the incremental cache. */
   cache?: boolean;
+  /**
+   * Wait for the report (the default), or take the job and follow it. The
+   * workbench never waits: a run is minutes on a large repository, and a
+   * request left open for minutes is a screen that cannot say anything.
+   */
+  wait?: boolean;
+}
+
+/**
+ * The pipeline's own sequence, as it reports itself while it runs. Two of the
+ * stages repeat once per plugin that takes part.
+ */
+export type AnalysisStage =
+  | 'resolving'
+  | 'scanning'
+  | 'language'
+  | 'history'
+  | 'metric'
+  | 'commits'
+  | 'finished';
+
+export interface AnalysisProgress {
+  stage: AnalysisStage;
+  /** What the stage is working on — a plugin id — or null when it names nothing. */
+  detail: string | null;
+  /** Steps finished before the one `stage` describes. */
+  completed: number;
+  /** Steps the run holds, or `0` while the server does not know that yet. */
+  total: number;
+}
+
+/** `queued` and `running` will change again; the other two never do. */
+export type JobState = 'queued' | 'running' | 'succeeded' | 'failed';
+
+/** One analysis, from the moment it was asked for to whatever became of it. */
+export interface AnalysisJob {
+  id: string;
+  /** The repository root this job analyses. */
+  root: string;
+  state: JobState;
+  /** Where the run has got to; null until it starts. */
+  progress: AnalysisProgress | null;
+  queuedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  report: AnalysisReport | null;
+  error: string | null;
+}
+
+/** A job as a list carries it — reports are fetched one at a time. */
+export type AnalysisJobSummary = Omit<AnalysisJob, 'report'>;
+
+export interface JobResponse {
+  job: AnalysisJob;
+}
+
+export interface JobsResponse {
+  jobs: AnalysisJobSummary[];
 }
 
 export interface ClearCacheResponse {

@@ -8,7 +8,7 @@ import type {
 } from '$lib/api';
 import { PluginsStore } from '$lib/plugins';
 import { ProjectsStore, SELECTION_STORAGE_KEY } from '$lib/projects';
-import { stubApi } from '$lib/test/api';
+import { runRoutes, stubApi } from '$lib/test/api';
 import { noCommits } from '$lib/test/commits';
 import { render } from '$lib/test/render';
 import AnalyzeScreen from './AnalyzeScreen.svelte';
@@ -163,7 +163,7 @@ describe('AnalyzeScreen', () => {
   });
 
   it('runs the analysis over the project the workbench is on', async () => {
-    const opened = await open({ 'POST /analyze': report });
+    const opened = await open(runRoutes(report));
     ui = opened.ui;
 
     await vi.waitFor(() => {
@@ -179,11 +179,12 @@ describe('AnalyzeScreen', () => {
     );
     expect(JSON.parse((call?.[1] as RequestInit).body as string)).toEqual({
       root: '/home/dev/workspace/strata',
+      wait: false,
     });
   });
 
   it('lists the run it just made, and remembers it', async () => {
-    const opened = await open({ 'POST /analyze': report });
+    const opened = await open(runRoutes(report));
     ui = opened.ui;
 
     await vi.waitFor(() => {

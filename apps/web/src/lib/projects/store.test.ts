@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysis, ROOT_STORAGE_KEY } from '$lib/analysis';
 import type { Project } from '$lib/api';
-import { stubApi } from '$lib/test/api';
+import { runRoutes, stubApi } from '$lib/test/api';
 import { noCommits } from '$lib/test/commits';
 import { SELECTION_STORAGE_KEY } from './selection';
 import { ProjectsStore } from './store.svelte';
@@ -97,7 +97,7 @@ describe('projects store', () => {
   });
 
   it('drops a report that describes the project just left', async () => {
-    const store = await loaded({ '/analyze': report });
+    const store = await loaded(runRoutes(report));
     store.select('strata');
     await analysis.run();
     expect(analysis.report).not.toBeNull();

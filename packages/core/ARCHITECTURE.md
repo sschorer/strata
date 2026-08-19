@@ -26,9 +26,10 @@ itself behaves.
 
 - **Depends on:** `@strata/sdk` (contracts), `git` CLI.
 - **Consumed by:** `@strata/server` (and `scripts/analyze.mjs`).
-- **Public API:** `Strata.analyze(opts) → AnalysisReport`, `PluginRegistry`,
-  `discoverPlugins()` / `userPluginsDir()`, `openProjectStore()`,
-  `openSettingsStore()`, `gitUtil` helpers.
+- **Public API:** `Strata.analyze(opts, onProgress?) → AnalysisReport`,
+  `AnalysisQueue` (+ `inlineRunner()`), `PluginRegistry`, `discoverPlugins()` /
+  `userPluginsDir()`, `openProjectStore()`, `openSettingsStore()`, `gitUtil`
+  helpers.
 
 ## 4. Building Blocks
 
@@ -46,8 +47,16 @@ itself behaves.
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
 | `summarise.ts` | `summarised()` — fill in a language result's graph summary when the plugin (or its cached run) predates the field. |
+| `progress/types.ts` | `AnalysisProgress`, `AnalysisStage`, `ProgressListener` — what a run says about itself while it runs. |
+| `progress/tracker.ts` | `ProgressTracker` — counts a run's steps so the pipeline only has to name them. |
+| `jobs/types.ts` | `AnalysisJob`, `AnalysisJobSummary`, `AnalysisRunner`, `JobState`, queue options. |
+| `jobs/queue.ts` | `AnalysisQueue` — one run at a time, identical requests joined, every job watchable and collectable afterwards. |
+| `jobs/key.ts` | `requestKey()` — the digest that decides which requests are the same run. |
+| `jobs/inline.ts` | `inlineRunner()` — run in the calling thread (CI, scripts, tests). |
+| `jobs/summary.ts` | `jobSummary()` — a job without its report, for a list. |
 | `scope/glob.ts` | `globMatcher()` — the ignore/analyse globs compiled to one predicate over repo-relative paths. |
 | `scope/files.ts` | `scopedFiles()` — the tracked files narrowed to a project's `paths` minus its `ignore`. |
+| `scope/extensions.ts` | `claimedFiles()` — the files one language plugin claims, by extension. |
 | `scope/plugins.ts` | `enabledPlugins()` — the plugins of one kind a run may call. |
 | `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history. |
 | `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
@@ -105,6 +114,18 @@ itself behaves.
    (per type, per scope, conformance, breaking changes, weekly activity).
 6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`.
+
+Each of those steps is announced to `onProgress`, if a caller passed one. The
+plan — how many steps the run holds — is worked out between 2 and 3, once the
+file list says which plugins actually take part; the two steps before that
+report a total of `0` rather than a number that would move.
+
+`AnalysisQueue` is the layer a server puts in front of all of it. `submit()`
+returns a job straight away and runs it behind whatever is already going;
+`settled(id)` is the report when there is one, `watch(id, …)` is every change
+until then, and `clearCache()` takes its turn in the same line. Where the run
+actually happens is the `AnalysisRunner`'s business — `inlineRunner()` runs it
+here, and `@strata/server` runs it on a worker thread.
 
 `openProjectStore()` is independent of a run: it opens `projects.db` once, and
 the entries it holds are read on request (`list` / `get` / `findByRoot` /
@@ -167,6 +188,25 @@ section keeps its value — because each section is one settings screen.
   measuring its own round-trip would be measuring the network too. A revision
   that names no branch (detached HEAD, sha, tag) reports `null` rather than
   inventing one.
+- **A run reports itself in the pipeline's own stages**, not as a percentage.
+  The steps a reader is shown are the steps `analyze()` takes, a plugin that
+  claims none of this repository's file types is never counted as one, and the
+  total is `0` — an honest unknown — until the file list makes it knowable. A
+  bar that jumps backwards when the plan firms up would be worse than no bar.
+  A run nobody watches pays nothing: the tracker's methods are no-ops without a
+  listener.
+- **The queue owns *when*, a runner owns *where*.** Analyses are serialised
+  because they are CPU-bound and share one cache, so two at once would be
+  slower than two in a row and would fight over the same database. Identical
+  requests are one job, so a double-clicked *Re-analyze* and two browsers on
+  the same project follow the same run. And a job outlives the request that
+  asked for it, which is what lets a caller be handed an id now and the report
+  later. None of that says anything about threads — which is why the core can
+  keep no opinion on them and the server can hold one.
+- **A finished job is kept for a while and not forever** (the last 20). A
+  browser that reconnects a moment after a run ended still has to be able to
+  collect the report; a workbench that remembered every run of every day would
+  be holding megabytes of report per entry for nobody.
 - **Blob sha on every file**, so the cache keys on content, not on paths or
   timestamps.
 - **Two cache levels** — a plugin whose entire input digest is unchanged is

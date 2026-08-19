@@ -26,8 +26,8 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 ## 3. Interfaces (Context)
 
 - **Depends on:** the `@strata/server` REST API (`/health`, `/plugins`,
-  `/analyze`, `/cache`, `/projects`, `/projects/:id/config`, `/browse`,
-  `/settings`).
+  `/analyze`, `/jobs`, `/jobs/:id`, `/jobs/:id/events`, `/cache`, `/projects`,
+  `/projects/:id/config`, `/browse`, `/settings`).
 - **Authentication:** none of its own. A deployment that set `$STRATA_TOKEN`
   answers 401 until the reader supplies it once; it is then sent as
   `Authorization: Bearer <token>` on every call.
@@ -41,9 +41,9 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/app.css` | Tailwind entry: fonts, `@theme inline` token mapping, base layer |
 | `src/lib/theme/tokens.css` | The palette, twice — dark and light, keyed on `data-theme` |
 | `src/lib/theme/*` | `mode` (types + resolution), `storage`, `apply`, `controller.svelte` (state) |
-| `src/lib/api/*` | `base` (origin), `request` (fetch + the bearer header + `ApiError`), one module per endpoint, `types` |
+| `src/lib/api/*` | `base` (origin), `request` (`apiFetch`/`apiRequest` — fetch + the bearer header + `ApiError`), `events` (the job stream, parsed off a `fetch` body), one module per endpoint, `types` |
 | `src/lib/auth/*` | The workbench token: `storage` (where the browser keeps it), `session.svelte` (what is held, and whether the server has locked us out), `verify` (does the server answer to this one), and `Unlock` — the panel that takes it |
-| `src/lib/analysis/*` | The app-wide last report (`store.svelte`) and the remembered repo path |
+| `src/lib/analysis/*` | The app-wide run: `store.svelte` (the last report, and where a running analysis has got to), `follow` (stream a job to its end, ask if the stream drops), `label` (progress → one line and a fraction), `RunProgress` (that, drawn), and the remembered repo path |
 | `src/lib/projects/*` | The project registry end to end: `store.svelte` (the registered projects and which one the workbench is on), `entries` (project → a switcher row), `label` (root → name), `crumbs` (path → the picker's steps), `selection` (the remembered choice), and the views — `ProjectSwitcher`, `ProjectList`, `AddProject`, `FolderPicker` |
 | `src/lib/plugins/*` | What the workbench loaded (`store.svelte`), fetched once for the whole app |
 | `src/lib/shell/*` | The frame: `nav` (the map of the workbench), `summary` (report → the header's chips), and the views — `Shell`, `Rail`, `Header`, `NavList`, `RunSummary`, `PluginCount`, `Logo` |
@@ -117,6 +117,10 @@ what more than one screen uses moves up into `lib/components/`.
 | 36 | **The recents list is this browser's log, seeded from the registry** | The server records one run per project — the last one — so a list of several has nowhere else to live yet (`BACKLOG.md` → *Run history per project*). `recents-storage` keeps it per project in `localStorage`, and the registry's last run is folded in when the screen opens, so a run from another machine still shows up as the newest entry. `mergeRun` dedupes on the finish timestamp and hands back the **same list** when nothing is new, which is what keeps the effect that records a finished run from watching its own write. The screen also folds that run into the registry itself: the switcher normally does it and is not mounted inside settings |
 | 37 | **A 401 locks the whole app, not the call that got it** | A server started with `$STRATA_TOKEN` refuses *everything*, so a screen that renders "401" per panel would say it five times and explain it nowhere. `request.ts` hands the status to the session, the session locks, and the root layout puts `Unlock` where the frame goes — one prompt, one place, and no store left showing a stale count it can no longer refresh. Unlocking reloads rather than replaying: every store loads once and is holding a failed request by then, and a reload is the honest way to start them over |
 | 38 | **The token is checked before it is adopted, and dropped when it is refused** | `Unlock` calls `/plugins` with the candidate — `apiRequest`'s `token` option, which also promises not to re-raise the prompt — so a typo is answered where it was typed rather than by every screen behind it failing again. A token the server turns down is cleared from `localStorage` on the way into the lock, because keeping it only means the next reload fails the same way with nothing on screen to say why |
+| 39 | **A run is a job that is followed, never a request that is waited on** | `POST /analyze` is sent with `wait: false`, so the workbench holds an id within milliseconds and `GET /jobs/:id/events` tells it what the pipeline is doing while it does it. Waiting on the request would mean a fetch left open for minutes, a button that has visibly stopped responding, and nothing to say when it eventually came back — and a reload mid-run would have thrown the run away. The store still guards *which* run it adopts: pointing the workbench elsewhere mid-run must not drop one project's report onto another project's screen, while the run itself carries on and still updates that project's summary |
+| 40 | **The stream is read over `fetch`, not `EventSource`** | The API is behind a bearer token and `EventSource` cannot send a header. Parsing the frames off a `fetch` body is a few lines (`api/events.ts`) and keeps every call to the server going through the one place that knows about the token and about a 401 — an `EventSource` would have needed the credential in the query string, which is exactly where a token must not go |
+| 41 | **A dropped stream is not a failed run** | A connection held open for the length of an analysis gets dropped: by a proxy with an idle timeout, a laptop that slept, a network that blinked. `followJob` falls back to asking `GET /jobs/:id` — the same question, more slowly — because the job outlives its stream, and saying *Analysing…* over a run that finished ten minutes ago would be worse than either |
+| 42 | **Progress is a stage and a count, not an invented percentage** | The server reports the pipeline's own steps and admits it does not know the total until the file list makes it knowable. `RunProgress` draws a bar only once there is one to draw and sweeps until then, so it never jumps backwards when the plan firms up. While a run is on it takes the slot the last run's summary had: those numbers describe the report on screen, and the one being replaced is the less interesting of the two |
 
 ## 7. Quality & Risks
 

@@ -5,5 +5,6 @@
  */
 export { globMatcher } from './glob.js';
 export { scopedFiles, type FileScope } from './files.js';
+export { claimedFiles } from './extensions.js';
 export { enabledPlugins } from './plugins.js';
 export { chosenConvention, type LoadedConvention } from './convention.js';

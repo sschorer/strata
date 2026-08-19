@@ -3,6 +3,7 @@ import { analyzeRoute } from './analyze.js';
 import { browseRoute } from './browse.js';
 import { cacheRoute } from './cache.js';
 import { healthRoute } from './health.js';
+import { jobsRoute } from './jobs.js';
 import { pluginsRoute } from './plugins.js';
 import { projectConfigRoute } from './project-config.js';
 import { projectsRoute } from './projects.js';
@@ -20,5 +21,6 @@ export function registerRoutes(app: FastifyInstance, ctx: RouteContext): void {
   projectConfigRoute(app, ctx);
   settingsRoute(app, ctx);
   analyzeRoute(app, ctx);
+  jobsRoute(app, ctx);
   cacheRoute(app, ctx);
 }

@@ -30,15 +30,40 @@ interface RequestOptions {
    * the reader, not a fresh challenge.
    */
   token?: string;
+  /** What the caller will read. Defaults to JSON. */
+  accept?: string;
 }
 
 /** One JSON round-trip against the server, with failures normalised. */
 export async function apiRequest<T>(
   path: string,
-  { method = 'GET', body, signal, token }: RequestOptions = {},
+  options: RequestOptions = {},
 ): Promise<T> {
+  const response = await apiFetch(path, options);
+  return (await response.json()) as T;
+}
+
+/**
+ * One call against the server, answered with the `Response` itself.
+ *
+ * The same credential, the same normalised failures and the same unlock prompt
+ * as `apiRequest` — what it does not do is read the body, because a progress
+ * stream is read a frame at a time over the length of an analysis rather than
+ * parsed once at the end. A browser's `EventSource` cannot carry the bearer
+ * header, so a stream this app follows starts here.
+ */
+export async function apiFetch(
+  path: string,
+  {
+    method = 'GET',
+    body,
+    signal,
+    token,
+    accept = 'application/json',
+  }: RequestOptions = {},
+): Promise<Response> {
   const url = apiUrl(path);
-  const headers: Record<string, string> = { accept: 'application/json' };
+  const headers: Record<string, string> = { accept };
   if (body !== undefined) headers['content-type'] = 'application/json';
 
   const credential = token ?? session.token;
@@ -72,7 +97,7 @@ export async function apiRequest<T>(
     );
   }
 
-  return (await response.json()) as T;
+  return response;
 }
 
 /** Fastify reports errors as `{ statusCode, error, message }`; use that if present. */

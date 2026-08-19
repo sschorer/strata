@@ -1,8 +1,9 @@
-export { analyze } from './analyze';
 export { API_BASE, apiUrl } from './base';
 export { browseDirectory } from './browse';
 export { clearCache } from './cache';
+export { streamJob } from './events';
 export { fetchHealth } from './health';
+export { fetchJob, fetchJobs, startAnalysis } from './jobs';
 export { fetchPlugins } from './plugins';
 export { fetchProjectConfig, updateProjectConfig } from './project-config';
 export {
@@ -11,5 +12,5 @@ export {
   removeProject,
   updateProject,
 } from './projects';
-export { ApiError, apiRequest } from './request';
+export { ApiError, apiFetch, apiRequest } from './request';
 export type * from './types';

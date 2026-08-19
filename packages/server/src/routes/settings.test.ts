@@ -1,10 +1,10 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
+  type AnalysisQueue,
   memoryProjectStore,
   memorySettingsStore,
   type PluginRegistry,
   type SettingsStore,
-  type Strata,
 } from '@strata/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { settingsRoute } from './settings.js';
@@ -25,7 +25,7 @@ beforeEach(() => {
     settings,
     projects: memoryProjectStore(),
     registry: {} as PluginRegistry,
-    strata: {} as Strata,
+    analyses: {} as AnalysisQueue,
     pluginsDir: '/app/.strata/plugins',
   });
 });

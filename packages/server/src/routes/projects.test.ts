@@ -6,11 +6,11 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
+  type AnalysisQueue,
   memoryProjectStore,
   memorySettingsStore,
   type PluginRegistry,
   type ProjectStore,
-  type Strata,
 } from '@strata/core';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { projectsRoute } from './projects.js';
@@ -68,7 +68,7 @@ beforeEach(async () => {
   projectsRoute(app, {
     projects,
     settings: memorySettingsStore(),
-    strata: {} as Strata,
+    analyses: {} as AnalysisQueue,
     registry: {} as PluginRegistry,
     pluginsDir: '/app/.strata/plugins',
   });

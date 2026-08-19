@@ -1,13 +1,18 @@
 import type {
+  AnalysisQueue,
   PluginRegistry,
   ProjectStore,
   SettingsStore,
-  Strata,
 } from '@strata/core';
 
 /** What every route needs from the app it is registered on. */
 export interface RouteContext {
-  strata: Strata;
+  /**
+   * The way in to the pipeline. No handler runs an analysis itself: it asks the
+   * queue, which runs it on a thread of its own and lets this one carry on
+   * answering.
+   */
+  analyses: AnalysisQueue;
   registry: PluginRegistry;
   projects: ProjectStore;
   settings: SettingsStore;

@@ -78,6 +78,23 @@ curl -X POST localhost:4000/analyze -H 'content-type: application/json' \
 curl -X DELETE localhost:4000/cache
 ```
 
+Analyses run on a worker thread behind a queue, so the API keeps answering while
+one is in flight. `/analyze` waits for the report by default; ask it not to and
+you get a job you can follow instead — which is what the workbench does, and why
+*Re-analyze* shows what the pipeline is doing rather than freezing:
+
+```bash
+# take the job instead of the report
+JOB=$(curl -s -X POST localhost:4000/analyze -H 'content-type: application/json' \
+  -d '{"root":"/absolute/path/to/a/repo","wait":false}' | jq -r .job.id)
+
+# follow it: one event per step, the last one carrying the report
+curl -N localhost:4000/jobs/$JOB/events
+
+curl -s localhost:4000/jobs          # what the queue remembers, newest first
+curl -s localhost:4000/jobs/$JOB     # one job, with its report once it has one
+```
+
 ```bash
 # what loaded, from where, and anything that was skipped
 curl -s localhost:4000/plugins

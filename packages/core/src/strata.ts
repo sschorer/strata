@@ -1,4 +1,4 @@
-import { extname, isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import type { LanguageAnalysis, MetricSeries, RepoContext } from '@strata/sdk';
 import {
   deltaStats,
@@ -11,9 +11,11 @@ import {
 import { analyseCommits } from './commits/index.js';
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { consoleLogger } from './logger.js';
+import { ProgressTracker, type ProgressListener } from './progress/index.js';
 import type { PluginRegistry } from './registry.js';
 import {
   chosenConvention,
+  claimedFiles,
   enabledPlugins,
   scopedFiles,
 } from './scope/index.js';
@@ -31,6 +33,10 @@ import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
  * lists and the chosen commit convention decide who is called at all. A caller
  * that passes none of them gets the whole repository and every plugin, which is
  * what an unconfigured project asks for.
+ *
+ * A run is also watchable: hand `analyze` a listener and it reports every step
+ * as it enters it. Nothing else changes — the steps are the pipeline's own, and
+ * a run nobody watches pays nothing for the option.
  */
 export class Strata {
   private cache?: AnalysisCache;
@@ -40,17 +46,23 @@ export class Strata {
     private readonly options: StrataOptions = {},
   ) {}
 
-  async analyze(opts: AnalyzeOptions): Promise<AnalysisReport> {
+  async analyze(
+    opts: AnalyzeOptions,
+    onProgress?: ProgressListener,
+  ): Promise<AnalysisReport> {
     // The run clock covers everything the caller waited for, cache open included.
     const startedAt = performance.now();
+    const progress = new ProgressTracker(onProgress);
     const cache = opts.cache === false ? nullCache() : this.openCache();
     warnIfCacheInsideRepo(cache.path, opts.root);
     // Counters live as long as the cache does; report this run's delta.
     const before = cache.stats();
+    progress.enter('resolving');
     const rev = await resolveRev(opts.root, opts.rev);
     const branch = await branchAt(opts.root, opts.rev);
     // Scope is applied to the tracked files once, here: every plugin, the
     // report's file count and every cache key below then describe the same set.
+    progress.enter('scanning');
     const files = scopedFiles(await listFiles(opts.root, rev), opts);
     const ctx: Omit<RepoContext, 'cache'> = {
       root: opts.root,
@@ -60,16 +72,33 @@ export class Strata {
       log: consoleLogger,
     };
 
+    // Who actually takes part, worked out before the first one runs: a language
+    // plugin whose file types this repository does not hold is skipped, so it
+    // is not a step anyone is waiting for either.
+    const languageRuns = enabledPlugins(
+      this.registry.loadedByKind('language'),
+      opts.languages,
+    )
+      .map((loaded) => ({
+        loaded,
+        matched: claimedFiles(files, loaded.plugin.extensions),
+      }))
+      .filter(({ matched }) => matched.length > 0);
+    const metricRuns = enabledPlugins(
+      this.registry.loadedByKind('git-metric'),
+      opts.metrics,
+    );
+    // The two stages above, one per plugin, the history read, the analytics.
+    progress.plan(2 + languageRuns.length + 1 + metricRuns.length + 1);
+
     // 1. Per-language static analysis, routed by file extension — across the
     // language plugins this project enabled.
     const languages: Record<string, LanguageAnalysis> = {};
-    for (const { manifest, plugin } of enabledPlugins(
-      this.registry.loadedByKind('language'),
-      opts.languages,
-    )) {
-      const exts = new Set(plugin.extensions.map((e) => `.${e}`));
-      const matched = files.filter((f) => exts.has(extname(f.path)));
-      if (matched.length === 0) continue;
+    for (const {
+      loaded: { manifest, plugin },
+      matched,
+    } of languageRuns) {
+      progress.enter('language', manifest.id);
 
       // The result depends on nothing but the matched files' contents, so their
       // digest is the whole cache key.
@@ -96,15 +125,14 @@ export class Strata {
     }
 
     // 2. Git-history metrics (hotspots, coupling, …).
+    progress.enter('history');
     const commitLog = await history(opts.root, {
       rev,
       maxCount: opts.historyLimit,
     });
     const metrics: MetricSeries[] = [];
-    for (const { manifest, plugin } of enabledPlugins(
-      this.registry.loadedByKind('git-metric'),
-      opts.metrics,
-    )) {
+    for (const { manifest, plugin } of metricRuns) {
+      progress.enter('metric', manifest.id);
       // Metrics read history as well as files, and a shallow clone can hold a
       // different history for the same sha — so the repo goes into the key too.
       const runKey = digest([
@@ -137,6 +165,7 @@ export class Strata {
     // 3. Commit-convention parsing (the project's convention, else the first
     // registered), then the aggregates over the parsed log — folded once here
     // rather than by every screen, card and gate that wants them.
+    progress.enter('commits');
     const conventions = this.registry.loadedByKind('commit-convention');
     const convention = chosenConvention(conventions, opts.convention);
     if (opts.convention && !convention) {
@@ -151,6 +180,7 @@ export class Strata {
     const commitAnalytics = analyseCommits(commitLog, commits);
 
     cache.flush();
+    progress.finish();
     return {
       rev,
       run: {

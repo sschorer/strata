@@ -4,14 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
+  AnalysisQueue,
   memoryProjectStore,
   memorySettingsStore,
   type AnalysisReport,
+  type AnalysisRunner,
   type AnalyzeOptions,
   type PluginRegistry,
   type ProjectStore,
   type SettingsStore,
-  type Strata,
 } from '@strata/core';
 import {
   afterAll,
@@ -25,11 +26,12 @@ import {
 import { analyzeRoute } from './analyze.js';
 
 /**
- * `/analyze` is a thin delegation, with two things of its own: the root it is
- * handed is confined to `$STRATA_ROOTS` before anything reads it, and a run
- * over a registered root refreshes what the switcher shows about that project
- * — where a registry that will not take the update must not cost the caller
- * the report.
+ * `/analyze` is a thin delegation onto the analysis queue, with three things of
+ * its own: the root it is handed is confined to `$STRATA_ROOTS` before anything
+ * reads it; a run over a registered root refreshes what the switcher shows
+ * about that project — where a registry that will not take the update must not
+ * cost the caller the report; and the caller chooses whether to wait for the
+ * report or to take the job and collect it later.
  *
  * The roots are read per request, so the test points them at a tree of its own:
  *
@@ -73,14 +75,24 @@ const report = {
 
 /** What the route asked the core for, so the defaults can be asserted. */
 let requested: AnalyzeOptions | undefined;
+/** Set to fail the next run, so the endpoint's error path can be reached. */
+let failure = '';
+/** Set to hold a run open, so a second request meets one already in flight. */
+let gate: Promise<void> | null = null;
 
-const strata = {
-  analyze: async (opts: AnalyzeOptions) => {
+/** A runner in place of the analysis thread; the queue in front of it is real. */
+const runner: AnalysisRunner = {
+  analyze: async (opts) => {
     requested = opts;
+    if (gate) await gate;
+    if (failure) throw new Error(failure);
     return report;
   },
-} as unknown as Strata;
+  clearCache: async () => undefined,
+  close: async () => undefined,
+};
 
+let analyses: AnalysisQueue;
 let base: string;
 let repo: string;
 let unregistered: string;
@@ -113,7 +125,7 @@ function build(
 ): FastifyInstance {
   const instance = Fastify();
   analyzeRoute(instance, {
-    strata,
+    analyses,
     projects: store,
     settings: appSettings,
     registry: {} as PluginRegistry,
@@ -132,6 +144,9 @@ async function analyze(root: string, body: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   requested = undefined;
+  failure = '';
+  gate = null;
+  analyses = new AnalysisQueue(runner);
   projects = memoryProjectStore();
   settings = memorySettingsStore();
   app = build(projects);
@@ -139,6 +154,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await app.close();
+  await analyses.close();
 });
 
 describe('POST /analyze', () => {
@@ -294,6 +310,70 @@ describe('POST /analyze', () => {
     expect(response.statusCode).toBe(200);
     expect(requested).toMatchObject({ root: repo });
     expect(projects.get(project.id)?.lastAnalysis).not.toBeNull();
+  });
+
+  it('hands back the job instead of the report when asked not to wait', async () => {
+    const response = await analyze(repo, { wait: false });
+
+    expect(response.statusCode).toBe(202);
+    const { job } = response.json() as { job: { id: string; root: string } };
+    expect(job).toMatchObject({ root: repo, state: 'queued', report: null });
+
+    // Nobody is waiting, and the run still happens.
+    const finished = await analyses.settled(job.id);
+    expect(finished?.state).toBe('succeeded');
+    expect(finished?.report).toEqual(report);
+  });
+
+  it('records a run the caller never waited for', async () => {
+    const project = projects.add({ name: 'Strata', root: repo });
+
+    const response = await analyze(repo, { wait: false });
+    const { job } = response.json() as { job: { id: string } };
+    await analyses.settled(job.id);
+    // The registry is written by the same continuation that settles the job.
+    await Promise.resolve();
+
+    expect(projects.get(project.id)?.lastAnalysis).toMatchObject({
+      rev: report.rev,
+    });
+  });
+
+  it('joins a run already in flight rather than queueing a second', async () => {
+    let release = (): void => {};
+    gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const first = await analyze(repo, { wait: false });
+    const second = await analyze(repo, { wait: false });
+    release();
+
+    const id = (body: typeof first) =>
+      (body.json() as { job: { id: string } }).job.id;
+    expect(id(second)).toBe(id(first));
+    expect(analyses.list()).toHaveLength(1);
+    await analyses.settled(id(first));
+  });
+
+  it('answers 500 with the reason when the run fails', async () => {
+    failure = 'not a git repository';
+
+    const response = await analyze(repo);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json().message).toBe('not a git repository');
+  });
+
+  it('still answers 202 for a run that goes on to fail', async () => {
+    failure = 'not a git repository';
+
+    const response = await analyze(repo, { wait: false });
+
+    // Whether the run works out is the job's news, not the submission's.
+    expect(response.statusCode).toBe(202);
+    const { job } = response.json() as { job: { id: string } };
+    expect((await analyses.settled(job.id))?.error).toBe('not a git repository');
   });
 
   it('still returns the report when the registry refuses the update', async () => {

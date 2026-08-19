@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { analysis } from '$lib/analysis';
+  import { analysis, RunProgress } from '$lib/analysis';
   import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
   import { projectLabel, projects, ProjectSwitcher } from '$lib/projects';
   import { SettingsNav, settingsScope } from '$lib/settings';
@@ -52,7 +52,18 @@
     </nav>
 
     <div class="flex flex-wrap items-center gap-3">
-      <RunSummary report={analysis.report} />
+      <!--
+        While a run is on, what it is doing takes the slot the last run's
+        summary had: the numbers there describe the report on screen, and the
+        one being replaced is the less interesting of the two.
+      -->
+      {#if running}
+        <div class="w-40 sm:w-56">
+          <RunProgress progress={analysis.progress} />
+        </div>
+      {:else}
+        <RunSummary report={analysis.report} />
+      {/if}
       <button
         type="button"
         class="border-line bg-surface text-ink hover:bg-elevated rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"

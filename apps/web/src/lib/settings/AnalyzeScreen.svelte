@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { analysis } from '$lib/analysis';
+  import { analysis, RunProgress } from '$lib/analysis';
   import type { ProjectAnalysis } from '$lib/api';
   import Card from '$lib/components/Card.svelte';
   import { plugins as loaded, type PluginsStore } from '$lib/plugins';
@@ -207,10 +207,21 @@
         >
           {running ? 'Analysing…' : 'Run analysis'}
         </button>
-        <p class="text-subtle text-xs">
-          Reads the repository at the revision above; the working tree is never
-          written to.
-        </p>
+        {#if running}
+          <!--
+            The run is a job on the server, so this is what it is doing rather
+            than a spinner over a request nobody can see into.
+          -->
+          <div class="min-w-48 flex-1">
+            <RunProgress progress={analysis.progress} />
+          </div>
+        {:else}
+          <p class="text-subtle text-xs">
+            Reads the repository at the revision above; the working tree is
+            never written to. It runs on a thread of its own, so the workbench
+            stays usable while it does.
+          </p>
+        {/if}
       </div>
 
       {#if failure}
