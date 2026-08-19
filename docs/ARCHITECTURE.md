@@ -307,8 +307,8 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
 | ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
 | ADR-7 | Web UI is a SvelteKit **static SPA** (Tailwind v4) | The build is plain files: the server can serve it from the same image, and the Tauri shell can load it from disk. Analysis is a local API call, so nothing needs server rendering. |
-| ADR-9 | Heavy analyses on a `worker_threads` worker behind an in-process queue (not BullMQ/Redis) | Analysis is minutes of synchronous parsing, and on one thread that is minutes of an unanswered API. A Redis-backed queue would mean a second service for a workbench whose whole shape is one container, run offline, on the machine it analyses. The queue interface is independent of where work runs, so spreading runs over machines later means replacing the runner, not the API. |
 | ADR-8 | One shared bearer token (`$STRATA_TOKEN`), opt-in | A self-hosted workbench has one owner: a secret in the environment is the whole credential, with no user store, no session state and nothing for CI to log into. Off by default keeps `docker run` and localhost working; startup warns while it is. Named, revocable keys are the upgrade path if it ever serves more than one person. |
+| ADR-9 | Heavy analyses on a `worker_threads` worker behind an in-process queue (not BullMQ/Redis) | Analysis is minutes of synchronous parsing, and on one thread that is minutes of an unanswered API. A Redis-backed queue would mean a second service for a workbench whose whole shape is one container, run offline, on the machine it analyses. The queue interface is independent of where work runs, so spreading runs over machines later means replacing the runner, not the API. |
 
 (Promote these into `docs/adr/NNNN-*.md` as they harden.)
 
