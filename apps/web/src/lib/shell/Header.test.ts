@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { projects, SELECTION_STORAGE_KEY } from '$lib/projects';
-import { stubApi } from '$lib/test/api';
+import { runRoutes, stubApi } from '$lib/test/api';
 import { render } from '$lib/test/render';
 import Header from './Header.svelte';
 
@@ -55,7 +55,7 @@ let fetchMock: ReturnType<typeof stubApi>;
 
 beforeEach(() => {
   localStorage.clear();
-  fetchMock = stubApi({ '/projects': { projects: [] }, '/analyze': report });
+  fetchMock = stubApi({ '/projects': { projects: [] }, ...runRoutes(report) });
 });
 
 afterEach(() => {
@@ -94,8 +94,10 @@ describe('Header', () => {
       ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
     )!;
     expect(String(run[0])).toContain('/analyze');
+    // The workbench never waits on the request: it takes the job and follows it.
     expect(JSON.parse(String((run[1] as RequestInit).body))).toEqual({
       root: '/home/dev/workspace/strata',
+      wait: false,
     });
   });
 
@@ -111,7 +113,7 @@ describe('Header', () => {
   });
 
   it('calls a registered project what the registry calls it', async () => {
-    stubApi({ '/projects': { projects: [strata] }, '/analyze': report });
+    stubApi({ '/projects': { projects: [strata] }, ...runRoutes(report) });
     localStorage.setItem(SELECTION_STORAGE_KEY, 'strata');
     await projects.reload();
 

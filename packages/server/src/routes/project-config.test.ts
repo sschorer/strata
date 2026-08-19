@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
+  type AnalysisQueue,
   memoryProjectStore,
   memorySettingsStore,
   PluginRegistry,
   type ProjectStore,
-  type Strata,
 } from '@strata/core';
 import {
   afterAll,
@@ -75,7 +75,7 @@ beforeEach(() => {
     projects,
     registry,
     settings: memorySettingsStore(),
-    strata: {} as Strata,
+    analyses: {} as AnalysisQueue,
     pluginsDir: '/app/.strata/plugins',
   });
 });

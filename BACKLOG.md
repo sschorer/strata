@@ -49,8 +49,22 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       token short enough to guess). The allow-list still bounds every path a
       caller names: holding the token makes them trusted, not unconfined. The
       web UI asks for the token once and keeps it in the browser.
-- [ ] **P1** Worker queue for heavy analyses (BullMQ / worker_threads); progress
-      events so *Re-analyze* can show a running state instead of blocking.
+- [x] Worker queue for heavy analyses — an analysis is a **job**, not a request
+      left open. `POST /analyze` puts it on a queue and the queue runs it on a
+      `worker_threads` worker that owns the plugins and the incremental cache,
+      so the HTTP thread never parses anything and `/health` answers in a
+      millisecond through a cold run. Redis was the alternative and is the wrong
+      shape for a workbench that ships as one offline container, so the queue is
+      in-process; it is the runner behind it that would be replaced to spread
+      runs over machines. Runs are serialised (they share one cache and one
+      CPU), an identical request in flight is joined rather than queued twice,
+      and a finished job outlives the request that asked for it. The pipeline
+      reports its own stages as it takes them — two of them once per plugin that
+      actually takes part — over `GET /jobs/:id/events`, so *Re-analyze* shows
+      the step and a count instead of blocking; `wait: false` is what asks for
+      the job, and waiting is still the default so CI and `curl` keep the
+      endpoint they had. A dropped stream is not a failed run: the job outlives
+      it and `GET /jobs/:id` still answers.
 - [ ] **P1** Analyse a bare/remote repo (clone-on-demand) and a specific `rev` range
 - [ ] **P2** Snapshot & compare two revisions (trend deltas)
 - [ ] **P2** Plugin config schema + per-plugin settings surfaced to the UI

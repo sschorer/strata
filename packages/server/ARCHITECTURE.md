@@ -6,13 +6,19 @@
 
 The **HTTP boundary**. A thin Fastify app that discovers plugins — the
 first-party ones plus whatever is installed in the user plugins directory —
-wires them into a `Strata` instance, and exposes analysis over REST for the web
-UI and CI. Keeps transport concerns out of the core.
+puts an analysis queue in front of the pipeline, and exposes analysis over REST
+for the web UI and CI. Keeps transport concerns out of the core.
+
+Nothing on the HTTP thread ever runs an analysis. The queue hands the work to a
+worker thread that owns the plugins it runs and the incremental cache they write
+to, so a repository being parsed is not a repository during which the server has
+stopped answering.
 
 ## 2. Constraints
 
-- Stateless request handling (state lives in the core: the cache, the project
-  registry and the app settings).
+- Stateless request handling (state lives in the core: the analysis queue, the
+  cache, the project registry and the app settings).
+- No blocking work on the HTTP thread — heavy analysis belongs on the worker.
 - No business logic beyond validation + delegation to the core.
 - Must run in the container as a non-root user.
 
@@ -42,7 +48,10 @@ UI and CI. Keeps transport concerns out of the core.
 | GET | `/browse` | `?path=&hidden=` → `{ path, parent, repo, entries, roots }` — the subdirectories of one directory on the server's machine, each marked whether it is a git working tree. The folder picker behind *Add project*. Directory names only, and only inside `$STRATA_ROOTS` (default: the server user's home): 403 outside them, 404 for a path that is not a directory. |
 | GET | `/settings` | The app-wide settings, filled out with the defaults: `{ appearance, engine, gates, ai }`. |
 | PATCH | `/settings` | Body: any of those four sections → all of them. Merges two levels deep (section, then field); an array replaces. 400 on a value that cannot be stored, or on a section named with no field in it. |
-| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache? }` → `AnalysisReport` (incl. run metadata and cache stats). The root is confined to `$STRATA_ROOTS` first: 403 outside them, 404 for a path inside them that is not a directory. Over a registered root, the project's config supplies the defaults (`rev`, `historyLimit`) and its scope, plugin lists and convention outright, and the run updates its last-analysis summary; the cache default comes from the app settings. |
+| POST | `/analyze` | Body `{ root, rev?, historyLimit?, cache?, wait? }` → `AnalysisReport` (incl. run metadata and cache stats), or — with `wait: false` — `202 { job }` to collect later. The root is confined to `$STRATA_ROOTS` first: 403 outside them, 404 for a path inside them that is not a directory. Over a registered root, the project's config supplies the defaults (`rev`, `historyLimit`) and its scope, plugin lists and convention outright, and the run updates its last-analysis summary whether or not the caller waited; the cache default comes from the app settings. A request identical to one already in flight joins it. 500 with the reason when a run the caller waited for failed. |
+| GET | `/jobs` | `{ jobs }` — every job the queue still remembers, newest first, **without** their reports. |
+| GET | `/jobs/:id` | `{ job }` — one job, with its report once it has one, or 404. Jobs are kept for a while after they finish, not forever. |
+| GET | `/jobs/:id/events` | A `text/event-stream` following one job to its end. The event name is the job's state (`running`, `succeeded`, `failed`) and the data is the whole job — so the last frame of a successful run carries the report. Opens on the state as it is, then reports each step; a keep-alive comment every 15 s stops a proxy timing out a stream that is quiet because the work is slow. 404 for a job that is not there. |
 | DELETE | `/cache` | Empty the incremental cache — the *Clear cache* button, which is an action rather than a setting. Registered projects and app settings are untouched: both live in their own databases. |
 
 ## 4. Building Blocks
@@ -50,7 +59,7 @@ UI and CI. Keeps transport concerns out of the core.
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Barrel — the package's public surface. |
-| `app.ts` | `createServer()` — the token guard, settings, plugin registry, one `Strata`, one project store, routes, shutdown hook. |
+| `app.ts` | `createServer()` — the token guard, settings, plugin registry, one analysis queue over a worker thread, one project store, routes, shutdown hook. |
 | `main.ts` | Process entry point (`node dist/main.js`). |
 | `registry.ts` | `buildRegistry(opts)` — load the built-ins, then the user plugins directory the settings name (unless third-party loading is off). |
 | `auth/token.ts` | `configuredToken()` — the deployment's secret from `$STRATA_TOKEN`, or `undefined` for an open API. |
@@ -58,7 +67,12 @@ UI and CI. Keeps transport concerns out of the core.
 | `auth/presented.ts` | `presentedToken()` — the bearer credential a request carries, read from `Authorization` and nowhere else. |
 | `auth/compare.ts` | `sameToken()` — constant-time comparison over two digests. |
 | `auth/warning.ts` | `authWarning()` — what to say at startup about an open API, or a token short enough to guess. |
+| `worker/analysis-worker.ts` | The analysis thread: its own registry, its own `Strata`, one command at a time. |
+| `worker/runner.ts` | `workerRunner()` — the `AnalysisRunner` the queue drives; starts the thread on first use, correlates answers, fails what a dead thread still owed. |
+| `worker/thread.ts` | `AnalysisThread` / `spawnThread()` — the `worker_threads` seam, so the runner is testable without a thread. |
+| `worker/protocol.ts` | `WorkerCommand` / `WorkerEvent` — what crosses the port. |
 | `routes/health.ts` … `routes/settings.ts` | One module per endpoint. |
+| `routes/sse.ts` | `openEventStream()` — turn a reply into a server-sent event stream, with a heartbeat. |
 | `routes/http-error.ts` | `httpError(status, message)` — a thrown error Fastify serialises in its own error shape. |
 | `routes/patch.ts` | `requirePatch()` — refuse a PATCH that changes nothing. |
 | `routes/plugin-ids.ts` | `requireKnownPlugins()` — refuse settings naming a plugin nobody loaded. |
@@ -69,11 +83,16 @@ UI and CI. Keeps transport concerns out of the core.
 ## 5. Runtime
 
 Request → check the bearer token → validate body → confine the root to
-`$STRATA_ROOTS` → `Strata.analyze()` → JSON report, plus a write to the project
-registry when the analysed root is registered. Plugin discovery happens once at
-startup, as does opening the registry and reading the token; the roots are read
-per request, so widening them is a restart of nothing while rotating the token
-is a restart.
+`$STRATA_ROOTS` → `AnalysisQueue.submit()` → the worker thread runs it → JSON
+report (or `202 { job }`), plus a write to the project registry when the
+analysed root is registered. Plugin discovery happens once at startup, as does
+opening the registry and reading the token; the roots are read per request, so
+widening them is a restart of nothing while rotating the token is a restart.
+
+The analysis thread starts on the **first** run rather than at boot, and is then
+kept — the two things that make an analysis fast are a loaded registry and an
+open cache, and a fresh thread would have neither. It loads its own copy of the
+plugins, which is the price of the two threads sharing no state.
 
 ## 6. Decisions
 
@@ -84,9 +103,38 @@ is a restart.
   never shadow a first-party id.
 - **A plugin that will not load never fails startup** — it is reported on
   `GET /plugins` instead, which is what the plugins settings screen reads.
-- **One long-lived `Strata`**, so the cache is opened once and closed with the
-  server (`onClose`), not per request. The project store and the settings store
-  are opened and closed the same way.
+- **The HTTP thread never analyses.** An analysis is minutes of synchronous
+  parsing on a large repository, and on one thread that is minutes during which
+  `/health` goes unanswered, the switcher will not open and *Re-analyze* looks
+  broken. The work goes to a `worker_threads` worker; the queue in the core
+  decides when, this module decides where.
+- **`worker_threads`, not BullMQ.** A queue backed by Redis would mean a second
+  service for a workbench whose whole shape is one container, run offline, on
+  the machine being analysed. Threads need no infrastructure, and the queue
+  interface is the same either way — a deployment that one day wants runs spread
+  over several machines replaces the `AnalysisRunner` and nothing above it.
+- **One long-lived thread**, so the cache is opened once and the plugins loaded
+  once, not per run. It is closed with the server (`onClose`), which abandons a
+  run in flight rather than waiting it out: the cache is committed plugin by
+  plugin, so the next run picks up where this one got to, and a shutdown that
+  waited out a ten-minute analysis would be killed halfway through it anyway.
+  The project store and the settings store are opened and closed the same way.
+- **A thread that dies is not replaced in place** — the commands it still owed
+  are failed, and the *next* run starts a fresh one. So a plugin that crashes
+  the thread costs its own run and a reload, never the server; and a caller
+  waiting on a thread that is gone is told so instead of waiting forever.
+- **`/analyze` still answers with a report.** Waiting is the default, so a CI
+  job, a script and a `curl` keep the endpoint they had — what changed is that
+  waiting no longer occupies the thread. `wait: false` is for the caller that
+  wants to render a running state, and it gets a job rather than a promise.
+- **The registry is refreshed by whoever finishes the run, not whoever waited
+  for it** — the handler attaches the update to the job, so a `wait: false`
+  caller that walks away still leaves the switcher current.
+- **Progress is streamed, not polled.** A run reports six or seven steps over
+  minutes; polling for that is a request per second per open tab for news that
+  usually has not changed. The stream opens on the state as it *is* rather than
+  on the next change, so a reader that connected late is told where the run got
+  to instead of waiting for events that have already been and gone.
 - **Settings are read before plugins are loaded** — *Plugins & engine* decides
   which directory is scanned and whether drop-in plugins are loaded at all, and
   loading happens exactly once, at startup. So `createServer()` opens the
@@ -195,5 +243,17 @@ is a restart.
 - **Risk:** malformed request bodies. **Mitigation:** `/analyze` carries a JSON
   schema, so a wrong-typed field (`"cache": "false"`) is a 400 rather than a
   silently ignored option.
-- **Risk:** long analyses block the event loop. **Mitigation:** move heavy runs
-  to a worker queue (backlog).
+- **Risk:** an event stream is a connection held open for the length of an
+  analysis, and those get dropped — by a proxy with an idle timeout, a laptop
+  that slept, a network that blinked. **Mitigation:** a keep-alive comment every
+  15 s and `x-accel-buffering: no` keep a healthy stream alive through a proxy;
+  a dropped one is not a failed run, because the job outlives it and
+  `GET /jobs/:id` still answers. The web client falls back to asking.
+- **Risk:** one worker thread means one analysis at a time, so a long run
+  delays the next. **Mitigation:** deliberate — they share one cache and one
+  CPU, so running them at once would be slower and would have them fighting
+  over the same database. Identical requests join rather than queue.
+- **Note:** plugins are loaded twice, once on each thread — the HTTP side for
+  `/plugins` and the settings screens, the worker side to actually run them.
+  That is the cost of the two sharing no state; if it ever matters, the shape to
+  reach for is the worker reporting its registry back at startup.

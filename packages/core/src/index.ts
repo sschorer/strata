@@ -20,6 +20,24 @@ export {
   MANIFEST_FILENAME,
 } from './manifest.js';
 export { createConsoleLogger, consoleLogger } from './logger.js';
+export {
+  ProgressTracker,
+  type AnalysisProgress,
+  type AnalysisStage,
+  type ProgressListener,
+} from './progress/index.js';
+export {
+  AnalysisQueue,
+  inlineRunner,
+  jobSummary,
+  requestKey,
+  type AnalysisJob,
+  type AnalysisJobSummary,
+  type AnalysisRunner,
+  type JobListener,
+  type JobState,
+  type QueueOptions,
+} from './jobs/index.js';
 export type {
   AnalysisReport,
   AnalyzeOptions,
@@ -70,6 +88,7 @@ export {
 export {
   globMatcher,
   scopedFiles,
+  claimedFiles,
   enabledPlugins,
   chosenConvention,
   type FileScope,

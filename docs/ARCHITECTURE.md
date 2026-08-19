@@ -91,11 +91,13 @@ strata/
 │   │              manifest.ts · discover.ts · plugins-dir.ts ·
 │   │              git/ (exec, rev, branch, repo, files, history, churn) ·
 │   │              cache/ (types, schema, sqlite, null, open, keys, digest, …) ·
+│   │              progress/ (types, tracker) · jobs/ (queue, key, inline, …) ·
 │   │              projects/ (types, schema, sqlite, memory, open, id, …) ·
 │   │              config/ (types, defaults, patch, errors) ·
 │   │              settings/ (types, defaults, patch, schema, sqlite, memory, …)
 │   └── server/   @strata/server  Fastify HTTP API over the core
-│                  app.ts · main.ts (entry) · registry.ts · routes/*
+│                  app.ts · main.ts (entry) · registry.ts · routes/* ·
+│                  worker/ (analysis-worker, runner, thread, protocol)
 ├── plugins/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-coupling/             change-coupling metric         (git-metric)
@@ -140,6 +142,15 @@ builds a `RepoContext` and fans work out.
 
 ### Analyse a repository
 
+`POST /analyze` does not run anything on the HTTP thread. It puts the request on
+the **analysis queue**, which runs one job at a time on a **worker thread** that
+owns the plugins and the incremental cache; the handler either waits for the
+report (the default, so CI and `curl` keep the endpoint they had) or answers
+`202` with the job. Either way the run is followable — `GET /jobs/:id/events`
+streams each step as the pipeline takes it, which is what lets *Re-analyze* show
+a running state instead of a button that has stopped responding. What the
+pipeline then does, on that thread:
+
 1. `Strata.analyze({root, rev})` resolves `rev` → sha and branch, and lists
    tracked files (each with its blob sha), narrowed once to the project's
    scope — its analyse paths, minus its ignore globs.
@@ -165,6 +176,10 @@ helper recomputes everything. The report carries the run's cache counters, and
 its `run` block carries what the run itself did — branch, file count, duration
 and finished-at, which is what the workbench header and the overview stat cards
 render.
+
+Every step above is announced to whoever is following the job: the two per-plugin
+stages repeat once per plugin that actually takes part, and the run's total is
+reported as unknown until the file list makes it knowable.
 
 ### Grant merge trust (governance runtime)
 
@@ -292,6 +307,7 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
 | ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
 | ADR-7 | Web UI is a SvelteKit **static SPA** (Tailwind v4) | The build is plain files: the server can serve it from the same image, and the Tauri shell can load it from disk. Analysis is a local API call, so nothing needs server rendering. |
+| ADR-9 | Heavy analyses on a `worker_threads` worker behind an in-process queue (not BullMQ/Redis) | Analysis is minutes of synchronous parsing, and on one thread that is minutes of an unanswered API. A Redis-backed queue would mean a second service for a workbench whose whole shape is one container, run offline, on the machine it analyses. The queue interface is independent of where work runs, so spreading runs over machines later means replacing the runner, not the API. |
 | ADR-8 | One shared bearer token (`$STRATA_TOKEN`), opt-in | A self-hosted workbench has one owner: a secret in the environment is the whole credential, with no user store, no session state and nothing for CI to log into. Off by default keeps `docker run` and localhost working; startup warns while it is. Named, revocable keys are the upgrade path if it ever serves more than one person. |
 
 (Promote these into `docs/adr/NNNN-*.md` as they harden.)
@@ -313,6 +329,8 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | Cache is only as pure as its plugins | A `cache.file()` value that depends on more than the file's contents goes stale | Contract documented in the SDK; plugin version is part of the key, `DELETE /cache` is the escape hatch. |
 | Complexity proxy is indentation-based | Rough hotspot scores | Feed real cyclomatic complexity from language plugins. |
 | Web UI is a scaffold | Only the theme layer and API client exist; no analysis screens yet | Build the shell and views on top (see backlog / the *web-ui* issues). |
+| One analysis at a time | A long run delays the next | Deliberate: runs share one cache and one CPU, so concurrent ones would be slower and would contend on the same database. Identical requests join the run in flight rather than queueing behind it. |
+| Plugins load on both threads | Twice the load cost and memory at startup | The price of the HTTP and analysis threads sharing no state. If it matters, the worker can report its registry back for `/plugins` to serve. |
 | Third-party plugins run in-process | A plugin has the server's privileges | Manifest/entry validation and id protection on load; installing one is a trust decision, and the plugins directory is operator-controlled. Isolation is a later step. |
 | Vouch-bot needs push to `main` | May hit branch protection | Bypass entry or PR-mode fallback (documented). |
 
@@ -326,4 +344,5 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 | **RepoContext** | The immutable repo view handed to plugins. |
 | **Plugin manifest** | `strata.plugin.json` describing a plugin to the registry. |
 | **Project** | A repository registered with this workbench: id, display name, root, last-analysis summary. |
+| **Job** | One analysis on the queue — queued, running, then succeeded or failed. Outlives the request that asked for it. |
 | **Vouch** | Granting a contributor's approval the power to unblock merges. |
