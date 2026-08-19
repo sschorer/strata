@@ -298,19 +298,33 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 
 ## 9. Architecture Decisions
 
-| ID | Decision | Rationale |
-|----|----------|-----------|
-| ADR-1 | TypeScript core (not Rust) | One language end-to-end; easy plugin authoring. Revisit if profiling demands. |
-| ADR-2 | tree-sitter for parsing | One framework, many grammars, uniform AST. Grammars are loaded as **WebAssembly** (`web-tree-sitter` + pre-built `.wasm`), so a language plugin installs without a compiler. |
-| ADR-3 | Shell out to `git` | Fastest and most complete; avoids reimplementing git. |
-| ADR-4 | SQLite blob-keyed cache (`node:sqlite`) | Cheap incremental analysis for large repos, with no runtime dependency. |
-| ADR-5 | Docker image is the primary deliverable | Matches "self-host over the browser". |
-| ADR-6 | Vouch file over GitHub team | Works on a personal repo; auditable in git history. |
-| ADR-7 | Web UI is a SvelteKit **static SPA** (Tailwind v4) | The build is plain files: the server can serve it from the same image, and the Tauri shell can load it from disk. Analysis is a local API call, so nothing needs server rendering. |
-| ADR-8 | One shared bearer token (`$STRATA_TOKEN`), opt-in | A self-hosted workbench has one owner: a secret in the environment is the whole credential, with no user store, no session state and nothing for CI to log into. Off by default keeps `docker run` and localhost working; startup warns while it is. Named, revocable keys are the upgrade path if it ever serves more than one person. |
-| ADR-9 | Heavy analyses on a `worker_threads` worker behind an in-process queue (not BullMQ/Redis) | Analysis is minutes of synchronous parsing, and on one thread that is minutes of an unanswered API. A Redis-backed queue would mean a second service for a workbench whose whole shape is one container, run offline, on the machine it analyses. The queue interface is independent of where work runs, so spreading runs over machines later means replacing the runner, not the API. |
+Each decision is a record in [`docs/adr/`](./adr/). This table is the index;
+the record holds the trade-off and what it costs us.
 
-(Promote these into `docs/adr/NNNN-*.md` as they harden.)
+| ID | Decision |
+|----|----------|
+| [ADR-1](./adr/0001-typescript-core.md) | TypeScript core, not Rust |
+| [ADR-2](./adr/0002-tree-sitter-parsing.md) | tree-sitter for parsing, loaded as WebAssembly |
+| [ADR-3](./adr/0003-shell-out-to-git.md) | Shell out to `git` rather than link a git library |
+| [ADR-4](./adr/0004-sqlite-blob-keyed-cache.md) | Incremental cache in SQLite, keyed on the git blob sha |
+| [ADR-5](./adr/0005-docker-image-primary-deliverable.md) | The Docker image is the primary deliverable |
+| [ADR-6](./adr/0006-vouch-file-over-github-team.md) | Merge trust lives in a vouched file, not a GitHub team |
+| [ADR-7](./adr/0007-web-ui-static-spa.md) | The web UI is a SvelteKit static SPA |
+| [ADR-8](./adr/0008-shared-bearer-token.md) | One shared bearer token for the API, opt-in |
+| [ADR-9](./adr/0009-worker-thread-analysis-queue.md) | Heavy analyses on a worker thread behind an in-process queue |
+| [ADR-10](./adr/0010-open-analysis-pipeline.md) | The analysis pipeline is an open, dependency-ordered graph of stages |
+| [ADR-11](./adr/0011-sdk-0-2-0-single-break.md) | One breaking SDK wave to 0.2.0, and deliberately not 1.0.0 |
+| [ADR-12](./adr/0012-repo-owned-config-file.md) | The analysed repository owns its analysis config |
+| [ADR-13](./adr/0013-providers-are-configured-instances.md) | AI providers are configured instances, not plugins |
+| [ADR-14](./adr/0014-cli-and-its-trust-model.md) | A first-class CLI beside the server, with no path allow-list |
+| [ADR-15](./adr/0015-partial-runs-and-per-stage-status.md) | A stage failure fails its dependents, not the run |
+
+ADR-10 through ADR-15 are **accepted but not yet implemented** — sections 5, 6
+and 8 above still describe the shipped three-phase pipeline. ADR-11 holds the
+landing order.
+
+New decisions are written straight into `docs/adr/` and listed here. The
+project's vocabulary is [`CONTEXT-MAP.md`](../CONTEXT-MAP.md).
 
 ## 10. Quality Requirements
 

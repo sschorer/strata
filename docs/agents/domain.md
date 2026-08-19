@@ -37,8 +37,10 @@ folder under `src/`. Contexts are `packages/*`, `apps/*` and `plugins/*`:
 ## What exists today
 
 Every context already has an `ARCHITECTURE.md` (arc42, trimmed) beside its
-`src/`, and `docs/ARCHITECTURE.md` covers the system. There is **no**
-`CONTEXT-MAP.md`, no `CONTEXT.md` and no `docs/adr/` yet.
+`src/`, and `docs/ARCHITECTURE.md` covers the system. `CONTEXT-MAP.md` exists
+at the root, with a `CONTEXT.md` in `packages/sdk`, `packages/core`,
+`packages/server` and `apps/web`; the `plugins/*` contexts have none yet.
+`docs/adr/` exists and is authoritative.
 
 `ARCHITECTURE.md` and `CONTEXT.md` are not the same document and neither
 replaces the other. Architecture docs describe structure — building blocks,
@@ -49,11 +51,10 @@ architecture doc for a context you're about to change, whether or not a
 
 ## ADRs live in a table for now
 
-System-wide decisions ADR-1…9 are rows in a table at the bottom of
-`docs/ARCHITECTURE.md`, not files. Read them there. Promoting them into
-standalone records under `docs/adr/` is a tracked backlog item
-(*Docs & DX → ADR folder*), so expect this to change; once `docs/adr/` exists,
-it is authoritative and the table becomes an index.
+System-wide decisions live as records in `docs/adr/`. The table at the bottom
+of `docs/ARCHITECTURE.md` is the index over them, not the storage. ADR-10
+onwards are **accepted but not yet implemented** — read them alongside the
+architecture doc, which still describes what ships today.
 
 ## Use the glossary's vocabulary
 
