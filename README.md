@@ -2,17 +2,19 @@
 
 > A modular git & code-analysis workbench. Point it at any repo to see
 > **hotspots**, **commit analytics**, per-language **dependency graphs** and
-> **dead code**, with **pluggable AI providers** — run it locally or self-host
-> it over the browser.
+> **dead code**, with **configurable AI providers** — run it locally or
+> self-host it over the browser.
 
-Strata is a small core plus four kinds of plugins. Everything — a new language,
-a new commit convention, a new git metric, a new AI backend — is a plugin, so
-the tool grows without the core changing.
+Strata is a small core plus three kinds of plugins. Everything an analysis does
+— a new language, a new commit convention, a new git metric — is a plugin, so
+the tool grows without the core changing. An AI provider is not: it is a local
+coding agent you configure in the app settings, and analysis itself never calls
+a model.
 
 ## Status
 
 🚧 **Early scaffold.** The plugin contracts (`@strata/sdk`), the orchestrator
-(`@strata/core`), the API (`@strata/server`) and five example plugins are in
+(`@strata/core`), the API (`@strata/server`) and four example plugins are in
 place and build. The web UI (`apps/web`) is scaffolded — SvelteKit + Tailwind,
 theme layer and API client wired; the analysis screens are next. See
 [`BACKLOG`](#roadmap).
@@ -215,9 +217,9 @@ packages/
   server/   @strata/server Fastify HTTP API
 plugins/
   commit-conventional/     Conventional Commits parser
+  git-coupling/            files that change together
   git-hotspots/            churn × complexity metric
   language-typescript/     TS/JS import graph, cycles + code metrics
-  ai-provider-template/    copy-me AI backend
 apps/
   web/      @strata/web    web UI — SvelteKit SPA + Tailwind (scaffold)
 docs/                      architecture, plugin authoring, ops

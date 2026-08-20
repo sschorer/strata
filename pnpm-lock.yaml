@@ -128,19 +128,6 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  plugins/ai-provider-template:
-    dependencies:
-      '@strata/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.3
-        version: 24.13.3
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-
   plugins/commit-conventional:
     dependencies:
       '@strata/sdk':

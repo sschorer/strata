@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Scaffold a new plugin from a template.
 //   node scripts/new-plugin.mjs <name> <kind>
-// kind ∈ language | commit-convention | git-metric | ai-provider
+// kind ∈ language | commit-convention | git-metric
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -34,7 +34,7 @@ const config: ProjectConfig = {
   historyLimit: 500,
   ignore: [],
   paths: [],
-  languages: null,
+  languages: ['strata-language-typescript'],
   metrics: null,
   convention: null,
   rules: [],
@@ -51,9 +51,9 @@ const loaded: LoadedPluginInfo[] = [
     source: 'builtin',
   },
   {
-    id: 'strata-ai-codex',
-    name: 'Codex',
-    kind: 'ai-provider',
+    id: 'strata-language-php',
+    name: 'PHP',
+    kind: 'language',
     version: '0.1.0',
     sdk: '0',
     main: 'dist/index.js',
@@ -159,7 +159,7 @@ describe('AnalyzeScreen', () => {
     await vi.waitFor(() => {
       expect(ui.container.textContent).toContain('TypeScript');
     });
-    expect(flat(ui.container)).toContain('Codex stands by');
+    expect(flat(ui.container)).toContain('PHP stands by');
   });
 
   it('runs the analysis over the project the workbench is on', async () => {

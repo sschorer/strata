@@ -63,8 +63,8 @@ When your output names a domain concept (in an issue title, a refactor proposal,
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 
 Until the glossaries exist, `README.md` and `docs/ARCHITECTURE.md` carry the
-project's vocabulary — plugin kinds (language / commit-convention / git-metric /
-ai-provider), *hotspot*, *coupling*, *context*, *job*, *project*, *run*.
+project's vocabulary — plugin kinds (language / commit-convention /
+git-metric), *hotspot*, *coupling*, *context*, *job*, *project*, *run*.
 
 ## Flag ADR conflicts
 

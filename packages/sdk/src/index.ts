@@ -1,11 +1,13 @@
 /**
  * @strata/sdk — the contracts every Strata plugin implements.
  *
- * There are four plugin kinds, each a small, versioned interface:
+ * There are three plugin kinds, each a small, versioned interface:
  *   - LanguagePlugin          per-language static analysis (deps, dead code, metrics)
  *   - CommitConventionPlugin  parse a commit message into structured meaning
  *   - GitMetricPlugin         derive a metric series from repository history
- *   - AIProvider              a chat/embeddings backend (OpenAI, Anthropic, Ollama, …)
+ *
+ * AI is not among them: a provider is a configured instance in the app
+ * settings, and nothing in an analysis may call a model (docs/adr/0013).
  *
  * A plugin is a package with a `strata.plugin.json` manifest whose `main`
  * default-exports one of the `define*` helpers below. The core loads manifests,
@@ -24,9 +26,8 @@ export * from './repo.js';
 export * from './graph.js';
 export * from './summary.js';
 
-// The four plugin kinds
+// The three plugin kinds
 export * from './language.js';
 export * from './commit.js';
 export * from './metric.js';
-export * from './ai.js';
 export * from './plugin.js';

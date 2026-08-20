@@ -6,7 +6,7 @@
 
 The **orchestrator**. Ingests a git repository, holds the plugin registry, builds
 the immutable `RepoContext`, and drives the analysis pipeline that fans work out
-to plugins. This is the only module that knows about all four plugin kinds.
+to plugins. This is the only module that knows about all three plugin kinds.
 
 It also owns what the workbench has to remember between runs: the incremental
 cache, the **project registry** — which repositories are registered, and what
@@ -46,6 +46,7 @@ itself behaves.
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
+| `retired-kinds.ts` | `retiredKindError()` — a kind Strata dropped, and what took over its job. |
 | `summarise.ts` | `summarised()` — fill in a language result's graph summary when the plugin (or its cached run) predates the field. |
 | `progress/types.ts` | `AnalysisProgress`, `AnalysisStage`, `ProgressListener` — what a run says about itself while it runs. |
 | `progress/tracker.ts` | `ProgressTracker` — counts a run's steps so the pipeline only has to name them. |
@@ -98,6 +99,7 @@ itself behaves.
 | `settings/memory.ts` | The process-lifetime settings (fallback, tests). |
 | `settings/schema.ts` | Table, pragmas, schema stamp. |
 | `settings/errors.ts` | `InvalidSettingsError`. |
+| `ai/types.ts` | `ProviderRuntime`, `ChatMessage`, `ChatOptions` — the internal call surface a subprocess runtime will implement. Not in the barrel and not in the SDK: a provider is configuration, and no run may call it. |
 
 ## 5. Runtime
 

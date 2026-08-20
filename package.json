@@ -2,7 +2,7 @@
   "name": "strata",
   "version": "0.0.0",
   "private": true,
-  "description": "A modular git & code-analysis workbench: hotspots, commit analytics, per-language dependency/dead-code modules, and pluggable AI providers.",
+  "description": "A modular git & code-analysis workbench: hotspots, commit analytics, per-language dependency/dead-code modules, and configurable AI providers.",
   "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@11.21.0",

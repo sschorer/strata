@@ -15,7 +15,7 @@ self-hosted over the browser.
 
 | # | Goal | Motivation |
 |---|------|-----------|
-| 1 | **Extensibility** | New languages, commit conventions, metrics, and AI providers are added as plugins without changing the core. |
+| 1 | **Extensibility** | New languages, commit conventions and metrics are added as plugins without changing the core; an AI provider is added as configuration. |
 | 2 | **Correctness** | Analysis reflects real repository state; results are reproducible for a given revision. |
 | 3 | **Performance** | Large repos analysed incrementally — only changed files are re-processed. |
 | 4 | **Portability** | One codebase runs as a self-hosted Docker service and (later) a desktop app. |
@@ -46,13 +46,16 @@ self-hosted over the browser.
       │ (apps/web│ ◀───────────── │   + core       │           └────────┘
       └──────────┘   JSON report  └──────┬────────┘
                                          │ loads
-                                   ┌─────▼──────┐   optional   ┌────────────┐
-                                   │  plugins   │ ───────────▶ │ AI provider│
-                                   └────────────┘   HTTPS      └────────────┘
+                                   ┌─────▼──────┐
+                                   │  plugins   │
+                                   └────────────┘
+
+      a finished report ─────────▶ AI features ──spawn──▶ coding-agent CLI
+                                   (never part of a run)
 ```
 
 **In scope:** ingesting a local git repo, running analyses, serving and
-rendering results, plugin loading, optional AI calls.
+rendering results, plugin loading, optional AI calls over a finished report.
 **Out of scope (today):** hosting git itself, user accounts / multi-tenant SaaS
 (the API takes one shared token, not a directory of users), writing to the
 analysed repo.
@@ -62,7 +65,7 @@ analysed repo.
 | Partner | Direction | Protocol | Purpose |
 |---------|-----------|----------|---------|
 | git CLI | out | process exec | history, blobs, file lists |
-| AI provider | out | HTTPS (OpenAI-compatible or native) | explanations, embeddings |
+| AI provider | out | process exec (a configured coding-agent CLI) | explanations, embeddings |
 | Web UI | in | REST/JSON | register projects, trigger analysis, render results |
 | CI | in | CLI / container | headless analysis, gating |
 
@@ -102,8 +105,7 @@ strata/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-coupling/             change-coupling metric         (git-metric)
 │   ├── git-hotspots/             churn × complexity metric      (git-metric)
-│   ├── language-typescript/      TS/JS graph, metrics, dead code (language)
-│   └── ai-provider-template/     copy-me AI backend              (ai-provider)
+│   └── language-typescript/      TS/JS graph, metrics, dead code (language)
 ├── apps/
 │   └── web/     @strata/web      Web UI (SvelteKit SPA + Tailwind)
 │                  app.css + lib/theme/ (tokens, both palettes) ·
@@ -123,20 +125,22 @@ Quality/Risks). Start here:
 - [`plugins/git-coupling/ARCHITECTURE.md`](../plugins/git-coupling/ARCHITECTURE.md)
 - [`plugins/git-hotspots/ARCHITECTURE.md`](../plugins/git-hotspots/ARCHITECTURE.md)
 - [`plugins/language-typescript/ARCHITECTURE.md`](../plugins/language-typescript/ARCHITECTURE.md)
-- [`plugins/ai-provider-template/ARCHITECTURE.md`](../plugins/ai-provider-template/ARCHITECTURE.md)
 - [`apps/web/ARCHITECTURE.md`](../apps/web/ARCHITECTURE.md)
 
-### Level 2 — the four plugin kinds
+### Level 2 — the three plugin kinds
 
 | Kind | Contract (in `@strata/sdk`) | Produces |
 |------|------------------------------|----------|
 | `language` | `LanguagePlugin.analyze(ctx)` | `LanguageAnalysis` (graph, graph summary, dead code, metrics) |
 | `commit-convention` | `CommitConventionPlugin.parse(commit)` | `ParsedCommit` |
 | `git-metric` | `GitMetricPlugin.compute(ctx, history)` | `MetricSeries` |
-| `ai-provider` | `AIProvider.chat()/embed()` | text / vectors |
 
-The **core** (`@strata/core`) is the only building block that knows all four; it
-builds a `RepoContext` and fans work out.
+There is no AI kind: a provider is a configured instance in the app settings and
+the call surface for one is internal to the core
+([ADR-13](./adr/0013-providers-are-configured-instances.md)).
+
+The **core** (`@strata/core`) is the only building block that knows all three;
+it builds a `RepoContext` and fans work out.
 
 ## 6. Runtime View
 

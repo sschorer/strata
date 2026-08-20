@@ -24,7 +24,7 @@ this repo — see [Installing a plugin](#installing-a-plugin).
 }
 ```
 
-## The four kinds
+## The three kinds
 
 ### Language plugin
 
@@ -79,11 +79,36 @@ export default defineGitMetricPlugin({
 });
 ```
 
-### AI provider
+### Not a kind: AI providers
 
-Copy `plugins/ai-provider-template`. Implement `listModels()` and `chat()`
-(and optionally `embed()`), reading credentials from the environment. Point it
-at any OpenAI-compatible endpoint, or a native SDK for other providers.
+There is no AI plugin kind. A provider is a **provider instance** — a local
+coding-agent CLI, declared in the app settings and stored in `settings.db`
+under `ai.providers`, one object per agent:
+
+```jsonc
+{
+  "id": "codex",              // stable slug; what a provider card addresses
+  "name": "Codex",
+  "enabled": true,
+  "accent": null,             // hex tint for the card, or null for the accent
+  "binary": "/usr/bin/codex", // null looks the name up on PATH
+  "home": null,               // the agent's own home directory, if it keeps one
+  "shadowHome": null,         // account-specific home: its own auth.json, shared state
+  "args": [],                 // extra launch arguments, in order
+  "env": {},                  // environment for the subprocess (stored as written)
+  "models": ["gpt-5-codex"]
+}
+```
+
+`PATCH /settings` with `{"ai":{"providers":[…]}}` replaces that list whole, so
+a settings screen sends back exactly what it shows. Adding a provider is
+therefore configuration, not a package — and spawning one is a core concern
+([ADR-13](adr/0013-providers-are-configured-instances.md)), so no plugin ever
+implements it.
+
+Nothing in an analysis may call a model: a stage that did would be neither
+offline nor reproducible for a revision, and the incremental cache would serve
+its answer forever. AI features read a *finished* report instead.
 
 ## Incremental analysis
 
@@ -142,7 +167,9 @@ scanned; nesting is not searched.
 
 What the loader enforces, because a drop-in plugin is not first-party code:
 
-- Every manifest field is validated, and the `kind` must be one of the four.
+- Every manifest field is validated, and the `kind` must be one of the three.
+  A manifest naming a kind Strata has since dropped (`ai-provider`) is refused
+  with what replaced it, rather than as an unknown word.
 - `main` is resolved **inside the plugin's own directory** — it may not point
   anywhere else on the host.
 - The exported `kind` must match the manifest's, and the export must actually

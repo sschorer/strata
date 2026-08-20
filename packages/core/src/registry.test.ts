@@ -158,6 +158,31 @@ describe('rejected plugins', () => {
     ]);
   });
 
+  it('treats a kind named after an Object member as unknown, not retired', async () => {
+    writePlugin('alpha', { kind: 'toString' });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/unknown kind "toString"/),
+    ]);
+  });
+
+  it('names the replacement for a kind that was retired', async () => {
+    writePlugin('alpha', { kind: 'ai-provider' });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(
+        /retired kind "ai-provider".+provider instance configured in the app settings/,
+      ),
+    ]);
+  });
+
   it('rejects a "main" pointing outside the plugin directory', async () => {
     writePlugin('alpha', { main: '../escape.js' });
     writeFileSync(join(dir, 'escape.js'), 'export default { kind: "language" };');
@@ -183,14 +208,14 @@ describe('rejected plugins', () => {
 
   it('rejects a module whose exported kind contradicts its manifest', async () => {
     const pluginDir = writePlugin('alpha');
-    writeFileSync(join(pluginDir, 'index.js'), PLUGIN_SOURCE('ai-provider'));
+    writeFileSync(join(pluginDir, 'index.js'), PLUGIN_SOURCE('git-metric'));
 
     const registry = new PluginRegistry(silent);
     await registry.loadDirectory(dir);
 
     expect(errors(registry)).toEqual([
       expect.stringMatching(
-        /declared as kind "language" but exports kind "ai-provider"/,
+        /declared as kind "language" but exports kind "git-metric"/,
       ),
     ]);
   });

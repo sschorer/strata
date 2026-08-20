@@ -14,10 +14,6 @@ export const KINDS = {
     helper: 'defineGitMetricPlugin',
     body: `  id: 'CHANGE_ME',\n  async compute(ctx, history) {\n    return { id: 'CHANGE_ME', label: 'CHANGE_ME', points: [] };\n  },`,
   },
-  'ai-provider': {
-    helper: 'defineAIProvider',
-    body: `  id: 'CHANGE_ME',\n  async listModels() { return []; },\n  async chat(messages, opts) { throw new Error('not implemented'); },`,
-  },
 };
 
 export function entryModule({ helper, body }) {
