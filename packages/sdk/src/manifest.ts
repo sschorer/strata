@@ -6,7 +6,6 @@ export const PLUGIN_KINDS = [
   'language',
   'commit-convention',
   'git-metric',
-  'ai-provider',
 ] as const;
 
 export type PluginKind = (typeof PLUGIN_KINDS)[number];

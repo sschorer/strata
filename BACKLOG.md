@@ -80,9 +80,9 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the three with no blockers.
+      Ready to start: the two left with no blockers.
 
-  - [ ] **P0** Retire the AI provider plugin contract
+  - [x] Retire the AI provider plugin contract
   - [ ] **P0** Fold cross-language derivation into the report
   - [ ] **P0** A named-but-missing plugin fails the run
   - [ ] **P0** Stage declarations in the plugin manifest (SDK 0.2.0)
@@ -227,12 +227,15 @@ New area — the mockup's settings screens need somewhere to write to.
 
 The mockup reframes this area: providers are **local CLI coding agents**
 (Codex, Claude, Cursor) that Strata launches as subprocesses, not
-OpenAI-compatible HTTP endpoints. The existing `AIProvider` contract in
-`packages/sdk/src/ai.ts` (`listModels` / `chat` / `embed`) still fits as the
-call surface, but everything about *configuring* an instance is new. Analysis
-itself stays fully offline.
+OpenAI-compatible HTTP endpoints. A provider is therefore *configured*, not
+installed, and analysis itself stays fully offline — nothing in a run may call
+a model.
 
-- [x] AI-provider contract + template (OpenAI-compatible / Ollama)
+- [x] AI-provider contract + template (OpenAI-compatible / Ollama) — shipped,
+      then retired: `ai-provider` is no longer a plugin kind, the SDK contract
+      and its template package are gone, and the call surface a subprocess
+      runtime will implement is internal to `@strata/core` (`ai/types.ts`).
+      What a provider *is* stays where it was, in `/settings` `ai.providers`.
 - [ ] **P1** CLI-agent provider kind — spawn and talk to a coding-agent binary.
       The per-instance declaration (binary path, agent home path, shadow home —
       the account-specific home that keeps `auth.json` separate while sharing

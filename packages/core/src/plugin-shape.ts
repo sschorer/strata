@@ -11,10 +11,6 @@ const REQUIRED: Record<PluginKind, readonly Member[]> = {
   ],
   'commit-convention': [['parse', 'function']],
   'git-metric': [['compute', 'function']],
-  'ai-provider': [
-    ['listModels', 'function'],
-    ['chat', 'function'],
-  ],
 };
 
 type Member = readonly [name: string, type: 'array' | 'function'];

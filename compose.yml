@@ -17,10 +17,6 @@ services:
       # /analyze will walk. Without it the default is the container user's
       # home, which is empty — and it must never be wider than what is mounted.
       STRATA_ROOTS: "/repos"
-      # AI provider (optional) — see .env.example.
-      AI_BASE_URL: ${AI_BASE_URL:-}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-}
     volumes:
       # Mount a repo you want to analyse (read-only) at /repos.
       - ${STRATA_REPOS_DIR:-./repos}:/repos:ro

@@ -30,11 +30,10 @@ export type RunPluginConfig = Pick<
  * The rule is the orchestrator's own, not a wish. Every language module and
  * every git-metric plugin the project enables is called — a list is an
  * allow-list, and no list at all is all of them; one commit convention parses
- * the history, the one the project chose or else the first registered; and an
- * AI provider is never part of an analysis. A language module whose extensions
- * match no file in the repository is skipped when the run gets there — that
- * depends on the repository rather than on the settings, so it is not something
- * this list can promise.
+ * the history, the one the project chose or else the first registered. A
+ * language module whose extensions match no file in the repository is skipped
+ * when the run gets there — that depends on the repository rather than on the
+ * settings, so it is not something this list can promise.
  *
  * Without a config — a project whose settings have not arrived yet — the answer
  * is the unconfigured one, which is what such a run would do.
@@ -65,12 +64,6 @@ export function runPlugins(
           note: parses
             ? 'another convention already parses this history'
             : 'this project chose a convention nobody loaded',
-        };
-      case 'ai-provider':
-        return {
-          ...entry,
-          runs: false,
-          note: 'answers questions about a report; no part of a run',
         };
       default:
         // A kind this build does not know about: the server loaded it, the

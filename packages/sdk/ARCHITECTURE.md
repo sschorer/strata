@@ -5,7 +5,7 @@
 ## 1. Purpose & Goals
 
 The **public contract** every plugin implements and the core consumes. Defines
-the four plugin kinds, their data shapes, and the `define*` helpers. It is the
+the three plugin kinds, their data shapes, and the `define*` helpers. It is the
 one module whose stability matters most — a breaking change here ripples to all
 plugins.
 
@@ -22,8 +22,11 @@ Goals: a minimal, strongly-typed, SemVer-stable surface.
 - **Consumed by:** `@strata/core` (registry validates `manifest.sdk` against
   `SDK_VERSION`) and every `plugins/*` package.
 - **Exports:** types (`RepoContext`, `LanguageAnalysis`, `ParsedCommit`,
-  `MetricSeries`, `AIProvider`, …) and helpers (`defineLanguagePlugin`,
-  `defineCommitConventionPlugin`, `defineGitMetricPlugin`, `defineAIProvider`).
+  `MetricSeries`, …) and helpers (`defineLanguagePlugin`,
+  `defineCommitConventionPlugin`, `defineGitMetricPlugin`).
+- **Not exported:** anything about AI. A provider is a configured instance in
+  the app settings and the call surface for one lives inside `@strata/core`
+  ([ADR-13](../../docs/adr/0013-providers-are-configured-instances.md)).
 
 ## 4. Building Blocks
 
@@ -42,7 +45,6 @@ path (`@strata/sdk`).
 | `language.ts` | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
 | `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
 | `metric.ts` | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
-| `ai.ts` | `AIProvider`, `ChatMessage`, `ChatOptions` |
 | `plugin.ts` | `StrataPlugin` — the discriminated union |
 
 ## 5. Runtime

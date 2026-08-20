@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { PLUGIN_KINDS, SDK_VERSION, type PluginManifest } from '@strata/sdk';
+import { retiredKindError } from './retired-kinds.js';
 
 /** The file that marks a directory as a plugin. */
 export const MANIFEST_FILENAME = 'strata.plugin.json';
@@ -43,6 +44,12 @@ export async function readManifest(
   }
 
   const manifest = parsed as PluginManifest;
+  const retired = retiredKindError(manifest.kind);
+  if (retired) {
+    throw new Error(
+      `Plugin "${manifest.id}" declares retired kind "${manifest.kind}": ${retired}.`,
+    );
+  }
   if (!(PLUGIN_KINDS as readonly string[]).includes(manifest.kind)) {
     throw new Error(
       `Plugin "${manifest.id}" declares unknown kind "${manifest.kind}" ` +

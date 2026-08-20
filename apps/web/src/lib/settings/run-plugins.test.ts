@@ -97,11 +97,13 @@ describe('runPlugins', () => {
     expect(entries[0]?.note).toContain('nobody loaded');
   });
 
-  it('leaves an AI provider out of a run', () => {
-    const [entry] = runPlugins([plugin({ id: 'codex', kind: 'ai-provider' })]);
+  it('stands a plugin of a kind this build has no step for by', () => {
+    const [entry] = runPlugins([
+      plugin({ id: 'strata-oracle', kind: 'oracle' as LoadedPluginInfo['kind'] }),
+    ]);
 
     expect(entry?.runs).toBe(false);
-    expect(entry?.note).toContain('no part of a run');
+    expect(entry?.note).toContain('no step for it');
   });
 
   it('carries what a chip prints, source included', () => {

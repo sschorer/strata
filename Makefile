@@ -63,7 +63,7 @@ analyze: ## Analyze a repo: make analyze REPO=/path/to/repo [LIMIT=500]
 
 .PHONY: new-plugin
 new-plugin: ## Scaffold a plugin: make new-plugin NAME=python KIND=language
-	@test -n "$(NAME)" -a -n "$(KIND)" || (echo "NAME=... KIND=language|commit-convention|git-metric|ai-provider required" && exit 1)
+	@test -n "$(NAME)" -a -n "$(KIND)" || (echo "NAME=... KIND=language|commit-convention|git-metric required" && exit 1)
 	node scripts/new-plugin.mjs "$(NAME)" "$(KIND)"
 
 ## ────────────────────────────── Quality ─────────────────────────────

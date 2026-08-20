@@ -1,7 +1,5 @@
 # AI providers are configured instances, not plugins, and never run in the pipeline
 
-> Status: accepted, not yet implemented.
-
 `ai-provider` is removed as a plugin kind. `AIProvider`, `defineAIProvider` and the `ai-provider-template` package are deleted; the call surface moves into `@strata/core` as the internal interface the subprocess runtime implements.
 
 The indirection stopped earning anything the moment providers became **local coding-agent CLIs** that Strata spawns rather than HTTP endpoints it calls. `AIProviderInstance` in the app settings is already fully generic over that — binary, launch args, environment, agent home, shadow home, models — so "add a custom provider" needs *configuration*, not code. A plugin kind the orchestrator never looked up was a contract with no implementors but ours.

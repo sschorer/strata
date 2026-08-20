@@ -64,12 +64,13 @@ describe('RunPlugins', () => {
   });
 
   it('says so when nothing loaded would take part', () => {
-    const codex = entry({
-      kind: 'ai-provider',
+    const php = entry({
+      id: 'strata-language-php',
+      name: 'PHP',
       runs: false,
-      note: 'no part of a run',
+      note: 'this project leaves it out',
     });
-    ui = render(RunPlugins, { entries: [codex] });
+    ui = render(RunPlugins, { entries: [php] });
 
     expect(ui.container.textContent).toContain('Nothing loaded takes part');
   });

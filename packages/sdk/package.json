@@ -1,7 +1,7 @@
 {
   "name": "@strata/sdk",
   "version": "0.1.0",
-  "description": "Plugin contracts for Strata: language, commit-convention, git-metric, and AI-provider interfaces.",
+  "description": "Plugin contracts for Strata: language, commit-convention and git-metric interfaces.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
