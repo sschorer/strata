@@ -54,6 +54,28 @@ export function stubApi(routes: ApiRoutes): Mock {
  * three. Spread it into the routes a test already needs.
  */
 export function runRoutes(report: unknown, id = 'run-1'): ApiRoutes {
+  return jobRoutes(id, {
+    state: 'succeeded',
+    finishedAt: '2026-08-15T10:00:02.000Z',
+    report,
+  });
+}
+
+/**
+ * The same three endpoints for a run that failed — a configuration naming a
+ * plugin nobody loaded is the ordinary way to reach this, and it is deliberate:
+ * the run ends with a reason and no report at all.
+ */
+export function failedRunRoutes(error: string, id = 'run-1'): ApiRoutes {
+  return jobRoutes(id, {
+    state: 'failed',
+    finishedAt: '2026-08-15T10:00:02.000Z',
+    error,
+  });
+}
+
+/** One run, from the accepted job to whichever end the caller asked for. */
+function jobRoutes(id: string, settled: Record<string, unknown>): ApiRoutes {
   const job = (state: string, extra: Record<string, unknown> = {}) => ({
     id,
     root: '/repo/strata',
@@ -70,10 +92,9 @@ export function runRoutes(report: unknown, id = 'run-1'): ApiRoutes {
     startedAt: '2026-08-15T10:00:00.000Z',
     progress: { stage: 'scanning', detail: null, completed: 1, total: 0 },
   });
-  const done = job('succeeded', {
+  const done = job(settled.state as string, {
     startedAt: '2026-08-15T10:00:00.000Z',
-    finishedAt: '2026-08-15T10:00:02.000Z',
-    report,
+    ...settled,
   });
 
   return {

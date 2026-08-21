@@ -64,6 +64,8 @@ itself behaves.
 | `scope/extensions.ts` | `claimedFiles()` — the files one language plugin claims, by extension. |
 | `scope/plugins.ts` | `enabledPlugins()` — the plugins of one kind a run may call. |
 | `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history. |
+| `scope/named.ts` | `requireLoaded()` — hold what a setting names to what loaded; one rule for every setting that names a plugin. |
+| `scope/errors.ts` | `MissingPluginError`, `NamedBy` — the run a configuration cannot have, with the plugin and the setting that asked for it. |
 | `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
 | `plugins-dir.ts` | `userPluginsDir()` — where drop-in plugins live (`STRATA_PLUGINS_DIR`). |
 | `git/exec.ts` | Run a read-only git command. |
@@ -167,10 +169,9 @@ section keeps its value — because each section is one settings screen.
   cost only itself, not the process.
 - **One active commit convention**, the project's choice, and the
   first-registered one when it has made none — two conventions would parse the
-  same commits into two answers. A project naming a convention that is no longer
-  installed parses **nothing**, with a warning, rather than falling back to
-  whichever plugin happens to be first: a report claiming a history conforms to
-  a convention nobody asked for is worse than one that claims nothing.
+  same commits into two answers. A workbench with no convention plugin at all
+  leaves the history unparsed, which is what it can honestly say about it; a
+  project *naming* one that is not installed is the failure below.
 - **A project's config is turned into behaviour in one place** (`scope/`), at
   the top of `analyze()`, and never inside a plugin. Scope narrows the file list
   before any plugin sees it, so the plugins, the report's file count and every
@@ -178,6 +179,17 @@ section keeps its value — because each section is one settings screen.
   globs itself could disagree with all three, or forget. The enabled-plugin
   lists are **allow-lists**: nothing named is every plugin (what an unconfigured
   project asks for), a list is exactly those, and an empty list is none of them.
+- **A plugin named but not loaded fails the run**, wherever the name came from
+  and whichever setting carried it (`scope/named.ts`), before the first git call
+  — so the failure still has a name to give and nothing has been read on the
+  strength of a configuration that cannot be honoured. The alternative is worse
+  than a missing result: an analysis without the plugin that would have found
+  the problem is indistinguishable from one that found no problem, and a gate
+  reading those numbers passes a build that checked nothing
+  ([ADR-12](../../docs/adr/0012-repo-owned-config-file.md)). `MissingPluginError`
+  names the ids, the setting that asked for them and what is loaded instead;
+  through the API it surfaces as a **failed job**, never as a run with an empty
+  report.
 - **Globs are matched, not shelled out.** `*` and `?` stay inside a path
   segment, `**` crosses them and may stand for no directory at all, and a
   pattern covers the tree under what it names — so `dist` is the build directory

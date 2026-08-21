@@ -176,6 +176,14 @@ parses with the first convention registered. The scope and those lists are
 applied at the top of the pipeline rather than inside any plugin, so one answer
 serves the plugins, the file count the report prints and the cache keys alike.
 
+Configuration that names a plugin this workbench has not loaded gets **no run**,
+whichever setting named it, and the failure is raised before step 1 reads
+anything. Dropping the name instead would produce a report that reads like a
+clean one — an analysis missing the plugin that would have found the problem
+looks exactly like an analysis that found no problem, and a gate reading it
+passes a build that checked nothing
+([ADR-12](./adr/0012-repo-owned-config-file.md)).
+
 Steps 2 and 3 go through the cache. The core skips any plugin whose inputs
 digest to a stored result — that part needs no cooperation. Per-file reuse
 inside a plugin that does run is opt-in: only plugins that route their per-file

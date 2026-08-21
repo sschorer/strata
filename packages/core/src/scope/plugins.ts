@@ -1,4 +1,6 @@
 import type { LoadedPlugin } from '../registry.js';
+import type { NamedBy } from './errors.js';
+import { requireLoaded } from './named.js';
 
 /**
  * The plugins of one kind a run may call.
@@ -8,15 +10,17 @@ import type { LoadedPlugin } from '../registry.js';
  * stands by until someone adds it, which is the point of writing the list down,
  * and an empty list runs none of them rather than all of them.
  *
- * Ids that name no loaded plugin select nothing. A stored config outliving the
- * plugin it names is expected — the API checks ids as they are written, not
- * forever — and the honest reading of "run exactly these" is that an absent one
- * does not run.
+ * An id that names no loaded plugin **fails the run**. "Run exactly these" and
+ * "one of these is gone" are different situations, and quietly running the rest
+ * would report an analysis that skipped a step as an analysis that found
+ * nothing.
  */
 export function enabledPlugins<T extends LoadedPlugin>(
   loaded: readonly T[],
-  allowed?: readonly string[] | null,
+  allowed: readonly string[] | null | undefined,
+  by: NamedBy,
 ): T[] {
+  requireLoaded(loaded, allowed, by);
   if (!allowed) return [...loaded];
   const wanted = new Set(allowed);
   return loaded.filter((entry) => wanted.has(entry.manifest.id));

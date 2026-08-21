@@ -33,7 +33,9 @@ import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
  * narrows the file list once, before any plugin sees it, and the enabled-plugin
  * lists and the chosen commit convention decide who is called at all. A caller
  * that passes none of them gets the whole repository and every plugin, which is
- * what an unconfigured project asks for.
+ * what an unconfigured project asks for; one that names a plugin this workbench
+ * has not loaded gets no run at all, because the alternative is a report that
+ * looks like a clean one.
  *
  * A run is also watchable: hand `analyze` a listener and it reports every step
  * as it enters it. Nothing else changes — the steps are the pipeline's own, and
@@ -54,6 +56,27 @@ export class Strata {
     // The run clock covers everything the caller waited for, cache open included.
     const startedAt = performance.now();
     const progress = new ProgressTracker(onProgress);
+
+    // Who takes part, settled before a single thing is read. A configuration
+    // that names a plugin this workbench has not loaded fails here, where the
+    // failure still has a name to give — further down there is only a report
+    // with a hole in it that reads like a clean result (`docs/adr/0012`).
+    const languagePlugins = enabledPlugins(
+      this.registry.loadedByKind('language'),
+      opts.languages,
+      { setting: 'languages', kind: 'language' },
+    );
+    const metricRuns = enabledPlugins(
+      this.registry.loadedByKind('git-metric'),
+      opts.metrics,
+      { setting: 'metrics', kind: 'git-metric' },
+    );
+    const convention = chosenConvention(
+      this.registry.loadedByKind('commit-convention'),
+      opts.convention,
+      { setting: 'convention', kind: 'commit-convention' },
+    );
+
     const cache = opts.cache === false ? nullCache() : this.openCache();
     warnIfCacheInsideRepo(cache.path, opts.root);
     // Counters live as long as the cache does; report this run's delta.
@@ -73,22 +96,16 @@ export class Strata {
       log: consoleLogger,
     };
 
-    // Who actually takes part, worked out before the first one runs: a language
-    // plugin whose file types this repository does not hold is skipped, so it
-    // is not a step anyone is waiting for either.
-    const languageRuns = enabledPlugins(
-      this.registry.loadedByKind('language'),
-      opts.languages,
-    )
+    // A language plugin whose file types this repository does not hold is
+    // skipped, so it is not a step anyone is waiting for either. That depends
+    // on the repository rather than on the config, which is why it is settled
+    // here and not with the rest of who takes part.
+    const languageRuns = languagePlugins
       .map((loaded) => ({
         loaded,
         matched: claimedFiles(files, loaded.plugin.extensions),
       }))
       .filter(({ matched }) => matched.length > 0);
-    const metricRuns = enabledPlugins(
-      this.registry.loadedByKind('git-metric'),
-      opts.metrics,
-    );
     // The two stages above, one per plugin, the history read, the analytics.
     progress.plan(2 + languageRuns.length + 1 + metricRuns.length + 1);
 
@@ -167,16 +184,6 @@ export class Strata {
     // registered), then the aggregates over the parsed log — folded once here
     // rather than by every screen, card and gate that wants them.
     progress.enter('commits');
-    const conventions = this.registry.loadedByKind('commit-convention');
-    const convention = chosenConvention(conventions, opts.convention);
-    if (opts.convention && !convention) {
-      // Nothing parses, so the report claims nothing about conformance. Worth a
-      // line: the config names a plugin this workbench no longer has.
-      consoleLogger.warn(
-        `commit convention "${opts.convention}" is not loaded; ` +
-          'this run parses no commits.',
-      );
-    }
     const commits = convention ? commitLog.map((c) => convention.parse(c)) : [];
     const commitAnalytics = analyseCommits(commitLog, commits);
 

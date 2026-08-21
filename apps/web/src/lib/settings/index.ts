@@ -25,7 +25,12 @@ export {
   RECENTS_STORAGE_KEY,
   storeRecents,
 } from './recents-storage';
-export { runPlugins, type RunPlugin } from './run-plugins';
+export { missingPlugins, type MissingPlugins } from './missing-plugins';
+export {
+  runPlugins,
+  type RunPlugin,
+  type RunPluginConfig,
+} from './run-plugins';
 export { runWindow, type RunWindow } from './run-window';
 export { scopeHeading, type ScopeHeading } from './heading';
 export {

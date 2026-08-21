@@ -97,8 +97,11 @@ export {
   claimedFiles,
   enabledPlugins,
   chosenConvention,
+  requireLoaded,
+  MissingPluginError,
   type FileScope,
   type LoadedConvention,
+  type NamedBy,
 } from './scope/index.js';
 export {
   DEFAULT_PROJECT_CONFIG,
