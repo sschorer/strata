@@ -35,6 +35,10 @@ export type RunPluginConfig = Pick<
  * when the run gets there — that depends on the repository rather than on the
  * settings, so it is not something this list can promise.
  *
+ * What this cannot say is that the run happens at all: a setting naming a
+ * plugin nobody loaded fails it outright, and that is `missingPlugins()`'s
+ * question rather than this one's.
+ *
  * Without a config — a project whose settings have not arrived yet — the answer
  * is the unconfigured one, which is what such a run would do.
  */
@@ -63,7 +67,7 @@ export function runPlugins(
           runs: false,
           note: parses
             ? 'another convention already parses this history'
-            : 'this project chose a convention nobody loaded',
+            : 'this project names a convention nobody loaded, so no run starts',
         };
       default:
         // A kind this build does not know about: the server loaded it, the
@@ -79,8 +83,8 @@ export function runPlugins(
 
 /**
  * Which convention will actually parse, or `null` when none will — a project
- * naming one that is no longer installed parses nothing rather than falling
- * back to another, so every loaded convention stands by and says why.
+ * naming one that is no longer installed gets no run at all rather than a
+ * fallback to another, so every loaded convention stands by and says why.
  */
 function parsingConvention(
   plugins: readonly LoadedPluginInfo[],

@@ -94,7 +94,9 @@ describe('runPlugins', () => {
     );
 
     expect(entries[0]?.runs).toBe(false);
-    expect(entries[0]?.note).toContain('nobody loaded');
+    // Not a fallback to the loaded one, and not a run that parses nothing —
+    // there is no run. `missingPlugins()` is what says which name is at fault.
+    expect(entries[0]?.note).toContain('no run starts');
   });
 
   it('stands a plugin of a kind this build has no step for by', () => {

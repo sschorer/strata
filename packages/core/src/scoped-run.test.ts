@@ -239,14 +239,38 @@ describe('commit convention', () => {
       { name: 'second', count: 1, share: 1, breaking: 0 },
     ]);
   });
+});
 
-  it('parses nothing when the chosen convention is not loaded', async () => {
-    const report = await strata.analyze({ root: repo, convention: 'gone' });
+/**
+ * The rule the rest of the pipeline depends on: a run that cannot do what its
+ * configuration asked for produces no report at all. A report missing the
+ * plugin that would have found the problem is indistinguishable from one that
+ * found no problem, and a gate reading it would pass a build that checked
+ * nothing.
+ */
+describe('a plugin the configuration names but nobody loaded', () => {
+  it('fails a run that names a missing language plugin', async () => {
+    await expect(
+      strata.analyze({ root: repo, languages: ['lang-ts', 'lang-rs'] }),
+    ).rejects.toThrow(/"languages" names language plugin "lang-rs"/);
+  });
 
-    expect(report.commits).toEqual([]);
-    // An unparsed window still reports its activity and judges no conformance.
-    expect(report.commitAnalytics.total).toBe(1);
-    expect(report.commitAnalytics.valid).toBe(0);
-    expect(report.commitAnalytics.invalid).toBe(0);
+  it('fails a run that names a missing git metric', async () => {
+    await expect(
+      strata.analyze({ root: repo, metrics: ['metric-gone'] }),
+    ).rejects.toThrow(/"metrics" names git-metric plugin "metric-gone"/);
+  });
+
+  it('fails a run that names a missing commit convention', async () => {
+    await expect(
+      strata.analyze({ root: repo, convention: 'gone' }),
+    ).rejects.toThrow(/"convention" names commit-convention plugin "gone"/);
+  });
+
+  it('fails before it reads the repository, so the reason is the only outcome', async () => {
+    // Nothing about this root is readable; the run has to end on the config.
+    await expect(
+      strata.analyze({ root: join(repo, 'nowhere'), convention: 'gone' }),
+    ).rejects.toThrow(/has not loaded/);
   });
 });

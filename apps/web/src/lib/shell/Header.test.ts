@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { projects, SELECTION_STORAGE_KEY } from '$lib/projects';
-import { runRoutes, stubApi } from '$lib/test/api';
+import { failedRunRoutes, runRoutes, stubApi } from '$lib/test/api';
 import { dependenciesOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
 import Header from './Header.svelte';
@@ -141,5 +141,30 @@ describe('Header', () => {
     ui = render(Header, { pathname: '/settings/app' });
 
     expect(crumbs(ui)).toEqual(['Strata', '/', 'App settings']);
+  });
+
+  // Last, because the store is the app's and a failure is the state it keeps.
+  it('says a run failed where the run summary is, rather than leaving the old one up', async () => {
+    const reason =
+      'Setting "convention" names commit-convention plugin "commit-gitmoji", ' +
+      'which this workbench has not loaded.';
+    stubApi({ '/projects': { projects: [] }, ...failedRunRoutes(reason) });
+    localStorage.setItem('strata:root', '/home/dev/workspace/strata');
+
+    ui = render(Header, { pathname: '/hotspots' });
+    reanalyze(ui).click();
+
+    const alert = await vi.waitFor(() => {
+      const found = ui.container.querySelector('[role="alert"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+
+    expect(alert.textContent).toContain('Run failed');
+    // The plugin and the setting that asked for it, in full, for a reader who
+    // has to go and fix one of them.
+    expect(alert.getAttribute('title')).toBe(reason);
+    // The chips of an older, successful run would read as this run's result.
+    expect(ui.container.textContent).not.toContain('982eb56c');
   });
 });

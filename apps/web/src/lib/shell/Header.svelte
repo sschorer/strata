@@ -4,6 +4,7 @@
   import { projectLabel, projects, ProjectSwitcher } from '$lib/projects';
   import { SettingsNav, settingsScope } from '$lib/settings';
   import NavList from './NavList.svelte';
+  import RunFailure from './RunFailure.svelte';
   import RunSummary from './RunSummary.svelte';
   import { ANALYSIS_NAV, sectionLabel, SETTINGS_NAV } from './nav';
 
@@ -28,6 +29,7 @@
   // the workbench rather than whichever repository happens to be open.
   let owner = $derived(scope === 'app' ? 'Strata' : project || 'Strata');
   let running = $derived(analysis.status === 'running');
+  let failed = $derived(analysis.status === 'error');
 </script>
 
 <!--
@@ -55,12 +57,17 @@
       <!--
         While a run is on, what it is doing takes the slot the last run's
         summary had: the numbers there describe the report on screen, and the
-        one being replaced is the less interesting of the two.
+        one being replaced is the less interesting of the two. A run that failed
+        takes the same slot, and for the stronger version of the same reason —
+        a summary left standing over a run that produced nothing reads as a
+        result.
       -->
       {#if running}
         <div class="w-40 sm:w-56">
           <RunProgress progress={analysis.progress} />
         </div>
+      {:else if failed}
+        <RunFailure message={analysis.error} />
       {:else}
         <RunSummary report={analysis.report} />
       {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { MissingPlugins } from './missing-plugins';
   import type { RunPlugin } from './run-plugins';
 
   /**
@@ -6,21 +7,53 @@
    * that is loaded but stands by. Dimming a chip would leave the reason to be
    * guessed, and "why is my convention plugin doing nothing" is exactly the
    * question this screen exists to answer.
+   *
+   * A setting naming a plugin nobody loaded goes above all of it, because it
+   * answers a different and larger question: that run does not happen at all,
+   * and the chips below would otherwise describe one that does.
    */
 
   interface Props {
     entries: readonly RunPlugin[];
+    /** Settings naming a plugin this workbench has not loaded; none, normally. */
+    missing?: readonly MissingPlugins[];
     /** True while the first `/plugins` response is still on the way. */
     loading?: boolean;
     /** Why the list is empty, when the server said so. */
     error?: string;
   }
 
-  let { entries, loading = false, error = '' }: Props = $props();
+  let {
+    entries,
+    missing = [],
+    loading = false,
+    error = '',
+  }: Props = $props();
 
   let running = $derived(entries.filter((entry) => entry.runs));
   let standby = $derived(entries.filter((entry) => !entry.runs));
+
+  const quoted = (ids: readonly string[]): string =>
+    ids.map((id) => `"${id}"`).join(', ');
 </script>
+
+{#if missing.length > 0}
+  <div class="text-danger mb-3 space-y-1 text-sm" role="alert">
+    <p class="font-medium">
+      A run over this project fails before it starts.
+    </p>
+    {#each missing as entry (entry.setting)}
+      <p>
+        <span class="font-mono text-xs">{entry.setting}</span>
+        names {entry.kind}
+        {entry.ids.length === 1 ? 'plugin' : 'plugins'}
+        {quoted(entry.ids)}, which this workbench has not loaded — install
+        {entry.ids.length === 1 ? 'it' : 'them'}, or take the name out of the
+        setting.
+      </p>
+    {/each}
+  </div>
+{/if}
 
 {#if error}
   <p class="text-warn text-sm">{error}</p>

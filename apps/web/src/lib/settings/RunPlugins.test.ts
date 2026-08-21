@@ -92,4 +92,24 @@ describe('RunPlugins', () => {
 
     expect(ui.container.textContent).toContain('Server unreachable');
   });
+
+  it('says the run will not start at all when a setting names nothing loaded', () => {
+    ui = render(RunPlugins, {
+      entries: [entry()],
+      missing: [
+        {
+          setting: 'convention' as const,
+          kind: 'commit-convention' as const,
+          ids: ['commit-gitmoji'],
+        },
+      ],
+    });
+
+    const text = flat(ui.container);
+    expect(text).toContain('fails before it starts');
+    expect(text).toContain('convention names commit-convention plugin');
+    expect(text).toContain('"commit-gitmoji"');
+    // Above the chips, which describe a run that is not going to happen.
+    expect(ui.container.querySelector('[role="alert"]')).not.toBeNull();
+  });
 });

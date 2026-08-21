@@ -11,6 +11,7 @@
     projectConfig as store,
     type ProjectConfigStore,
   } from './config.svelte';
+  import { missingPlugins } from './missing-plugins';
   import { mergeRun, runEntry } from './recents';
   import { readRecents, storeRecents } from './recents-storage';
   import { runPlugins } from './run-plugins';
@@ -73,6 +74,11 @@
   );
 
   let entries = $derived(runPlugins(plugins.response?.plugins ?? [], stored));
+  // What this project names that nobody loaded — the run fails on it, so the
+  // screen says so where who-takes-part is shown rather than only afterwards.
+  let missing = $derived(
+    missingPlugins(plugins.response?.plugins ?? [], stored),
+  );
   let running = $derived(analysis.status === 'running');
   // A failure belongs to the repository it was raised for: the header can be
   // re-analysing something else by the time this screen is opened.
@@ -185,6 +191,7 @@
       <Card title="Plugins" hint="loaded in this workbench">
         <RunPlugins
           {entries}
+          {missing}
           loading={plugins.status === 'loading'}
           error={plugins.error}
         />

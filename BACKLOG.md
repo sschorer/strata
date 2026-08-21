@@ -80,14 +80,20 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the two left with no blockers.
+      Ready to start: the one left with no blockers, *stage declarations*.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
         The report carries the merged cross-language graph, its summary and each
         cycle as an ordered path; `apps/web` reads them and the three modules
         that derived them are gone. Absorbs *emit each SCC as an ordered path*.
-  - [ ] **P0** A named-but-missing plugin fails the run
+  - [x] A named-but-missing plugin fails the run
+        `languages`, `metrics` and `convention` are held to what the workbench
+        loaded, before the run reads anything: a name that answers to nothing
+        raises `MissingPluginError` and the run fails with the plugin and the
+        setting that asked for it. The lenient convention path — a warning and
+        an empty parse, which rendered as a history conforming to nothing — is
+        gone.
   - [ ] **P0** Stage declarations in the plugin manifest (SDK 0.2.0)
   - [ ] **P0** The scheduler runs its first stage: hotspots
   - [ ] **P1** Migrate change coupling to a stage

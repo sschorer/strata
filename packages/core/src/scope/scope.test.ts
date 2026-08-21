@@ -10,6 +10,7 @@ import {
   chosenConvention,
   enabledPlugins,
   globMatcher,
+  MissingPluginError,
   scopedFiles,
   type LoadedConvention,
 } from './index.js';
@@ -17,9 +18,10 @@ import {
 /**
  * A project's config decides what a run looks at and who takes part, so these
  * are the two questions the pipeline asks before it starts. The rules that
- * matter are the forgiving ones: an empty list restricts nothing, a bare
+ * matter are the forgiving ones — an empty list restricts nothing, a bare
  * directory name means the tree under it, and a plugin list is an allow-list
- * rather than a wish.
+ * rather than a wish — and the one that is not: a plugin named but not loaded
+ * ends the run.
  */
 
 function file(path: string): RepoFile {
@@ -162,24 +164,49 @@ function loaded(id: string, plugin: StrataPlugin = STUB): LoadedPlugin {
   };
 }
 
+const LANGUAGES = { setting: 'languages', kind: 'language' } as const;
+
 describe('enabledPlugins', () => {
   const all = [loaded('ts'), loaded('php')];
 
   it('runs every registered plugin when the project names none', () => {
-    expect(enabledPlugins(all)).toEqual(all);
-    expect(enabledPlugins(all, null)).toEqual(all);
+    expect(enabledPlugins(all, undefined, LANGUAGES)).toEqual(all);
+    expect(enabledPlugins(all, null, LANGUAGES)).toEqual(all);
   });
 
   it('runs exactly the ones a list names', () => {
-    expect(enabledPlugins(all, ['php'])).toEqual([all[1]]);
+    expect(enabledPlugins(all, ['php'], LANGUAGES)).toEqual([all[1]]);
   });
 
   it('runs none for an empty list, rather than all of them', () => {
-    expect(enabledPlugins(all, [])).toEqual([]);
+    expect(enabledPlugins(all, [], LANGUAGES)).toEqual([]);
   });
 
-  it('skips an id no plugin answers to', () => {
-    expect(enabledPlugins(all, ['ts', 'rust'])).toEqual([all[0]]);
+  it('refuses an id no plugin answers to', () => {
+    expect(() => enabledPlugins(all, ['ts', 'rust'], LANGUAGES)).toThrow(
+      MissingPluginError,
+    );
+  });
+
+  it('names the plugin, the setting that asked for it and the alternatives', () => {
+    try {
+      enabledPlugins(all, ['rust', 'go'], LANGUAGES);
+      expect.unreachable('a named-but-missing plugin has to end the run');
+    } catch (err) {
+      const failure = err as MissingPluginError;
+      expect(failure.missing).toEqual(['rust', 'go']);
+      expect(failure.named).toEqual(LANGUAGES);
+      expect(failure.message).toContain('"languages"');
+      expect(failure.message).toContain('"rust", "go"');
+      // What to install, or which of these the writer meant.
+      expect(failure.message).toContain('Loaded language plugins: "ts", "php"');
+    }
+  });
+
+  it('says so plainly when the workbench loaded none of that kind', () => {
+    expect(() => enabledPlugins([], ['ts'], LANGUAGES)).toThrow(
+      /No language plugin is loaded/,
+    );
   });
 });
 
@@ -199,6 +226,11 @@ function convention(id: string, name: string): LoadedConvention {
   return { ...loaded(id, plugin), plugin };
 }
 
+const CONVENTION = {
+  setting: 'convention',
+  kind: 'commit-convention',
+} as const;
+
 describe('chosenConvention', () => {
   const all = [
     convention('commit-conventional', 'conventional'),
@@ -206,19 +238,33 @@ describe('chosenConvention', () => {
   ];
 
   it('takes the first registered one when the project names none', () => {
-    expect(chosenConvention(all)?.convention).toBe('conventional');
-    expect(chosenConvention(all, null)?.convention).toBe('conventional');
+    expect(chosenConvention(all, undefined, CONVENTION)?.convention).toBe(
+      'conventional',
+    );
+    expect(chosenConvention(all, null, CONVENTION)?.convention).toBe(
+      'conventional',
+    );
   });
 
   it('takes the one the project names, wherever it loaded', () => {
-    expect(chosenConvention(all, 'commit-gitmoji')?.convention).toBe('gitmoji');
+    expect(chosenConvention(all, 'commit-gitmoji', CONVENTION)?.convention).toBe(
+      'gitmoji',
+    );
   });
 
-  it('parses nothing rather than falling back to another convention', () => {
-    expect(chosenConvention(all, 'commit-jira')).toBeUndefined();
+  it('ends the run rather than parsing a history with a convention nobody asked for', () => {
+    expect(() => chosenConvention(all, 'commit-jira', CONVENTION)).toThrow(
+      MissingPluginError,
+    );
   });
 
-  it('has nothing to choose when no convention is registered', () => {
-    expect(chosenConvention([])).toBeUndefined();
+  it('ends the run rather than parsing nothing, which reads as conforming to nothing', () => {
+    expect(() => chosenConvention([], 'commit-jira', CONVENTION)).toThrow(
+      /No commit-convention plugin is loaded/,
+    );
+  });
+
+  it('has nothing to choose when no convention is registered and none is named', () => {
+    expect(chosenConvention([], null, CONVENTION)).toBeUndefined();
   });
 });
