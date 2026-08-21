@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import {
   AnalysisQueue,
+  crossLanguageGraph,
   memoryProjectStore,
   memorySettingsStore,
   type AnalysisReport,
@@ -51,6 +52,7 @@ const report = {
     finishedAt: '2026-08-15T10:00:00.000Z',
   },
   languages: {},
+  dependencies: crossLanguageGraph([]),
   metrics: [],
   commits: [],
   commitAnalytics: {

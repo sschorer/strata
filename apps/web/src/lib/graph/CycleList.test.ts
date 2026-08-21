@@ -1,12 +1,11 @@
+import type { GraphCycle } from '@strata/sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from '$lib/test/render';
-import type { CycleView } from './cycles';
 import CycleList from './CycleList.svelte';
 
-const cycles: CycleView[] = [
+const cycles: GraphCycle[] = [
   {
-    index: 1,
-    members: ['src/a.ts', 'src/b.ts'],
+    nodes: ['src/a.ts', 'src/b.ts'],
     path: ['src/a.ts', 'src/b.ts', 'src/a.ts'],
   },
 ];

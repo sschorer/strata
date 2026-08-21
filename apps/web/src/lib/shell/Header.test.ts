@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { projects, SELECTION_STORAGE_KEY } from '$lib/projects';
 import { runRoutes, stubApi } from '$lib/test/api';
+import { dependenciesOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
 import Header from './Header.svelte';
 
@@ -20,6 +21,7 @@ const report = {
     finishedAt: new Date().toISOString(),
   },
   languages: {},
+  dependencies: dependenciesOf(),
   metrics: [],
   commits: [],
   cache: {

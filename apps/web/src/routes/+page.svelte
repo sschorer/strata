@@ -1,7 +1,6 @@
 <script lang="ts">
   import { analysis } from '$lib/analysis';
   import Card from '$lib/components/Card.svelte';
-  import { cycleViews, mergedGraph } from '$lib/graph';
   import { heatScale, hotspotRows } from '$lib/hotspots';
   import { plugins } from '$lib/plugins';
   import { commitTypes, hotspotBars, overviewStats } from '$lib/overview';
@@ -25,7 +24,7 @@
   let scale = $derived(heatScale(rows.map((row) => row.complexity)));
   let bars = $derived(hotspotBars(rows));
 
-  let cycles = $derived(report ? cycleViews(mergedGraph(report)) : []);
+  let cycles = $derived(report?.dependencies.cycles ?? []);
   let types = $derived(report ? commitTypes(report.commits) : []);
   let stats = $derived(
     report

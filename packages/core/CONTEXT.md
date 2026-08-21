@@ -27,6 +27,13 @@ _Avoid_: rev target, branch (a branch names a revision; it is not one)
 Everything one run produced: the revision, the run's own facts, and one entry
 per stage.
 
+**Cross-language graph**:
+Every language's dependency graph as one, in the report: merged and
+deduplicated, carrying a node for each package an import left for, each cycle
+as an ordered path, and one summary over the whole thing. What a consumer reads
+instead of folding the per-language results itself.
+_Avoid_: merged graph, the graph (a language produces one too)
+
 **Stage entry**:
 A stage's slot in the report — `ok`, `failed` or `skipped`, carrying the output
 only when `ok`. A consumer cannot read an output without seeing that it is

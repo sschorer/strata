@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { graphOf } from '$lib/test/graph';
-import { cycleMembership, cycleViews } from './cycles';
+import { cyclesOf, graphOf } from '$lib/test/graph';
+import { cycleMembership } from './membership';
 import { classifyEdges, edgeDash, edgeKey, edgeStroke } from './edges';
 
 describe('classifyEdges', () => {
   const graph = graphOf('a>b b>a b>c', [['a', 'b']]);
-  const cycleOf = cycleMembership(cycleViews(graph));
+  const cycleOf = cycleMembership(cyclesOf(graph.cycles));
   const classes = classifyEdges(graph, cycleOf);
 
   const classOf = (from: string, to: string) =>

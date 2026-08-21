@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runRoutes, stubApi } from '$lib/test/api';
+import { dependenciesOf } from '$lib/test/graph';
 import { analysis } from './store.svelte';
 import { ROOT_STORAGE_KEY } from './root-storage';
 
@@ -13,6 +14,7 @@ import { ROOT_STORAGE_KEY } from './root-storage';
 const report = {
   rev: 'abc123',
   languages: {},
+  dependencies: dependenciesOf(),
   metrics: [],
   commits: [],
   cache: {

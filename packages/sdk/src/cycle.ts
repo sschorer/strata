@@ -1,49 +1,34 @@
-import type { DependencyGraph, GraphEdge } from '@strata/sdk';
+import type { DependencyGraph, GraphEdge } from './graph.js';
 
-/** One import cycle, in the shape the side panel prints it. */
-export interface CycleView {
-  /** 1-based; the number the list and the node badges share. */
-  index: number;
-  /** Every node in the strongly-connected component. */
-  members: string[];
+/** One import cycle, in the shape a reader can act on. */
+export interface GraphCycle {
+  /** Every node of the strongly-connected component, sorted. */
+  nodes: string[];
   /**
    * A closed walk through the component — `a → b → a`. Every consecutive pair
-   * is a real edge, so the path can be read as the import chain it is.
+   * is a real edge, so the path reads as the import chain it is. It need not
+   * reach every node of the knot; `nodes` is what the knot holds.
    */
   path: string[];
 }
 
 /**
- * The report's strongly-connected components, ordered and closed into paths.
+ * A graph's strongly-connected components, ordered and closed into paths.
  *
- * The language plugins hand over each cycle as an unordered node set (Tarjan
- * emits the component, not a route through it), which reads as a bag of files
- * rather than as `a → b → a`. Ordering it needs the edges, so it happens here
- * until the language result carries the path itself.
+ * Tarjan emits a component, not a route through it, so a cycle arrives as a bag
+ * of files rather than as `a → b → a` — and every consumer that wants to print
+ * one would otherwise arrange it itself. Ships with the SDK for the same reason
+ * `summariseGraph` does: one definition of what a cycle looks like, for whoever
+ * produces the graph and whoever reads it.
  *
  * Biggest first: a twelve-file knot is the one worth looking at, and a stable
- * order keeps the numbering the same between two runs of the same analysis.
+ * order keeps a list numbered the same between two runs of the same analysis.
  */
-export function cycleViews(graph: DependencyGraph): CycleView[] {
+export function orderedCycles(graph: DependencyGraph): GraphCycle[] {
   return [...graph.cycles]
-    .map((members) => [...members].sort())
+    .map((component) => [...component].sort())
     .sort((a, b) => b.length - a.length || a[0]!.localeCompare(b[0]!))
-    .map((members, position) => ({
-      index: position + 1,
-      members,
-      path: cyclePath(members, graph.edges),
-    }));
-}
-
-/** `node id → cycle index`, for the highlight the canvas paints. */
-export function cycleMembership(
-  cycles: readonly CycleView[],
-): Map<string, number> {
-  const membership = new Map<string, number>();
-  for (const cycle of cycles) {
-    for (const member of cycle.members) membership.set(member, cycle.index);
-  }
-  return membership;
+    .map((nodes) => ({ nodes, path: cyclePath(nodes, graph.edges) }));
 }
 
 /**
@@ -54,12 +39,12 @@ export function cycleMembership(
  * what the imports do.
  */
 function cyclePath(
-  members: readonly string[],
+  nodes: readonly string[],
   edges: readonly GraphEdge[],
 ): string[] {
-  const inside = new Set(members);
+  const inside = new Set(nodes);
   const adjacency = new Map<string, string[]>();
-  for (const member of members) adjacency.set(member, []);
+  for (const node of nodes) adjacency.set(node, []);
   for (const edge of edges) {
     if (inside.has(edge.from) && inside.has(edge.to)) {
       adjacency.get(edge.from)!.push(edge.to);
@@ -67,7 +52,7 @@ function cyclePath(
   }
   for (const targets of adjacency.values()) targets.sort();
 
-  const start = members[0]!;
+  const start = nodes[0]!;
   const walk = [start];
   const visited = new Set(walk);
   for (;;) {

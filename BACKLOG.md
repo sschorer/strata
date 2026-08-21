@@ -83,7 +83,10 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Ready to start: the two left with no blockers.
 
   - [x] Retire the AI provider plugin contract
-  - [ ] **P0** Fold cross-language derivation into the report
+  - [x] Fold cross-language derivation into the report
+        The report carries the merged cross-language graph, its summary and each
+        cycle as an ordered path; `apps/web` reads them and the three modules
+        that derived them are gone. Absorbs *emit each SCC as an ordered path*.
   - [ ] **P0** A named-but-missing plugin fails the run
   - [ ] **P0** Stage declarations in the plugin manifest (SDK 0.2.0)
   - [ ] **P0** The scheduler runs its first stage: hotspots
@@ -204,11 +207,12 @@ New area — the mockup's settings screens need somewhere to write to.
       panel). `summariseGraph` in the SDK counts it, so every language module
       reports the same numbers; a result that arrives without one — a plugin
       built against an older SDK, or a run it cached back then — is summarised
-      by the core. The graph view stopped computing it in the browser:
-      `apps/web/src/lib/graph/summary.ts` now only adds the languages up.
-- [ ] **P1** Emit each SCC as an ordered path so the UI can print the cycle as
-      `a → b → a` instead of an unordered node set. Ordered in the browser for
-      now (`apps/web/src/lib/graph/cycles.ts`).
+      by the core. The graph view stopped computing it in the browser, and the
+      cross-language sum has since moved into the report as well.
+- [x] Each SCC comes back as an ordered path, so a reader is shown
+      `a → b → a` instead of an unordered node set. `orderedCycles` in the SDK
+      closes a component into a walk over real edges, and the run puts the
+      result in the report — the browser prints it and arranges nothing.
 - [ ] **P1** **Angular** module — component/module/service graph, DI graph, standalone vs NgModule, lazy boundaries, unused components
 - [ ] **P1** **PHP** module — dependency graph + dead code
 - [ ] **P2** Cross-language project graph (e.g. TS frontend ↔ PHP backend boundaries)

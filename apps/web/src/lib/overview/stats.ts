@@ -1,6 +1,5 @@
 import type { AnalysisReport } from '$lib/api';
 import { compactNumber, fileName } from '$lib/format';
-import { reportSummary } from '$lib/graph';
 import { hotspotRows } from '$lib/hotspots';
 import { commitTotals } from './commits';
 import { deadCodeCount } from './dead-code';
@@ -48,7 +47,9 @@ export function overviewStats(
   // Every report the server sends carries a run summary; the fallback keeps the
   // card printable rather than blank if one ever arrives without.
   const run = report.run as AnalysisReport['run'] | undefined;
-  const graph = reportSummary(report);
+  // The cycle card reads what the run counted: the same fold the dependency
+  // screen prints, so the two never disagree about how many knots there are.
+  const graph = report.dependencies.summary;
   const top = hotspotRows(report)[0];
   const commits = commitTotals(report.commits);
   const dead = deadCodeCount(report);

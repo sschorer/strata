@@ -52,10 +52,10 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
 | `src/lib/overview/*` | The overview feature end to end: `stats` (report + plugins → the six cards), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
 | `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
-| `src/lib/graph/*` | The dependency feature end to end: `merge` (report → one graph), `summary` (report → the panel's numbers), `tree`/`rows` (the folder tree), `collapse` (closed folders), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `cycles`, `focus`, `viewport` (pan/zoom), and the five views |
+| `src/lib/graph/*` | The dependency feature end to end, over the graph the report already carries: `tree`/`rows` (the folder tree), `collapse` (closed folders), `membership` (node → its cycle's number), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `focus`, `viewport` (pan/zoom), and the five views |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
-| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph from an edge list, `api` stubs `fetch` per endpoint |
+| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph, a language result and a report's cross-language fold, `commits` an empty history window, `api` stubs `fetch` per endpoint |
 
 A screen is a **feature folder**: its pure functions and the components that
 render them sit together (`lib/hotspots/`), because they change together. Only
@@ -96,7 +96,7 @@ what more than one screen uses moves up into `lib/components/`.
 | 15 | **Folders open and close, and closing aggregates** | `collapse.ts` folds a closed folder into one node and rewrites the imports behind it onto it, merged and counted. So the arrows follow what is on screen: an open folder shows its files' arrows, a closed one shows the single arrow standing for all of them. A repository too big to read opens with its top level only |
 | 16 | **Pan and zoom move a `viewBox`, never the layout** | Re-running the layout at each zoom step would rearrange the picture under the reader. `viewport.ts` holds the window as plain values, so the clamping — never out past the whole graph, never off its edge — is one tested thing rather than arithmetic in event handlers |
 | 17 | **The canvas fills the room the page gives it** | The window takes the *canvas's* shape, not the drawing's, and a drawing that does not match is letterboxed and centred. Sizing the element to the drawing instead would leave a tall graph as a thin ribbon and a short one as a sliver, wasting the space either way. Resizing the page carries the window across rather than resetting it |
-| 18 | **Cycles ordered into a path in the UI** | Tarjan emits a component, not a route through it, and `a → b → a` is what a reader can act on. `cycles.ts` walks the component over real edges until the language result carries the path itself |
+| 18 | **Cycles arrive ordered; the screen only prints them** | Tarjan emits a component, not a route through it, and `a → b → a` is what a reader can act on — so the run closes each knot into a walk over real edges and the report carries it. The browser numbers the list and looks a node's cycle up (`membership.ts`); it arranges nothing |
 | 19 | **The window is the frame: only the main pane scrolls** | The rail and the header hold still and the content column scrolls inside them. That is what lets a treemap or a graph canvas size itself against the room it is given — a page that scrolls as a whole gives a canvas a viewport that moves out from under it — and it keeps the branch, revision and *Re-analyze* reachable from the bottom of a long table |
 | 20 | **The shell takes the route as a prop** | `+layout.svelte` is the only thing that reads `$app/state`; `Shell` and everything under it is handed a `pathname`. The frame then mounts in a test the same way every other component does, without SvelteKit's runtime, and the nav's active-entry rule stays a pure function (`nav.ts`) |
 | 21 | **Screens on the backlog are listed, disabled** | The rail is the map of the workbench. Hiding *Commits*, *Dead code* and the two settings scopes until they exist would make each one appear as a surprise; showing them as `soon` says what Strata is going to be, and an inert entry cannot navigate to a route that is not there |
@@ -104,7 +104,7 @@ what more than one screen uses moves up into `lib/components/`.
 | 23 | **The registry replaces the repo-path form** | Every screen used to run its own *Repository path* field, which made the typed path and the registered projects two answers to the same question. The path is now typed once, in *Add project*, and the screens read whatever the switcher is on |
 | 24 | **The path is browsed, not only typed** | An absolute server-side path is the one thing a reader of a web UI cannot see, and on a remote or containerised workbench they may never have seen it at all. `FolderPicker` walks `GET /browse` and marks the repositories, so *Add project* is a tree with the answers already highlighted; the field stays beside it, because pasting a path is faster when you know it |
 | 25 | **A first analysis is started where a run is configured** | A project that has just been registered has nothing to show on any screen, so the switcher says so — and links to *Project settings → Analyze / run*, which owns the run. It carried the run itself while that screen did not exist; keeping both would be two doors to one thing, and the one in a dropdown could not show what the run is about to read |
-| 26 | **The overview folds nothing of its own that another screen already folds** | Its cards read `hotspotRows`, `reportSummary` and `cycleViews` — the same functions the hotspot and dependency screens read. An overview is a second opinion about one run, and a second implementation of "how many cycles" would eventually be a *different* opinion. What is new here is only what no other screen needed: the six cards, the bar shares, the change types and the dead-code count |
+| 26 | **The overview folds nothing of its own that another screen already folds** | Its cards read `hotspotRows` and the report's own cross-language summary and cycles — the same numbers the hotspot and dependency screens print. An overview is a second opinion about one run, and a second implementation of "how many cycles" would eventually be a *different* opinion. What is new here is only what no other screen needed: the six cards, the bar shares, the change types and the dead-code count |
 | 27 | **Change types are a bar list, not a coloured strip** | The mockup's commit strip wants six hues; the palette has none to give. `h1…h5` is a *sequential* ramp — validated as a categorical set it fails on adjacent pairs no reader can separate, colour-blind or not — and the status colours are reserved for status. Painting `docs` and `test` from a heat ramp would also say "hotter = worse" about neither. So identity is the label and magnitude is the bar, which is what the two facts are; breaking changes are marked with the danger token *and* the word, as a status should be |
 | 28 | **Settings is a place, so the rail swaps rather than grows** | A settings area with seven project sections and five app ones cannot hang off a nav entry, and hanging it under the analysis screens would make the rail a list of everything Strata can do. `settingsScope(pathname)` is the whole mechanism: inside `/settings/*` the rail — and the narrow-screen strip, for the same reason — shows *Back to workbench*, the scope's heading and its sections, and nothing else. The route decides, so a link into a section arrives with the right frame already up |
 | 29 | **The scoped heading replaces the switcher, it does not sit beside it** | Project settings belong to the project the workbench is on; leaving the switcher up would let a reader change *which* project while looking at its settings, and two ways to say which one is being configured eventually disagree. The heading names the project and prints its root, so the scope is visible without being changeable — and app settings say *This workbench* in the same slot, because that is what they reach |
@@ -157,12 +157,16 @@ what more than one screen uses moves up into `lib/components/`.
   stays because the store has to re-point the analysis if it ever does.
 - **Debt:** a treemap draws the top ~50 files; the rest of the ranking is only
   in the table. A zoom or a directory roll-up is the fix if it starts to bite.
-- **Decision:** the graph summary (nodes, edges, cycles, fan-in) is read, not
-  computed: every language result carries its own, counted by the plugin, and
-  `summary.ts` only adds them up across languages.
+- **Decision:** everything derived from more than one language's output is read
+  from the report, not computed here: the merged graph, its summary (nodes,
+  edges, cycles, fan-in) and each cycle as an ordered path are folded by the run
+  ([ADR-10](../docs/adr/0010-open-analysis-pipeline.md)), so a CI gate reading
+  the same report gets the same numbers. The screen reshapes what it draws — a
+  knot is a set of files to the canvas and a path to the list — and derives
+  nothing.
 - **Debt:** package edges are styled but never drawn — by choice, the
   TypeScript module reports only imports that land in the repository. The
-  legend shows a style only when the drawing contains it, and `merge.ts`
+  legend shows a style only when the drawing contains it, and the run
   synthesises the node the day a plugin does emit one.
 - **Debt:** ESLint skips this app (`apps/web/**` is ignored at the root) —
   `svelte-check` is the only static gate until `eslint-plugin-svelte` is wired in.
@@ -181,12 +185,11 @@ what more than one screen uses moves up into `lib/components/`.
   request helper's error normalisation, the stateful components (`ThemeSwitch`,
   `ServerStatus`), the shared formatters, the hotspot pure layer (rows join,
   heat scale, squarify's area/overlap/aspect invariants) and its three views,
-  the graph pure layer (merge and package synthesis, the folder tree and its
+  the graph pure layer (the folder tree and its
   compression, collapsing and its edge merging, the ranking's direction and its
   cycle-breaking, the layered layout's uniform cards, non-overlap of cards *and*
-  containers, growth and purity, the panel rows, degrees, the
-  summary fold across languages, cycle paths over real edges, the focus
-  ranking, edge classification,
+  containers, growth and purity, the panel rows, degrees, cycle membership,
+  the focus ranking, edge classification,
   and the viewport's zoom, clamping, letterboxing and carrying across a resize) with its canvas, folder tree and
   cycle list, the analysis store (including a superseded run), the shell (the
   nav's active entry and its planned ones, the run summary's fold, the rail,

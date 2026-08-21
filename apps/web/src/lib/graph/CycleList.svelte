@@ -1,10 +1,11 @@
 <script lang="ts">
+  import type { GraphCycle } from '@strata/sdk';
   import { fileName } from '$lib/format';
-  import type { CycleView } from './cycles';
 
   interface Props {
-    cycles: CycleView[];
-    /** The cycle whose nodes the canvas is lighting up, by `index`. */
+    /** The report's cycles, biggest first; the list numbers them from one. */
+    cycles: GraphCycle[];
+    /** The cycle whose nodes the canvas is lighting up, by that number. */
     selected?: number | null;
     onselect?: (index: number) => void;
   }
@@ -21,20 +22,21 @@
   </p>
 {:else}
   <ul class="flex flex-col gap-1">
-    {#each cycles as cycle (cycle.index)}
+    {#each cycles as cycle, position (position)}
+      {@const index = position + 1}
       <li>
         <button
           type="button"
           class="hover:bg-elevated w-full rounded-lg px-2 py-2 text-left
-                 {selected === cycle.index ? 'bg-accent-soft' : ''}"
-          aria-pressed={selected === cycle.index}
+                 {selected === index ? 'bg-accent-soft' : ''}"
+          aria-pressed={selected === index}
           title={cycle.path.join(' → ')}
-          onclick={() => onselect?.(cycle.index)}
+          onclick={() => onselect?.(index)}
         >
           <span class="flex items-baseline justify-between gap-3">
-            <span class="text-danger font-mono text-xs">#{cycle.index}</span>
+            <span class="text-danger font-mono text-xs">#{index}</span>
             <span class="text-subtle text-xs">
-              {cycle.members.length} files
+              {cycle.nodes.length} files
             </span>
           </span>
           <span class="text-ink mt-1 block font-mono text-xs break-all">

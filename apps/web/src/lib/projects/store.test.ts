@@ -3,6 +3,7 @@ import { analysis, ROOT_STORAGE_KEY } from '$lib/analysis';
 import type { Project } from '$lib/api';
 import { runRoutes, stubApi } from '$lib/test/api';
 import { noCommits } from '$lib/test/commits';
+import { dependenciesOf } from '$lib/test/graph';
 import { SELECTION_STORAGE_KEY } from './selection';
 import { ProjectsStore } from './store.svelte';
 
@@ -44,6 +45,7 @@ const report = {
     finishedAt: '2026-08-16T11:00:00.000Z',
   },
   languages: {},
+  dependencies: dependenciesOf(),
   metrics: [],
   commits: [],
   commitAnalytics: noCommits(),

@@ -6,43 +6,52 @@ import { render } from '$lib/test/render';
 import Page from './+page.svelte';
 
 /**
- * The screen end to end: a run against the API, the languages' graphs merged
- * and drawn, and one selection shared by the canvas and the cycle list.
+ * The screen end to end: a run against the API, the graph the core folded out
+ * of it drawn, and one selection shared by the canvas and the cycle list.
  *
  * The repository is chosen in the switcher, which the shell holds — so a test
  * of this screen runs the analysis on the store first and then mounts the page
  * against the report that run left behind.
  */
 
+const graph = {
+  nodes: [
+    { id: 'src/a.ts', label: 'src/a.ts', kind: 'file', meta: { loc: 40 } },
+    { id: 'src/b.ts', label: 'src/b.ts', kind: 'file', meta: { loc: 12 } },
+    { id: 'src/c.ts', label: 'src/c.ts', kind: 'file', meta: { loc: 7 } },
+  ],
+  edges: [
+    { from: 'src/a.ts', to: 'src/b.ts', kind: 'import' },
+    { from: 'src/b.ts', to: 'src/a.ts', kind: 'import' },
+    { from: 'src/c.ts', to: 'src/a.ts', kind: 'import' },
+  ],
+  cycles: [['src/b.ts', 'src/a.ts']],
+};
+
 function reportWith(rev: string) {
   return {
     rev,
     languages: {
-      typescript: {
-        graph: {
-          nodes: [
-            { id: 'src/a.ts', label: 'src/a.ts', kind: 'file', meta: { loc: 40 } },
-            { id: 'src/b.ts', label: 'src/b.ts', kind: 'file', meta: { loc: 12 } },
-            { id: 'src/c.ts', label: 'src/c.ts', kind: 'file', meta: { loc: 7 } },
-          ],
-          edges: [
-            { from: 'src/a.ts', to: 'src/b.ts', kind: 'import' },
-            { from: 'src/b.ts', to: 'src/a.ts', kind: 'import' },
-            { from: 'src/c.ts', to: 'src/a.ts', kind: 'import' },
-          ],
-          cycles: [['src/b.ts', 'src/a.ts']],
+      typescript: { graph, deadCode: [], metrics: [] },
+    },
+    // The fold across every language, as the core hands it over: the screen
+    // draws these nodes, prints this summary and reads these cycle paths.
+    dependencies: {
+      nodes: graph.nodes,
+      edges: graph.edges,
+      cycles: [
+        {
+          nodes: ['src/a.ts', 'src/b.ts'],
+          path: ['src/a.ts', 'src/b.ts', 'src/a.ts'],
         },
-        deadCode: [],
-        metrics: [],
-        // As the language module counts it — the screen only prints it.
-        summary: {
-          nodes: 3,
-          edges: 3,
-          cycles: 1,
-          cycleNodes: 2,
-          maxFanIn: { id: 'src/a.ts', count: 2 },
-          maxFanOut: { id: 'src/a.ts', count: 1 },
-        },
+      ],
+      summary: {
+        nodes: 3,
+        edges: 3,
+        cycles: 1,
+        cycleNodes: 2,
+        maxFanIn: { id: 'src/a.ts', count: 2 },
+        maxFanOut: { id: 'src/a.ts', count: 1 },
       },
     },
     metrics: [],

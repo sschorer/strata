@@ -164,7 +164,11 @@ pipeline then does, on that thread:
 4. The active `commit-convention` plugin parses each commit, and the core folds
    the parsed log into `CommitAnalytics` — per type, per scope, how much of the
    history conforms, breaking changes, weekly activity.
-5. Results merge into an `AnalysisReport`, returned by the API.
+5. The per-language graphs are folded into one cross-language graph — merged,
+   summarised, and with every import cycle ordered into a path — so no consumer
+   has to derive it a second time
+   ([ADR-10](./adr/0010-open-analysis-pipeline.md)).
+6. Results merge into an `AnalysisReport`, returned by the API.
 
 Which plugins are "enabled" and which convention is "active" are the project's
 configuration; a project that has configured neither runs every plugin and

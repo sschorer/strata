@@ -9,6 +9,7 @@ import type {
 import { PluginsStore } from '$lib/plugins';
 import { ProjectsStore, SELECTION_STORAGE_KEY } from '$lib/projects';
 import { runRoutes, stubApi } from '$lib/test/api';
+import { dependenciesOf } from '$lib/test/graph';
 import { noCommits } from '$lib/test/commits';
 import { render } from '$lib/test/render';
 import AnalyzeScreen from './AnalyzeScreen.svelte';
@@ -70,6 +71,7 @@ const report: AnalysisReport = {
     finishedAt: '2026-08-16T09:00:00.000Z',
   },
   languages: {},
+  dependencies: dependenciesOf(),
   metrics: [],
   commits: [],
   commitAnalytics: noCommits(),
