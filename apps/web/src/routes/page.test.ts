@@ -68,6 +68,29 @@ const report = {
       },
     },
   },
+  // Every language's graph as one, as the core folded it: the cards and the
+  // cycle alert read these, not the per-language results above.
+  dependencies: {
+    nodes: [
+      { id: 'src/a.ts', label: 'a.ts', kind: 'file' },
+      { id: 'src/b.ts', label: 'b.ts', kind: 'file' },
+    ],
+    edges: [
+      { from: 'src/a.ts', to: 'src/b.ts', kind: 'import' },
+      { from: 'src/b.ts', to: 'src/a.ts', kind: 'import' },
+    ],
+    cycles: [
+      { nodes: ['src/a.ts', 'src/b.ts'], path: ['src/a.ts', 'src/b.ts', 'src/a.ts'] },
+    ],
+    summary: {
+      nodes: 2,
+      edges: 2,
+      cycles: 1,
+      cycleNodes: 2,
+      maxFanIn: null,
+      maxFanOut: null,
+    },
+  },
   metrics: [
     {
       id: 'hotspots',

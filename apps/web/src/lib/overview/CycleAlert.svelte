@@ -1,9 +1,10 @@
 <script lang="ts">
+  import type { GraphCycle } from '@strata/sdk';
   import { fileName } from '$lib/format';
-  import type { CycleView } from '$lib/graph';
 
   interface Props {
-    cycles: CycleView[];
+    /** The report's cycles, biggest first; the card numbers them from one. */
+    cycles: GraphCycle[];
     /** Knots printed here; the rest are on the dependency screen. */
     limit?: number;
   }
@@ -30,14 +31,14 @@
   </p>
 
   <ul class="mt-3 flex flex-col gap-2">
-    {#each shown as cycle (cycle.index)}
+    {#each shown as cycle, position (position)}
       <li
         class="border-line bg-elevated rounded-lg border p-2"
         title={cycle.path.join(' → ')}
       >
         <span class="flex items-baseline justify-between gap-3">
-          <span class="text-danger font-mono text-xs">#{cycle.index}</span>
-          <span class="text-subtle text-xs">{cycle.members.length} files</span>
+          <span class="text-danger font-mono text-xs">#{position + 1}</span>
+          <span class="text-subtle text-xs">{cycle.nodes.length} files</span>
         </span>
         <span class="text-ink mt-1 block font-mono text-xs break-all">
           {arrow(cycle.path)}

@@ -15,14 +15,11 @@
     collapseFolders,
     containerOf,
     cycleMembership,
-    cycleViews,
     degrees,
     everyFolder,
     focusGraph,
     folderRows,
     folderTree,
-    mergedGraph,
-    reportSummary,
     neighbourhood,
   } from '$lib/graph';
 
@@ -40,13 +37,23 @@
   };
 
   let report = $derived(analysis.report);
-  let graph = $derived(report ? mergedGraph(report) : null);
   // The summary and the cycle list describe the repository, not the current
-  // view: closing a folder hides files, it does not un-import them. The counts
-  // come from the run itself — the language modules report them.
-  let summary = $derived(report ? reportSummary(report) : null);
-  let cycles = $derived(graph ? cycleViews(graph) : []);
+  // view: closing a folder hides files, it does not un-import them. Both come
+  // from the run itself — the core folds every language's graph into one and
+  // counts it, and this screen only draws what it is handed.
+  let summary = $derived(report?.dependencies.summary ?? null);
+  let cycles = $derived(report?.dependencies.cycles ?? []);
   let cycleOf = $derived(cycleMembership(cycles));
+  // What is drawn cares which files knot, not how the knot reads as a path.
+  let graph = $derived(
+    report
+      ? {
+          nodes: report.dependencies.nodes,
+          edges: report.dependencies.edges,
+          cycles: cycles.map((cycle) => cycle.nodes),
+        }
+      : null,
+  );
   // The folder tree of the repository, whatever is open: the panel lists it
   // all, and closing a folder must not remove the row that reopens it.
   let tree = $derived(
@@ -98,13 +105,11 @@
   let highlight = $derived.by(() => {
     if (selectedNode && drawn) return neighbourhood(drawn.edges, selectedNode);
     if (selectedCycle === null) return null;
-    const cycle = cycles.find((entry) => entry.index === selectedCycle);
+    const cycle = cycles[selectedCycle - 1];
     if (!cycle) return null;
     // A cycle inside a closed folder lights the folder up instead.
     return new Set(
-      cycle.members.map(
-        (id) => folded?.representative.get(id) ?? id,
-      ),
+      cycle.nodes.map((id) => folded?.representative.get(id) ?? id),
     );
   });
 

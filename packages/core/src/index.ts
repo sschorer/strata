@@ -53,6 +53,12 @@ export {
   type CacheStats,
 } from './cache/index.js';
 export {
+  crossLanguageGraph,
+  mergedGraph,
+  packageNodes,
+  type CrossLanguageGraph,
+} from './graph/index.js';
+export {
   analyseCommits,
   bucketBy,
   weeklyActivity,

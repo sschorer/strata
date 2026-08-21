@@ -10,6 +10,7 @@ import {
 } from './cache/index.js';
 import { analyseCommits } from './commits/index.js';
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
+import { crossLanguageGraph } from './graph/index.js';
 import { consoleLogger } from './logger.js';
 import { ProgressTracker, type ProgressListener } from './progress/index.js';
 import type { PluginRegistry } from './registry.js';
@@ -190,6 +191,11 @@ export class Strata {
         finishedAt: new Date().toISOString(),
       },
       languages,
+      // Folded once, here: what every consumer of the report would otherwise
+      // derive from the per-language graphs for itself.
+      dependencies: crossLanguageGraph(
+        Object.values(languages).map((analysis) => analysis.graph),
+      ),
       metrics,
       commits,
       commitAnalytics,

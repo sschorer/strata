@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
 import { noCommits } from '$lib/test/commits';
-import { languageOf } from '$lib/test/graph';
+import { dependenciesOf, languageOf } from '$lib/test/graph';
 import { hotspotRows } from './rows';
 
 function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
@@ -14,6 +14,7 @@ function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
       finishedAt: '2026-01-01T00:00:00.000Z',
     },
     languages: {},
+    dependencies: dependenciesOf(),
     metrics: [],
     commits: [],
     commitAnalytics: noCommits(),

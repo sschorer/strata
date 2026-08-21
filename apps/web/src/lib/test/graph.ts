@@ -1,9 +1,11 @@
 import type {
   DependencyGraph,
+  GraphCycle,
   GraphEdge,
   GraphSummary,
   LanguageAnalysis,
 } from '@strata/sdk';
+import type { CrossLanguageGraph } from '$lib/api';
 
 /**
  * Build a dependency graph from a compact edge list: `'a>b b>c c>a'`. Nodes are
@@ -56,4 +58,40 @@ export function languageOf(
       ...summary,
     },
   };
+}
+
+/**
+ * The cross-language graph a report carries, as the core folded it.
+ *
+ * Every report has one and most fixtures are about something else — a hotspot,
+ * a run summary, a recents list — so an empty fold is the default and a test
+ * that cares passes only the parts it asserts on.
+ */
+export function dependenciesOf(
+  over: Partial<CrossLanguageGraph> = {},
+): CrossLanguageGraph {
+  return {
+    nodes: [],
+    edges: [],
+    cycles: [],
+    ...over,
+    summary: {
+      nodes: 0,
+      edges: 0,
+      cycles: 0,
+      cycleNodes: 0,
+      maxFanIn: null,
+      maxFanOut: null,
+      ...over.summary,
+    },
+  };
+}
+
+/**
+ * Components as the report carries them: ordered, and closed into the obvious
+ * walk. The ordering is the core's, so a test of the browser states the knot
+ * it means and takes the path for granted.
+ */
+export function cyclesOf(components: string[][]): GraphCycle[] {
+  return components.map((nodes) => ({ nodes, path: [...nodes, nodes[0]!] }));
 }

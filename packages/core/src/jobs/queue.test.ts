@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { crossLanguageGraph } from '../graph/index.js';
 import type { AnalysisReport, AnalyzeOptions } from '../types.js';
 import { AnalysisQueue } from './queue.js';
 import type { AnalysisJob, AnalysisRunner } from './types.js';
@@ -20,6 +21,7 @@ function reportFor(rev: string): AnalysisReport {
       finishedAt: '2026-08-15T10:00:00.000Z',
     },
     languages: {},
+    dependencies: crossLanguageGraph([]),
     metrics: [],
     commits: [],
     commitAnalytics: {

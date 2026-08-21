@@ -1,6 +1,7 @@
 import type { LanguageAnalysis, MetricSeries, ParsedCommit } from '@strata/sdk';
 import type { CacheOptions, CacheStats } from './cache/index.js';
 import type { CommitAnalytics } from './commits/index.js';
+import type { CrossLanguageGraph } from './graph/index.js';
 
 export interface AnalyzeOptions {
   /** Working-tree root of the repo to analyse. */
@@ -68,6 +69,13 @@ export interface AnalysisReport {
   rev: string;
   run: RunReport;
   languages: Record<string, LanguageAnalysis>;
+  /**
+   * Every language's graph as one — merged, summarised, and with each cycle
+   * ordered into a path. Folded here rather than by whoever reads the report,
+   * so a screen, a CI gate and a second API client all read one answer
+   * (`docs/adr/0010`).
+   */
+  dependencies: CrossLanguageGraph;
   metrics: MetricSeries[];
   commits: ParsedCommit[];
   /** The same window, folded: per type and scope, conformance, activity. */

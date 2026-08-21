@@ -24,6 +24,7 @@ export * from './logger.js';
 export * from './cache.js';
 export * from './repo.js';
 export * from './graph.js';
+export * from './cycle.js';
 export * from './summary.js';
 
 // The three plugin kinds

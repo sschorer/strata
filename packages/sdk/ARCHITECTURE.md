@@ -41,6 +41,7 @@ path (`@strata/sdk`).
 | `repo.ts` | `RepoFile`, `RepoContext` |
 | `cache.ts` | `PluginCache` — the blob-keyed incremental cache contract |
 | `graph.ts` | `GraphNode`, `GraphEdge`, `DependencyGraph` |
+| `cycle.ts` | `GraphCycle`, `orderedCycles` — a component closed into a walk over real edges |
 | `summary.ts` | `GraphSummary`, `DegreeEntry`, `summariseGraph` — a graph's headline numbers |
 | `language.ts` | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
 | `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |

@@ -66,6 +66,24 @@ describe('run metadata', () => {
     expect(report.rev).toMatch(/^[0-9a-f]{40}$/);
   });
 
+  it('summarises a run no language plugin touched as zeroes', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    expect(report.dependencies).toEqual({
+      nodes: [],
+      edges: [],
+      cycles: [],
+      summary: {
+        nodes: 0,
+        edges: 0,
+        cycles: 0,
+        cycleNodes: 0,
+        maxFanIn: null,
+        maxFanOut: null,
+      },
+    });
+  });
+
   it('has no branch when a revision names none', async () => {
     const { rev } = await strata.analyze({ root: repo });
     const report = await strata.analyze({ root: repo, rev });

@@ -1,14 +1,14 @@
 import type { GraphNode } from '@strata/sdk';
 import { tick } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { graphOf } from '$lib/test/graph';
+import { cyclesOf, graphOf } from '$lib/test/graph';
 import { reactiveProps } from '$lib/test/props.svelte';
 import { render } from '$lib/test/render';
-import { cycleMembership, cycleViews } from './cycles';
+import { cycleMembership } from './membership';
 import GraphCanvas from './GraphCanvas.svelte';
 
 const graph = graphOf('a>b b>a b>c', [['a', 'b']]);
-const cycleOf = cycleMembership(cycleViews(graph));
+const cycleOf = cycleMembership(cyclesOf(graph.cycles));
 const props = { nodes: graph.nodes, edges: graph.edges, cycleOf };
 
 /** Every node is a card; a folder's dashed container is not one. */

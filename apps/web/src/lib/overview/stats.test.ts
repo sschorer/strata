@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { dependenciesOf } from '$lib/test/graph';
 import { overviewStats, type StatCard } from './stats';
 
 const report = {
@@ -28,6 +29,17 @@ const report = {
       },
     },
   },
+  // The cycle card reads the run's own fold across every language.
+  dependencies: dependenciesOf({
+    summary: {
+      nodes: 120,
+      edges: 300,
+      cycles: 2,
+      cycleNodes: 5,
+      maxFanIn: null,
+      maxFanOut: null,
+    },
+  }),
   metrics: [
     {
       id: 'hotspots',
@@ -126,6 +138,7 @@ describe('overviewStats', () => {
     const clean = {
       ...report,
       languages: {},
+      dependencies: dependenciesOf(),
       metrics: [],
       commits: [],
     } as unknown as AnalysisReport;

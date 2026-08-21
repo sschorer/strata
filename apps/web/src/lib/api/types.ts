@@ -1,4 +1,8 @@
 import type {
+  GraphCycle,
+  GraphEdge,
+  GraphNode,
+  GraphSummary,
   LanguageAnalysis,
   MetricSeries,
   ParsedCommit,
@@ -91,10 +95,26 @@ export interface CommitAnalytics {
   weeks: CommitWeek[];
 }
 
+/**
+ * Every language's dependency graph as one, as the core folded it: merged and
+ * deduplicated, with a synthesised node for each package an import leaves for,
+ * every cycle ordered into a path, and the numbers over it. The browser reads
+ * these; it derives none of them (`docs/adr/0010`).
+ */
+export interface CrossLanguageGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  /** The knots, biggest first, each closed into a walk over real edges. */
+  cycles: GraphCycle[];
+  /** Counted over the analysed nodes; the synthesised packages are not in it. */
+  summary: GraphSummary;
+}
+
 export interface AnalysisReport {
   rev: string;
   run: RunReport;
   languages: Record<string, LanguageAnalysis>;
+  dependencies: CrossLanguageGraph;
   metrics: MetricSeries[];
   commits: ParsedCommit[];
   commitAnalytics: CommitAnalytics;

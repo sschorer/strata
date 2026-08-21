@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport, ProjectAnalysis } from '$lib/api';
 import { noCommits } from '$lib/test/commits';
+import { dependenciesOf } from '$lib/test/graph';
 import { mergeRun, RECENT_LIMIT, runEntry } from './recents';
 
 function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
@@ -25,6 +26,7 @@ describe('runEntry', () => {
         finishedAt: '2026-08-16T09:00:00.000Z',
       },
       languages: {},
+      dependencies: dependenciesOf(),
       metrics: [],
       commits: [],
       commitAnalytics: noCommits(),

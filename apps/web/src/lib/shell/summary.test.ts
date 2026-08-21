@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
+import { dependenciesOf } from '$lib/test/graph';
 import { runDisplay } from './summary';
 
 const now = Date.parse('2026-08-15T12:00:00.000Z');
@@ -13,6 +14,7 @@ const report = {
     finishedAt: '2026-08-15T11:55:00.000Z',
   },
   languages: {},
+  dependencies: dependenciesOf(),
   metrics: [],
   commits: [],
   cache: {

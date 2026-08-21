@@ -3,7 +3,6 @@ export {
   collapseFolders,
   type CollapsedGraph,
 } from './collapse';
-export { cycleMembership, cycleViews, type CycleView } from './cycles';
 export { degrees, type Degrees } from './degree';
 export {
   classifyEdges,
@@ -14,7 +13,7 @@ export {
   type EdgeClass,
 } from './edges';
 export { focusGraph, neighbourhood, type FocusedGraph } from './focus';
-export { mergedGraph } from './merge';
+export { cycleMembership } from './membership';
 export {
   layeredLayout,
   type Box,
@@ -25,7 +24,6 @@ export {
 export { everyLane, laneTree, type Lane } from './lanes';
 export { rankNodes, type Ranking } from './rank';
 export { folderRows, type FolderRow } from './rows';
-export { reportSummary } from './summary';
 export {
   ancestorsOf,
   containerOf,

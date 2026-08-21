@@ -38,6 +38,10 @@ itself behaves.
 | `index.ts` | Barrel — the package's public surface, no logic. |
 | `strata.ts` | The `Strata` orchestrator. |
 | `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `RunReport`, `CacheReport`. |
+| `graph/fold.ts` | `crossLanguageGraph()` — every language's graph as the one graph, summary and ordered cycles a report carries. |
+| `graph/merge.ts` | `mergedGraph()` — the union of the per-language graphs, deduplicated. |
+| `graph/packages.ts` | `packageNodes()` — a node for each end of an edge that left the analysed file set. |
+| `graph/types.ts` | `CrossLanguageGraph`. |
 | `commits/analyse.ts` | `analyseCommits()` — the parsed log folded into `CommitAnalytics`. |
 | `commits/buckets.ts` | `bucketBy()` — counts per type / per scope, biggest first. |
 | `commits/weeks.ts` | `weeklyActivity()` — commits per Monday-started week (UTC). |
@@ -114,7 +118,10 @@ itself behaves.
 5. Parse commits with the project's `commit-convention` plugin — the first
    registered when it names none — then fold the log into `CommitAnalytics`
    (per type, per scope, conformance, breaking changes, weekly activity).
-6. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
+6. Fold every language's graph into one `CrossLanguageGraph` — deduplicated,
+   with a node for each package an import left for, each cycle ordered into a
+   path and the whole thing counted once.
+7. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`.
 
 Each of those steps is announced to `onProgress`, if a caller passed one. The
@@ -185,6 +192,13 @@ section keeps its value — because each section is one settings screen.
   same as "non-conforming". Weeks are bucketed Monday-to-Monday in **UTC**: an
   author's timezone is whatever their laptop said at the time, so anything else
   would move a commit between columns depending on who ran the analysis.
+- **What more than one language's output implies is folded here too.** The
+  merged dependency graph, its summary and each cycle as an ordered path are in
+  the report rather than in whoever reads it: a screen, a CI gate and a second
+  API client would otherwise each merge, each count and each arrange the same
+  knots ([ADR-10](../../docs/adr/0010-open-analysis-pipeline.md)). The summary
+  counts the analysed nodes only — the synthesised package nodes are the far
+  ends of imports that left the file set, not files this run looked at.
 - **The run times itself** — duration covers everything the caller waited for,
   cache open included, and `finishedAt` is stamped where the run ends. A client
   measuring its own round-trip would be measuring the network too. A revision

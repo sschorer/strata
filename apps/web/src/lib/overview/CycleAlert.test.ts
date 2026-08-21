@@ -1,20 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { CycleView } from '$lib/graph';
+import { cyclesOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
 import CycleAlert from './CycleAlert.svelte';
 
-const cycle = (index: number, members: string[]): CycleView => ({
-  index,
-  members,
-  path: [...members, members[0]!],
-});
-
-const cycles = [
-  cycle(1, ['src/a.ts', 'src/b.ts']),
-  cycle(2, ['src/c.ts', 'src/d.ts']),
-  cycle(3, ['src/e.ts', 'src/f.ts']),
-  cycle(4, ['src/g.ts', 'src/h.ts']),
-];
+const cycles = cyclesOf([
+  ['src/a.ts', 'src/b.ts'],
+  ['src/c.ts', 'src/d.ts'],
+  ['src/e.ts', 'src/f.ts'],
+  ['src/g.ts', 'src/h.ts'],
+]);
 
 /** The rendered text on one line — the markup wraps where a sentence does not. */
 const flat = (container: HTMLElement) =>
