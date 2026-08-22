@@ -18,7 +18,7 @@ The default, dogfooded convention — Strata's own commits are conventional.
 
 - **Depends on:** `@strata/sdk`.
 - **Consumed by:** the core's commit-analytics step.
-- **Manifest:** `strata.plugin.json` (`kind: commit-convention`, `sdk: 0.1.0`).
+- **Manifest:** `strata.plugin.json` (`kind: commit-convention`, `sdk: 0.2.0`).
 
 ## 4. Building Blocks
 

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { PLUGIN_KINDS, SDK_VERSION, type PluginManifest } from '@strata/sdk';
 import { retiredKindError } from './retired-kinds.js';
+import { stageDeclarationError } from './stage-declarations.js';
 
 /** The file that marks a directory as a plugin. */
 export const MANIFEST_FILENAME = 'strata.plugin.json';
@@ -61,6 +62,12 @@ export async function readManifest(
       `Plugin "${manifest.id}" targets SDK ${manifest.sdk}, ` +
         `but this build ships SDK ${SDK_VERSION}.`,
     );
+  }
+  // Last, and still from the JSON alone: a plugin targeting another SDK
+  // declares its stage in that SDK's dialect, and has already been refused.
+  const declaration = stageDeclarationError(fields);
+  if (declaration) {
+    throw new Error(`Plugin "${manifest.id}" ${declaration}.`);
   }
   return manifest;
 }

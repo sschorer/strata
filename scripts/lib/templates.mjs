@@ -26,7 +26,7 @@ export function pluginManifest(name, kind) {
     name,
     kind,
     version: '0.1.0',
-    sdk: '0.1.0',
+    sdk: '0.2.0',
     main: './dist/index.js',
     description: 'TODO',
     author: 'Strata',

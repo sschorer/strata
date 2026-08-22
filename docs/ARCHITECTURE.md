@@ -73,7 +73,7 @@ analysed repo.
 
 | Challenge | Decision |
 |-----------|----------|
-| Extensibility | Four small plugin contracts in `@strata/sdk`; a registry loads them by manifest — the built-ins, plus drop-in third-party plugins from `STRATA_PLUGINS_DIR`. |
+| Extensibility | Three small plugin contracts in `@strata/sdk`; a registry loads them by manifest — the built-ins, plus drop-in third-party plugins from `STRATA_PLUGINS_DIR`. |
 | One tool, many languages | Parsing standardised on **tree-sitter** grammars (WASM, so no native build step); analyzers return a common shape. |
 | Big-repo performance | Blob-sha-keyed incremental cache (SQLite) in the core. |
 | Portability | Web frontend + thin API, packaged as a Docker image now and Tauri desktop later. |
@@ -225,6 +225,14 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
 
 - **Plugin model** — `define*` helpers stamp the `kind` discriminant; the
   registry refuses a plugin whose manifest `sdk` major mismatches.
+- **Stage declarations** — a manifest may also declare its plugin's **stage**:
+  the output types it consumes, the one it produces, the files it filters on and
+  the exclusive group it belongs to. Static JSON, validated before the entry
+  module is imported, so a run is planned without running third-party code
+  ([ADR-10](./adr/0010-open-analysis-pipeline.md)); where the exported object
+  says the same thing, the registry holds the two to each other at load. Read
+  and reported (`GET /plugins`) but not yet scheduled from — the three kinds
+  above still drive a run.
 - **RepoContext** — the single immutable surface plugins are allowed to touch
   (`root`, `rev`, `files`, `git()`, `log`, `cache`).
 - **Incremental cache** — two levels in one SQLite file (`node:sqlite`, no

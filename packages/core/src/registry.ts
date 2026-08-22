@@ -4,6 +4,7 @@ import type { Logger, PluginManifest, StrataPlugin } from '@strata/sdk';
 import { discoverPlugins } from './discover.js';
 import { createConsoleLogger } from './logger.js';
 import { readManifest, resolveEntry } from './manifest.js';
+import { pluginAgreementError } from './plugin-agreement.js';
 import { pluginShapeError } from './plugin-shape.js';
 
 /** Where a plugin came from: shipped with Strata, or dropped in by the user. */
@@ -83,6 +84,10 @@ export class PluginRegistry {
     const shapeError = pluginShapeError(manifest.kind, plugin);
     if (shapeError) {
       throw new Error(`Plugin "${manifest.id}" (${entry}) ${shapeError}.`);
+    }
+    const disagreement = pluginAgreementError(manifest, plugin);
+    if (disagreement) {
+      throw new Error(`Plugin "${manifest.id}" ${disagreement}.`);
     }
 
     const loaded: LoadedPlugin = {

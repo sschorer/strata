@@ -80,7 +80,8 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the one left with no blockers, *stage declarations*.
+      Ready to start: the one left with no blockers, *the scheduler runs its
+      first stage: hotspots*.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -94,7 +95,16 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         setting that asked for it. The lenient convention path — a warning and
         an empty parse, which rendered as a history conforming to nothing — is
         gone.
-  - [ ] **P0** Stage declarations in the plugin manifest (SDK 0.2.0)
+  - [x] Stage declarations in the plugin manifest (SDK 0.2.0)
+        A manifest may declare its plugin's stage — what it consumes, what it
+        produces, the files it filters on and the group it is exclusive with —
+        and the registry validates all four from the JSON alone, before the
+        entry module is imported, so a run is planned without running
+        third-party code. A module that contradicts what its manifest declared
+        is refused at load, the way a mismatched kind is. The SDK is `0.2.0` and
+        carries the closed output-type set and the stage entry a report will
+        hold; `GET /plugins` reports every declaration. Nothing runs differently
+        yet.
   - [ ] **P0** The scheduler runs its first stage: hotspots
   - [ ] **P1** Migrate change coupling to a stage
   - [ ] **P1** Migrate the TypeScript language module to a stage
