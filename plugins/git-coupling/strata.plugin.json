@@ -3,7 +3,7 @@
   "name": "Change coupling",
   "kind": "git-metric",
   "version": "0.1.0",
-  "sdk": "0.1.0",
+  "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Ranks pairs of files by how often they change in the same commit (temporal coupling).",
   "author": "Strata"

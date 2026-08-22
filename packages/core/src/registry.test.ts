@@ -287,3 +287,137 @@ describe('loadFrom', () => {
     expect(loaded.source).toBe('builtin');
   });
 });
+
+/**
+ * A stage is declared in the manifest, as static JSON, so the core can plan a
+ * run without importing anything — which is only true if the declarations are
+ * validated there too.
+ */
+describe('stage declarations', () => {
+  it('keeps what a plugin declared on its manifest', async () => {
+    writePlugin('alpha', {
+      consumes: ['commits'],
+      produces: 'aggregate',
+      filter: { extensions: ['ts'], globs: ['src/**/*.ts'] },
+      exclusive: 'commit-fold',
+    });
+
+    const registry = new PluginRegistry(silent);
+    const [loaded] = await registry.loadDirectory(dir);
+
+    expect(loaded?.manifest).toMatchObject({
+      consumes: ['commits'],
+      produces: 'aggregate',
+      filter: { extensions: ['ts'], globs: ['src/**/*.ts'] },
+      exclusive: 'commit-fold',
+    });
+    expect(registry.failures()).toEqual([]);
+  });
+
+  it('loads a plugin that declares no stage at all', async () => {
+    writePlugin('alpha');
+
+    const registry = new PluginRegistry(silent);
+    const [loaded] = await registry.loadDirectory(dir);
+
+    expect(loaded?.manifest.produces).toBeUndefined();
+    expect(registry.failures()).toEqual([]);
+  });
+
+  it('refuses an output type that is not one of the closed set', async () => {
+    writePlugin('alpha', { consumes: ['graph', 'vibes'] });
+    writePlugin('beta', { produces: 'vibes' });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/unknown output type "vibes" in "consumes"/),
+      expect.stringMatching(/unknown output type "vibes" in "produces"/),
+    ]);
+  });
+
+  it('validates the declarations before it imports the entry module', async () => {
+    const pluginDir = writePlugin('alpha', { produces: 'vibes' });
+    writeFileSync(
+      join(pluginDir, 'index.js'),
+      'throw new Error("the entry module ran");',
+    );
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/unknown output type "vibes"/),
+    ]);
+  });
+
+  it('refuses a filter that would match nothing', async () => {
+    writePlugin('alpha', { filter: {} });
+    writePlugin('beta', { filter: { extensions: [] } });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/naming neither extensions nor globs/),
+      expect.stringMatching(/naming neither extensions nor globs/),
+    ]);
+  });
+
+  it('refuses an extension written with its dot', async () => {
+    writePlugin('alpha', { filter: { extensions: ['.ts'] } });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/extension "\.ts" with a leading dot/),
+    ]);
+  });
+
+  it('refuses declarations that are not the shape they must be', async () => {
+    writePlugin('alpha', { consumes: 'graph' });
+    writePlugin('beta', { filter: { globs: [''] } });
+    writePlugin('gamma', { exclusive: '  ' });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/"consumes" that is not an array of output types/),
+      expect.stringMatching(/"filter.globs" that is not a list of globs/),
+      expect.stringMatching(/"exclusive" that is not a group name/),
+    ]);
+  });
+
+  it('rejects a module whose extensions contradict the filter it declared', async () => {
+    // The manifest is what the core plans from; the module ships the analyzer.
+    writePlugin('alpha', { filter: { extensions: ['py'] } });
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(
+        /declares filter extensions "py" but exports "ts"/,
+      ),
+    ]);
+  });
+
+  it('reads a filter and an exported list in the same order-free way', async () => {
+    const pluginDir = writePlugin('alpha', {
+      filter: { extensions: ['tsx', 'ts'] },
+    });
+    writeFileSync(
+      join(pluginDir, 'index.js'),
+      PLUGIN_SOURCE('language').replace("['ts']", "['ts', 'tsx']"),
+    );
+
+    const registry = new PluginRegistry(silent);
+
+    expect(await registry.loadDirectory(dir)).toHaveLength(1);
+  });
+});

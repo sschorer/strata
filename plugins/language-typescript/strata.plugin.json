@@ -3,7 +3,7 @@
   "name": "TypeScript / JavaScript",
   "kind": "language",
   "version": "0.6.0",
-  "sdk": "0.1.0",
+  "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Import dependency graph, cycle detection, and metrics for TS/JS. Angular and other analyzers build on this.",
   "author": "Strata"

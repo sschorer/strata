@@ -13,6 +13,12 @@
  * default-exports one of the `define*` helpers below. The core loads manifests,
  * imports the entry, and registers the returned object.
  *
+ * A manifest may also declare the plugin's **stage**: what it consumes, what it
+ * produces, what files it filters on and what it is exclusive with. Those are
+ * static JSON on purpose — the core plans a run from them without importing
+ * anything (`docs/adr/0010`) — and the shapes behind them are `OutputType` and
+ * `StageEntry`, a report's per-stage slot.
+ *
  * This file is a barrel: one concern per module, re-exported here as the public
  * surface. Import from `@strata/sdk`, never from a submodule path.
  */
@@ -26,6 +32,11 @@ export * from './repo.js';
 export * from './graph.js';
 export * from './cycle.js';
 export * from './summary.js';
+export * from './finding.js';
+
+// The pipeline: what a stage produces, and its slot in a report
+export * from './output.js';
+export * from './stage.js';
 
 // The three plugin kinds
 export * from './language.js';

@@ -50,6 +50,8 @@ itself behaves.
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
+| `stage-declarations.ts` | `stageDeclarationError()` — are a manifest's stage declarations ones the core could honour? Read from the JSON alone. |
+| `plugin-agreement.ts` | `pluginAgreementError()` — does the exported object still say what the manifest declared? |
 | `retired-kinds.ts` | `retiredKindError()` — a kind Strata dropped, and what took over its job. |
 | `summarise.ts` | `summarised()` — fill in a language result's graph summary when the plugin (or its cached run) predates the field. |
 | `progress/types.ts` | `AnalysisProgress`, `AnalysisStage`, `ProgressListener` — what a run says about itself while it runs. |

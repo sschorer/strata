@@ -18,11 +18,48 @@ this repo — see [Installing a plugin](#installing-a-plugin).
   "name": "Python",
   "kind": "language",
   "version": "0.1.0",
-  "sdk": "0.1.0",
+  "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Dependency graph and dead code for Python."
 }
 ```
+
+### Declaring a stage
+
+A manifest may also declare the plugin's **stage** — what it consumes, what it
+produces, what files it wants, and what it is exclusive with:
+
+```json
+{
+  "consumes": ["graph"],
+  "produces": "findings",
+  "filter": { "extensions": ["py"], "globs": ["src/**/*.pyi"] },
+  "exclusive": "python-rules"
+}
+```
+
+- **`consumes`** — output types, never plugin ids. Every upstream output of each
+  type arrives keyed by the plugin that produced it, so a stage consuming
+  `graph` works with language modules that did not exist when it was written.
+- **`produces`** — the one output type the stage produces. The set is closed:
+  `graph`, `metrics`, `findings`, `commits`, `aggregate`. `aggregate` is
+  whatever a stage folded for itself, in a shape only it and a consumer that
+  means it understand.
+- **`filter`** — the files it wants, by extension (bare, no dot) and/or by
+  repo-relative glob. The **core** applies it, so the stage sees only what it
+  matched and its cache key covers only those files: an unrelated file changing
+  does not invalidate it.
+- **`exclusive`** — a group of which at most one member runs; configuration
+  names the active one. A repository has one commit convention, not several.
+
+All four are static JSON so the core can order the stages and reject a
+configuration it cannot satisfy **without importing any plugin code**
+([ADR-10](adr/0010-open-analysis-pipeline.md)). They are validated at load, and
+where the exported object still says the same thing — a language plugin's
+`extensions` against `filter.extensions` — the two must agree.
+
+They are optional today: a plugin that declares none of them runs the way it
+always did, by its `kind`. Declaring them is what lets the scheduler place it.
 
 ## The three kinds
 
@@ -170,11 +207,18 @@ What the loader enforces, because a drop-in plugin is not first-party code:
 - Every manifest field is validated, and the `kind` must be one of the three.
   A manifest naming a kind Strata has since dropped (`ai-provider`) is refused
   with what replaced it, rather than as an unknown word.
+- The stage declarations are validated **before the entry module is imported**
+  — an unknown output type, a filter that could match nothing, an extension
+  written `".py"` — because planning a run may not require running third-party
+  code.
 - `main` is resolved **inside the plugin's own directory** — it may not point
   anywhere else on the host.
 - The exported `kind` must match the manifest's, and the export must actually
   implement that kind (a `language` plugin without `analyze()` is refused at
-  load rather than throwing mid-analysis).
+  load rather than throwing mid-analysis). So must anything the manifest
+  declared twice: a `filter.extensions` the module's own `extensions` disagrees
+  with is refused, because the core plans from the manifest and the module does
+  the work.
 - Ids are unique and **first one wins**; built-ins load first, so a drop-in can
   never take over an id Strata ships with.
 - A plugin that trips any of these is skipped, not fatal. It shows up in
@@ -205,3 +249,6 @@ needed between runs. Discovery happens once at startup.
 
 `strata.plugin.json.sdk` must share a major with the running SDK. Breaking a
 published contract in `@strata/sdk` means a major bump and a migration note.
+The SDK is at `0.2.0`, which added the stage declarations above; `0.x` is
+deliberate, and the open pipeline gets used in anger before it is promised
+([ADR-11](adr/0011-sdk-0-2-0-single-break.md)).
