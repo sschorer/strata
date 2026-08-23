@@ -34,9 +34,10 @@ export function graphOf(
 }
 
 /**
- * One language's result, as a report carries it.
+ * One graph stage's output, as its entry carries it — the graph it built, and
+ * what it learned about the files behind it on the way.
  *
- * Summarising is the plugin's job, so the counts here are only the graph's own
+ * Summarising is the stage's job, so the counts here are only the graph's own
  * sizes and nobody is ranked; a test that cares about the summary passes the
  * fields it asserts on.
  */

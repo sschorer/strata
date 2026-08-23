@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { projects, SELECTION_STORAGE_KEY } from '$lib/projects';
 import { failedRunRoutes, runRoutes, stubApi } from '$lib/test/api';
-import { dependenciesOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
 import { render } from '$lib/test/render';
 import Header from './Header.svelte';
 
@@ -12,27 +12,16 @@ import Header from './Header.svelte';
  * and the last is the one that registers a project.
  */
 
-const report = {
+const report = reportOf({
   rev: '982eb56cafe1234',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
     finishedAt: new Date().toISOString(),
   },
-  languages: {},
-  dependencies: dependenciesOf(),
-  metrics: [],
-  commits: [],
-  cache: {
-    enabled: false,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
-  },
-};
+});
 
 const strata = {
   id: 'strata',

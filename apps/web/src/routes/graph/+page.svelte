@@ -22,6 +22,12 @@
     folderTree,
     neighbourhood,
   } from '$lib/graph';
+  import {
+    outputsProducing,
+    stagesProducing,
+    troublesProducing,
+  } from '$lib/stages';
+  import StageNotice from '$lib/stages/StageNotice.svelte';
 
   /** Past this many shapes the picture stops being readable — see `focusGraph`. */
   const NODE_LIMIT = 140;
@@ -37,6 +43,13 @@
   };
 
   let report = $derived(analysis.report);
+  // Who was going to build a graph this run, and what became of them. The
+  // picture below is the fold over the ones that succeeded, so a module that
+  // threw is a *hole* in it — said here rather than left to read as a
+  // repository with fewer imports than it has (`docs/adr/0015`).
+  let planned = $derived(report ? stagesProducing(report, 'graph') : []);
+  let produced = $derived(report ? outputsProducing(report, 'graph') : []);
+  let troubles = $derived(report ? troublesProducing(report, 'graph') : []);
   // The summary and the cycle list describe the repository, not the current
   // view: closing a folder hides files, it does not un-import them. Both come
   // from the run itself — the core folds every language's graph into one and
@@ -187,7 +200,21 @@
     </p>
   {:else if analysis.status === 'running' && !report}
     <p class="text-muted text-sm">Running the pipeline…</p>
+  {:else if planned.length === 0}
+    <p class="text-muted text-sm">
+      No stage in this report produced a dependency graph — install a language
+      module and analyse again to see how this repository imports itself.
+    </p>
+  {:else if produced.length === 0}
+    <!-- Every stage that was going to build one is gone: there is no graph to
+         draw, and the reasons are the whole of what this screen can say. -->
+    <StageNotice {troubles} what="the import graph" />
   {:else if drawn && summary}
+    {#if troubles.length > 0}
+      <div class="mb-6">
+        <StageNotice {troubles} what="its part of the import graph" />
+      </div>
+    {/if}
     <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <Card title="Graph" hint="{summary.nodes} files · {summary.edges} imports">
         <div class="mb-4">

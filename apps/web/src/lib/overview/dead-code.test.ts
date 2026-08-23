@@ -1,29 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import type { AnalysisReport } from '$lib/api';
+import type { DeadCodeFinding } from '@strata/sdk';
+import { graphOf, languageOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
+import { failedStage, okStage } from '$lib/test/stages';
 import { deadCodeCount } from './dead-code';
 
-const report = (
-  deadCode: Record<string, { path: string; reason: string }[]>,
-): AnalysisReport =>
-  ({
-    languages: Object.fromEntries(
-      Object.entries(deadCode).map(([name, findings]) => [
-        name,
-        { graph: { nodes: [], edges: [], cycles: [] }, deadCode: findings },
+/** A run whose graph stages found `deadCode`, keyed by manifest id. */
+const report = (deadCode: Record<string, DeadCodeFinding[]>) =>
+  reportOf({
+    stages: Object.fromEntries(
+      Object.entries(deadCode).map(([id, findings]) => [
+        id,
+        okStage('graph', { ...languageOf(graphOf('')), deadCode: findings }),
       ]),
     ),
-  }) as unknown as AnalysisReport;
+  });
 
 describe('deadCodeCount', () => {
-  it('counts every language', () => {
+  it('counts every stage that produced a graph', () => {
     expect(
       deadCodeCount(
         report({
-          typescript: [
+          'strata-language-typescript': [
             { path: 'src/a.ts', reason: 'unreferenced-export' },
             { path: 'src/b.ts', reason: 'unreachable-file' },
           ],
-          python: [{ path: 'lib/c.py', reason: 'unreferenced-export' }],
+          'acme-language-python': [
+            { path: 'lib/c.py', reason: 'unreferenced-export' },
+          ],
         }),
       ),
     ).toEqual({ findings: 3, files: 3 });
@@ -33,7 +37,7 @@ describe('deadCodeCount', () => {
     expect(
       deadCodeCount(
         report({
-          typescript: [
+          'strata-language-typescript': [
             { path: 'src/barrel.ts', reason: 'unreferenced-export' },
             { path: 'src/barrel.ts', reason: 'unreferenced-export' },
             { path: 'src/barrel.ts', reason: 'unreferenced-export' },
@@ -43,7 +47,19 @@ describe('deadCodeCount', () => {
     ).toEqual({ findings: 3, files: 1 });
   });
 
-  it('is zero for a report with no language results', () => {
+  it('is zero for a report with no graph stage', () => {
     expect(deadCodeCount(report({}))).toEqual({ findings: 0, files: 0 });
+  });
+
+  it('counts nothing out of a stage that failed', () => {
+    // Zero here is not "no dead code" — the card asks `troublesProducing` what
+    // became of the stage and prints that instead of this number.
+    const thrown = reportOf({
+      stages: {
+        'strata-language-typescript': failedStage('graph', 'parser exploded'),
+      },
+    });
+
+    expect(deadCodeCount(thrown)).toEqual({ findings: 0, files: 0 });
   });
 });

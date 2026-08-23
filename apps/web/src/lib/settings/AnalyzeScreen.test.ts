@@ -9,8 +9,7 @@ import type {
 import { PluginsStore } from '$lib/plugins';
 import { ProjectsStore, SELECTION_STORAGE_KEY } from '$lib/projects';
 import { runRoutes, stubApi } from '$lib/test/api';
-import { dependenciesOf } from '$lib/test/graph';
-import { noCommits } from '$lib/test/commits';
+import { reportOf } from '$lib/test/report';
 import { render } from '$lib/test/render';
 import AnalyzeScreen from './AnalyzeScreen.svelte';
 import { ProjectConfigStore } from './config.svelte';
@@ -62,7 +61,7 @@ const loaded: LoadedPluginInfo[] = [
   },
 ];
 
-const report: AnalysisReport = {
+const report: AnalysisReport = reportOf({
   rev: '7f80d51cafebabe',
   run: {
     status: 'ok',
@@ -71,20 +70,7 @@ const report: AnalysisReport = {
     durationMs: 2440,
     finishedAt: '2026-08-16T09:00:00.000Z',
   },
-  languages: {},
-  dependencies: dependenciesOf(),
-  metrics: [],
-  commits: [],
-  commitAnalytics: noCommits(),
-  cache: {
-    enabled: true,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
-  },
-};
+});
 
 /** The rendered text on one line — the markup wraps where a sentence does not. */
 const flat = (node: Element | null) =>

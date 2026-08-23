@@ -3,10 +3,8 @@ import type {
   GraphEdge,
   GraphNode,
   GraphSummary,
-  LanguageAnalysis,
-  MetricSeries,
-  ParsedCommit,
   PluginManifest,
+  StageEntry,
 } from '@strata/sdk';
 
 /**
@@ -88,9 +86,13 @@ export interface CommitWeek {
 }
 
 /**
- * The history window as the core folded it: what the *Commit analytics* screen
- * prints, counted once on the server so a screen never has to walk the log and
- * arrive at its own quietly different answer.
+ * The history window as the commit fold stage counted it: what the *Commit
+ * analytics* screen will print, folded once on the server so a screen never has
+ * to walk the log and arrive at its own quietly different answer.
+ *
+ * The fold's output type is `aggregate` — numbers only its producer and a
+ * consumer that means it understand — so the screen that reads it narrows the
+ * fold's own entry by id.
  */
 export interface CommitAnalytics {
   total: number;
@@ -121,14 +123,27 @@ export interface CrossLanguageGraph {
   summary: GraphSummary;
 }
 
+/**
+ * One run, as the workbench reads it.
+ *
+ * What a run *found* is in `stages` — one entry per stage the run planned,
+ * keyed by the **manifest id** of the plugin behind it, carrying the output
+ * only when the stage succeeded. A screen looks its output up by output type
+ * and, where it means one specific producer, by id, so a stage nobody had
+ * written when the screen was built still reaches it (`docs/adr/0015`).
+ *
+ * The report on the wire also carries the fields the plugin kinds that have
+ * not migrated fill in — `languages`, `metrics`, `commits`, `commitAnalytics`
+ * — which duplicate what the stage entries already say. Nothing here reads
+ * them, so nothing here describes them: a field with a status beside it is the
+ * only shape in which "found nothing" and "did not run" are different answers.
+ */
 export interface AnalysisReport {
   rev: string;
   run: RunReport;
-  languages: Record<string, LanguageAnalysis>;
   dependencies: CrossLanguageGraph;
-  metrics: MetricSeries[];
-  commits: ParsedCommit[];
-  commitAnalytics: CommitAnalytics;
+  /** What each stage did, keyed by the manifest id of the plugin behind it. */
+  stages: Record<string, StageEntry>;
   cache: CacheReport;
 }
 

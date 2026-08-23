@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
+import type { StageEntry } from '@strata/sdk';
 import { analysis } from '$lib/analysis';
-import { runRoutes, stubApi } from '$lib/test/api';
+import { HOTSPOT_STAGE_ID } from '$lib/hotspots';
+import { partialRunRoutes, runRoutes, stubApi } from '$lib/test/api';
+import { graphOf, languageOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
+import { reportOf } from '$lib/test/report';
+import { failedStage, okStage, skippedStage } from '$lib/test/stages';
 import Page from './+page.svelte';
 
 /**
@@ -15,25 +20,14 @@ import Page from './+page.svelte';
  */
 
 function reportWith(rev: string) {
-  return {
+  return reportOf({
     rev,
-    languages: {
-      typescript: {
-        graph: { nodes: [], edges: [], cycles: [] },
-        deadCode: [],
+    stages: {
+      'strata-language-typescript': okStage('graph', {
+        ...languageOf(graphOf('')),
         metrics: [{ path: 'src/big.ts', loc: 940 }],
-        summary: {
-          nodes: 0,
-          edges: 0,
-          cycles: 0,
-          cycleNodes: 0,
-          maxFanIn: null,
-          maxFanOut: null,
-        },
-      },
-    },
-    metrics: [
-      {
+      }),
+      [HOTSPOT_STAGE_ID]: okStage('metrics', {
         id: 'hotspots',
         label: 'Hotspots (churn × complexity)',
         points: [
@@ -48,23 +42,20 @@ function reportWith(rev: string) {
             meta: { churn: 10, complexity: 30 },
           },
         ],
-      },
-    ],
-    commits: [],
-    cache: {
-      enabled: false,
-      hits: 0,
-      misses: 0,
-      runHits: 0,
-      runMisses: 0,
-      writes: 0,
+      }),
     },
-  };
+  });
 }
 
 /** Analyse a repository, as picking a project and running it would. */
 async function run(rev: string): Promise<void> {
   stubApi(runRoutes(reportWith(rev)));
+  await analysis.run('/repo/strata');
+}
+
+/** A partial run: the hotspot stage ended as `entry`, and is all there is. */
+async function partial(entry: StageEntry): Promise<void> {
+  stubApi(partialRunRoutes(reportOf({ stages: { [HOTSPOT_STAGE_ID]: entry } })));
   await analysis.run('/repo/strata');
 }
 
@@ -118,6 +109,46 @@ describe('hotspots page', () => {
     expect(
       ui.container.querySelector('tbody [aria-pressed="true"]')?.textContent,
     ).toContain('src/mid.ts');
+  });
+
+  it('says the stage failed where the ranking would have been', async () => {
+    await partial(failedStage('metrics', 'git log exploded'));
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain(HOTSPOT_STAGE_ID);
+    expect(ui.container.textContent).toContain('failed');
+    expect(ui.container.textContent).toContain('git log exploded');
+    // Not the ranking's own empty state: nothing here found nothing.
+    expect(ui.container.textContent).not.toContain('No hotspot scores');
+  });
+
+  it('tells a stage that never ran from one that ranked nothing', async () => {
+    await partial(
+      skippedStage(
+        'metrics',
+        '"strata-commit-conventional" failed, and this stage consumes what it produces',
+        'strata-commit-conventional',
+      ),
+    );
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain('did not run');
+    expect(ui.container.textContent).toContain('strata-commit-conventional');
+  });
+
+  it('renders an empty state for a run with no hotspot stage at all', async () => {
+    stubApi(runRoutes(reportOf()));
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain('No stage in this report ranks');
+    expect(ui.container.querySelector('.text-danger')).toBeNull();
   });
 
   it('surfaces a failed run', async () => {

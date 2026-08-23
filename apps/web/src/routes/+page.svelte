@@ -1,7 +1,7 @@
 <script lang="ts">
   import { analysis } from '$lib/analysis';
   import Card from '$lib/components/Card.svelte';
-  import { heatScale, hotspotRows } from '$lib/hotspots';
+  import { heatScale, hotspotRows, HOTSPOT_STAGE_ID } from '$lib/hotspots';
   import { plugins } from '$lib/plugins';
   import { commitTypes, hotspotBars, overviewStats } from '$lib/overview';
   import CommitTypes from '$lib/overview/CommitTypes.svelte';
@@ -9,6 +9,13 @@
   import HotspotBars from '$lib/overview/HotspotBars.svelte';
   import PluginList from '$lib/overview/PluginList.svelte';
   import StatGrid from '$lib/overview/StatGrid.svelte';
+  import {
+    outputsProducing,
+    soleOutputOf,
+    troubleOf,
+    troublesProducing,
+  } from '$lib/stages';
+  import StageNotice from '$lib/stages/StageNotice.svelte';
 
   // Load-once, and the rail has already asked: this is here so the screen
   // stands on its own — mounted without the frame, it still knows its plugins.
@@ -25,7 +32,10 @@
   let bars = $derived(hotspotBars(rows));
 
   let cycles = $derived(report?.dependencies.cycles ?? []);
-  let types = $derived(report ? commitTypes(report.commits) : []);
+  // The parsed log of whichever convention parsed it — the conventions are an
+  // exclusive group, so a run has one or none.
+  let commits = $derived(report ? (soleOutputOf(report, 'commits') ?? []) : []);
+  let types = $derived(commitTypes(commits));
   let stats = $derived(
     report
       ? overviewStats(report, {
@@ -33,6 +43,22 @@
           failures: plugins.failures,
         })
       : [],
+  );
+
+  // What is missing, panel by panel: each card asks about the stages behind its
+  // own contents, and prints them there rather than leaving an empty panel that
+  // reads as good news (`docs/adr/0015`).
+  let hotspotTrouble = $derived(
+    report ? troubleOf(report, HOTSPOT_STAGE_ID) : null,
+  );
+  let graphTroubles = $derived(
+    report ? troublesProducing(report, 'graph') : [],
+  );
+  let graphProduced = $derived(
+    report ? outputsProducing(report, 'graph').length > 0 : false,
+  );
+  let commitTroubles = $derived(
+    report ? troublesProducing(report, 'commits') : [],
   );
 
   let loaded = $derived(plugins.response?.plugins ?? []);
@@ -53,6 +79,7 @@
          the effect above has even asked — an empty list is not yet an answer. -->
     <PluginList
       plugins={loaded}
+      stages={report?.stages ?? {}}
       failures={plugins.failures}
       loading={plugins.count === null}
       error={plugins.error}
@@ -80,16 +107,25 @@
     <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <div class="flex flex-col gap-6">
         <Card title="Top hotspots" hint="churn × complexity">
-          <HotspotBars {bars} {scale} />
+          {#if hotspotTrouble}
+            <StageNotice
+              troubles={[hotspotTrouble]}
+              what="the hotspot ranking"
+            />
+          {:else}
+            <HotspotBars {bars} {scale} />
+          {/if}
         </Card>
 
         <Card
           title="Commit types"
-          hint="{report.commits.length} {report.commits.length === 1
-            ? 'commit'
-            : 'commits'}"
+          hint="{commits.length} {commits.length === 1 ? 'commit' : 'commits'}"
         >
-          <CommitTypes {types} />
+          {#if commitTroubles.length > 0}
+            <StageNotice troubles={commitTroubles} what="the parsed history" />
+          {:else}
+            <CommitTypes {types} />
+          {/if}
         </Card>
       </div>
 
@@ -98,7 +134,22 @@
           title="Import cycles"
           hint={cycles.length > 0 ? 'biggest first' : 'none'}
         >
-          <CycleAlert {cycles} />
+          {#if graphTroubles.length > 0}
+            <StageNotice
+              troubles={graphTroubles}
+              what="its part of the import graph"
+            />
+          {/if}
+          {#if graphProduced}
+            <div class:mt-3={graphTroubles.length > 0}>
+              <CycleAlert {cycles} />
+            </div>
+          {:else if graphTroubles.length === 0}
+            <p class="text-muted text-sm">
+              No stage in this report produced a dependency graph, so nothing
+              here knows what imports what.
+            </p>
+          {/if}
         </Card>
 
         {@render pluginCard()}

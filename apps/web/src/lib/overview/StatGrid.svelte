@@ -1,6 +1,6 @@
 <script lang="ts">
   import StatCardView from './StatCard.svelte';
-  import type { StatCard } from './stats';
+  import type { StatCard } from './card';
 
   interface Props {
     cards: StatCard[];

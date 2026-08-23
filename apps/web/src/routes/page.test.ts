@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import { analysis } from '$lib/analysis';
-import { runRoutes, stubApi } from '$lib/test/api';
+import { HOTSPOT_STAGE_ID } from '$lib/hotspots';
+import { partialRunRoutes, runRoutes, stubApi } from '$lib/test/api';
+import { cyclesOf, graphOf, languageOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
+import { reportOf } from '$lib/test/report';
+import { failedStage, okStage, skippedStage } from '$lib/test/stages';
 import Page from './+page.svelte';
 
 /**
@@ -35,41 +39,43 @@ const PLUGINS = {
   failures: [],
 };
 
-const report = {
+const TYPESCRIPT = 'strata-language-typescript';
+const CONVENTION = 'strata-commit-conventional';
+
+/** What the TypeScript stage said: two files importing each other, one dead. */
+const typescript = okStage('graph', {
+  ...languageOf(graphOf('src/a.ts>src/b.ts src/b.ts>src/a.ts', [
+    ['src/a.ts', 'src/b.ts'],
+  ])),
+  deadCode: [{ path: 'src/old.ts', reason: 'unreachable-file' }],
+  metrics: [{ path: 'src/big.ts', loc: 940 }],
+});
+
+const hotspots = okStage('metrics', {
+  id: 'hotspots',
+  label: 'Hotspots (churn × complexity)',
+  points: [
+    { subject: 'src/big.ts', value: 1900, meta: { churn: 19, complexity: 100 } },
+    { subject: 'src/mid.ts', value: 475, meta: { churn: 10, complexity: 30 } },
+  ],
+});
+
+const commits = okStage('commits', [
+  { type: 'feat', scope: null, breaking: false, subject: 'a', tags: {}, valid: true },
+  { type: 'fix', scope: null, breaking: true, subject: 'b', tags: {}, valid: true },
+]);
+
+const report = reportOf({
   rev: '4fea7c5deadbeef',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
     finishedAt: '2026-08-15T11:55:00.000Z',
   },
-  languages: {
-    typescript: {
-      graph: {
-        nodes: [
-          { id: 'src/a.ts', label: 'a.ts', kind: 'file' },
-          { id: 'src/b.ts', label: 'b.ts', kind: 'file' },
-        ],
-        edges: [
-          { from: 'src/a.ts', to: 'src/b.ts', kind: 'import' },
-          { from: 'src/b.ts', to: 'src/a.ts', kind: 'import' },
-        ],
-        cycles: [['src/a.ts', 'src/b.ts']],
-      },
-      deadCode: [{ path: 'src/old.ts', reason: 'unreachable-file' }],
-      metrics: [{ path: 'src/big.ts', loc: 940 }],
-      summary: {
-        nodes: 2,
-        edges: 2,
-        cycles: 1,
-        cycleNodes: 2,
-        maxFanIn: null,
-        maxFanOut: null,
-      },
-    },
-  },
-  // Every language's graph as one, as the core folded it: the cards and the
-  // cycle alert read these, not the per-language results above.
+  // Every graph stage's graph as one, as the core folded it: the cards and the
+  // cycle alert read this, not the stage outputs above.
   dependencies: {
     nodes: [
       { id: 'src/a.ts', label: 'a.ts', kind: 'file' },
@@ -79,9 +85,7 @@ const report = {
       { from: 'src/a.ts', to: 'src/b.ts', kind: 'import' },
       { from: 'src/b.ts', to: 'src/a.ts', kind: 'import' },
     ],
-    cycles: [
-      { nodes: ['src/a.ts', 'src/b.ts'], path: ['src/a.ts', 'src/b.ts', 'src/a.ts'] },
-    ],
+    cycles: cyclesOf([['src/a.ts', 'src/b.ts']]),
     summary: {
       nodes: 2,
       edges: 2,
@@ -91,37 +95,12 @@ const report = {
       maxFanOut: null,
     },
   },
-  metrics: [
-    {
-      id: 'hotspots',
-      label: 'Hotspots (churn × complexity)',
-      points: [
-        {
-          subject: 'src/big.ts',
-          value: 1900,
-          meta: { churn: 19, complexity: 100 },
-        },
-        {
-          subject: 'src/mid.ts',
-          value: 475,
-          meta: { churn: 10, complexity: 30 },
-        },
-      ],
-    },
-  ],
-  commits: [
-    { type: 'feat', scope: null, breaking: false, subject: 'a', tags: {}, valid: true },
-    { type: 'fix', scope: null, breaking: true, subject: 'b', tags: {}, valid: true },
-  ],
-  cache: {
-    enabled: false,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
+  stages: {
+    [TYPESCRIPT]: typescript,
+    [HOTSPOT_STAGE_ID]: hotspots,
+    [CONVENTION]: commits,
   },
-};
+});
 
 /** Analyse a repository, as picking a project and running it would. */
 async function run(): Promise<void> {
@@ -201,6 +180,61 @@ describe('overview page', () => {
     );
     expect(hrefs).toContain('/hotspots');
     expect(hrefs).toContain('/graph');
+  });
+
+  it('says which stage failed where its panel would have been', async () => {
+    stubApi({
+      '/plugins': PLUGINS,
+      ...partialRunRoutes(
+        reportOf({
+          ...report,
+          stages: {
+            [TYPESCRIPT]: failedStage('graph', 'tsconfig.json is not readable'),
+            [HOTSPOT_STAGE_ID]: hotspots,
+            [CONVENTION]: commits,
+          },
+        }),
+      ),
+    });
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    // On the card that would have shown what it built, with the reason.
+    expect(ui.container.textContent).toContain(TYPESCRIPT);
+    expect(ui.container.textContent).toContain('tsconfig.json is not readable');
+    // And the numbers it fed are absent rather than zero.
+    expect(ui.container.textContent).toContain('1 stage failed');
+  });
+
+  it('tells a stage that never ran from one that found nothing', async () => {
+    stubApi({
+      '/plugins': PLUGINS,
+      ...partialRunRoutes(
+        reportOf({
+          ...report,
+          stages: {
+            [TYPESCRIPT]: typescript,
+            [HOTSPOT_STAGE_ID]: skippedStage(
+              'metrics',
+              `"${CONVENTION}" failed, and this stage consumes what it produces`,
+              CONVENTION,
+            ),
+            [CONVENTION]: failedStage('commits', 'the convention threw'),
+          },
+        }),
+      ),
+    });
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain('did not run');
+    expect(ui.container.textContent).toContain('1 stage did not run');
+    // The stage that took it out of the run is named where it can be acted on.
+    expect(ui.container.textContent).toContain('the convention threw');
   });
 
   it('surfaces a failed run', async () => {

@@ -1,31 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisReport } from '$lib/api';
-import { dependenciesOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
 import { runDisplay } from './summary';
 
 const now = Date.parse('2026-08-15T12:00:00.000Z');
 
-const report = {
+const report = reportOf({
   rev: '982eb56cafe1234',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
     finishedAt: '2026-08-15T11:55:00.000Z',
   },
-  languages: {},
-  dependencies: dependenciesOf(),
-  metrics: [],
-  commits: [],
-  cache: {
-    enabled: false,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
-  },
-} as unknown as AnalysisReport;
+});
 
 describe('runDisplay', () => {
   it('folds the run into the strings the header prints', () => {

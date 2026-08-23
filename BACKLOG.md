@@ -80,8 +80,8 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the consumers — *web reads stage entries* and the
-      deletion of the old form.
+      Ready to start: the deletion of the old form, now that the workbench
+      reads stage entries rather than the fields the kinds fill in.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -173,7 +173,22 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         survived the failures is a failed one, and that one leaves the last
         summary standing. A failed stage writes no run cache entry, so a retry
         re-runs what failed and nothing else.
-  - [ ] **P1** Web reads stage entries
+  - [x] Web reads stage entries
+        Every screen looks its contents up by output type — and by producing
+        plugin id only where it means one specific stage — so a stage nobody had
+        written when the screen was built still renders. The overview, hotspots,
+        the dependency graph and the plugin list read the report's stage
+        entries; the fields the kinds fill in are gone from the web's copy of
+        the report shape, and so is every fixture that described them. A stage
+        that failed is printed where its output would have been, with its
+        reason, and a stat card whose number nobody produced prints an em dash
+        rather than a zero — a run whose only language module threw must not
+        read as a repository with no cycles and no dead code. A stage that never
+        ran says so, and says whether an upstream failure or an empty filter is
+        why; a report with no stage of an output type at all renders an empty
+        state. A run in which every stage succeeded renders exactly as before.
+        This is the substance of *empty and error states* for the case where a
+        plugin threw.
   - [ ] **P1** Delete the legacy plugin kinds and report fields
   - [ ] **P1** `strata.config.json` is authoritative
   - [ ] **P1** Retire the project config store

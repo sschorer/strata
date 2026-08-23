@@ -1,37 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { AnalysisReport } from '$lib/api';
-import { noCommits } from '$lib/test/commits';
-import { dependenciesOf, languageOf } from '$lib/test/graph';
-import { hotspotRows } from './rows';
+import type { MetricSeries } from '@strata/sdk';
+import { languageOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
+import { failedStage, okStage, skippedStage } from '$lib/test/stages';
+import { hotspotRows, HOTSPOT_STAGE_ID } from './rows';
 
-function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
-  return {
-    rev: 'abc123',
-    run: {
-      status: 'ok',
-      branch: 'main',
-      files: 0,
-      durationMs: 1,
-      finishedAt: '2026-01-01T00:00:00.000Z',
-    },
-    languages: {},
-    dependencies: dependenciesOf(),
-    metrics: [],
-    commits: [],
-    commitAnalytics: noCommits(),
-    cache: {
-      enabled: false,
-      hits: 0,
-      misses: 0,
-      runHits: 0,
-      runMisses: 0,
-      writes: 0,
-    },
-    ...partial,
-  };
-}
-
-const hotspots = {
+const hotspots: MetricSeries = {
   id: 'hotspots',
   label: 'Hotspots (churn × complexity)',
   points: [
@@ -40,16 +14,20 @@ const hotspots = {
   ],
 };
 
+/** A run whose hotspot stage produced `series`, and nothing else did. */
+const ranked = (series: MetricSeries) =>
+  reportOf({ stages: { [HOTSPOT_STAGE_ID]: okStage('metrics', series) } });
+
 describe('hotspotRows', () => {
-  it('joins the metric with the language plugins line counts', () => {
+  it('joins the hotspot stage with the line counts of the graph stages', () => {
     const rows = hotspotRows(
-      report({
-        metrics: [hotspots],
-        languages: {
-          typescript: {
+      reportOf({
+        stages: {
+          [HOTSPOT_STAGE_ID]: okStage('metrics', hotspots),
+          'strata-language-typescript': okStage('graph', {
             ...languageOf({ nodes: [], edges: [], cycles: [] }),
             metrics: [{ path: 'src/a.ts', loc: 120 }],
-          },
+          }),
         },
       }),
     );
@@ -60,23 +38,46 @@ describe('hotspotRows', () => {
     ]);
   });
 
-  it('is empty when no plugin published the series', () => {
-    expect(hotspotRows(report({ metrics: [{ id: 'other', label: 'x', points: [] }] })))
-      .toEqual([]);
+  it('is empty when no stage produced the series', () => {
+    const other = reportOf({
+      stages: {
+        'strata-git-coupling': okStage('metrics', {
+          id: 'coupling',
+          label: 'x',
+          points: [],
+        }),
+      },
+    });
+
+    expect(hotspotRows(other)).toEqual([]);
+  });
+
+  it('reads nothing out of a stage that failed or never ran', () => {
+    const failed = reportOf({
+      stages: { [HOTSPOT_STAGE_ID]: failedStage('metrics', 'git log exploded') },
+    });
+    const skipped = reportOf({
+      stages: {
+        [HOTSPOT_STAGE_ID]: skippedStage(
+          'metrics',
+          '"strata-commit-conventional" failed',
+          'strata-commit-conventional',
+        ),
+      },
+    });
+
+    expect(hotspotRows(failed)).toEqual([]);
+    expect(hotspotRows(skipped)).toEqual([]);
   });
 
   it('drops unscored files and reads missing meta as zero', () => {
     const rows = hotspotRows(
-      report({
-        metrics: [
-          {
-            id: 'hotspots',
-            label: 'Hotspots',
-            points: [
-              { subject: 'src/zero.ts', value: 0, meta: { churn: 1 } },
-              { subject: 'src/bare.ts', value: 5 },
-            ],
-          },
+      ranked({
+        id: 'hotspots',
+        label: 'Hotspots',
+        points: [
+          { subject: 'src/zero.ts', value: 0, meta: { churn: 1 } },
+          { subject: 'src/bare.ts', value: 5 },
         ],
       }),
     );
