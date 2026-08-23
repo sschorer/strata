@@ -1,8 +1,7 @@
 import {
-  defineGitMetricPlugin,
+  defineStage,
   type MetricSeries,
-  type RawCommit,
-  type RepoContext,
+  type StageContext,
 } from '@strata/sdk';
 import { changedFilesByCommit } from './commits.js';
 import { rankCoupling, type CouplingOptions } from './coupling.js';
@@ -17,6 +16,11 @@ import { countCoChanges } from './pairs.js';
  * component and its test fixture, an API route and a client) but that every
  * change has to touch together. High coupling across module boundaries is the
  * architectural smell worth acting on.
+ *
+ * A stage: the manifest declares that it consumes the commit log, produces a
+ * metric series and wants every file — every file, because a pair is only
+ * reported while both of its paths still exist, and that is a question about
+ * the whole tree rather than about one language.
  */
 
 /**
@@ -33,10 +37,9 @@ const DEFAULTS: CouplingOptions = {
 /** Commits touching more files than this are skipped — see `countCoChanges`. */
 const MAX_FILES_PER_COMMIT = 30;
 
-export default defineGitMetricPlugin({
-  id: 'change-coupling',
-  async compute(ctx: RepoContext, history: RawCommit[]): Promise<MetricSeries> {
-    const commits = await changedFilesByCommit(ctx, history);
+export default defineStage<'metrics'>({
+  async run(ctx: StageContext): Promise<MetricSeries> {
+    const commits = await changedFilesByCommit(ctx, ctx.history);
     const coChanges = countCoChanges(commits, MAX_FILES_PER_COMMIT);
     const present = new Set(ctx.files.map((f) => f.path));
 
