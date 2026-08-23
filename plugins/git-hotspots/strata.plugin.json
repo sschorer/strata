@@ -1,10 +1,13 @@
 {
   "id": "strata-git-hotspots",
   "name": "Hotspots",
-  "kind": "git-metric",
-  "version": "0.1.0",
+  "kind": "stage",
+  "version": "0.2.0",
   "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Ranks files by change frequency × complexity to surface maintenance hotspots.",
-  "author": "Strata"
+  "author": "Strata",
+  "consumes": ["commits"],
+  "produces": "metrics",
+  "filter": { "globs": ["**"] }
 }

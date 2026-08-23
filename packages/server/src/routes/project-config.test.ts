@@ -27,6 +27,7 @@ import { projectConfigRoute } from './project-config.js';
  */
 
 const LANGUAGE_ID = 'test-language';
+const METRIC_STAGE_ID = 'test-hotspots';
 
 let projects: ProjectStore;
 let app: FastifyInstance;
@@ -54,6 +55,27 @@ beforeAll(async () => {
     }),
   );
 
+  // A metric that has migrated to a stage: `metrics` still names it, so the
+  // screen that renders it has to be able to write it back.
+  const stageDir = join(pluginDir, 'stage');
+  mkdirSync(join(stageDir, 'dist'), { recursive: true });
+  writeFileSync(
+    join(stageDir, 'dist/index.mjs'),
+    "export default { kind: 'stage', run: async () => ({}) };\n",
+  );
+  writeFileSync(
+    join(stageDir, 'strata.plugin.json'),
+    JSON.stringify({
+      id: METRIC_STAGE_ID,
+      name: 'Test hotspots',
+      kind: 'stage',
+      version: '1.0.0',
+      sdk: '0.2.0',
+      main: './dist/index.mjs',
+      produces: 'metrics',
+    }),
+  );
+
   registry = new PluginRegistry({
     debug() {},
     info() {},
@@ -61,6 +83,7 @@ beforeAll(async () => {
     error() {},
   });
   await registry.loadFrom(join(pluginDir, 'strata.plugin.json'));
+  await registry.loadFrom(join(stageDir, 'strata.plugin.json'));
 }, 30_000);
 
 afterAll(() => {
@@ -173,6 +196,13 @@ describe('PATCH /projects/:id/config', () => {
   it('refuses a metric or convention it does not know either', async () => {
     expect((await patch({ metrics: [LANGUAGE_ID] })).statusCode).toBe(400);
     expect((await patch({ convention: 'gitmoji' })).statusCode).toBe(400);
+  });
+
+  it('accepts a metric that has become a stage', async () => {
+    const response = await patch({ metrics: [METRIC_STAGE_ID] });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().metrics).toEqual([METRIC_STAGE_ID]);
   });
 
   it('rejects a value that cannot mean anything', async () => {

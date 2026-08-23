@@ -24,6 +24,24 @@ export type RunPluginConfig = Pick<
 >;
 
 /**
+ * Which of those settings selects a stage, by what the stage produces.
+ *
+ * The bridge across the migration: a plugin that becomes a stage stops being a
+ * `git-metric` and keeps being what the `metrics` list means. A stage producing
+ * something no setting names — a findings list, an aggregate — is not
+ * selectable yet and runs, which is what an unconfigured project asks for.
+ */
+const SELECTED_BY: Partial<
+  Record<
+    NonNullable<LoadedPluginInfo['produces']>,
+    Extract<keyof RunPluginConfig, 'languages' | 'metrics'>
+  >
+> = {
+  graph: 'languages',
+  metrics: 'metrics',
+};
+
+/**
  * Who takes part in a run over this project, in the order the workbench loaded
  * them.
  *
@@ -56,6 +74,15 @@ export function runPlugins(
     };
 
     switch (plugin.kind) {
+      case 'stage': {
+        // A stage answers to the setting that names what it produces, for as
+        // long as configuration names plugins per kind at all — a metric that
+        // has migrated is still switched on and off through `metrics`.
+        const setting = plugin.produces ? SELECTED_BY[plugin.produces] : null;
+        return setting
+          ? allowed(entry, config?.[setting])
+          : { ...entry, runs: true, note: '' };
+      }
       case 'language':
         return allowed(entry, config?.languages);
       case 'git-metric':

@@ -5,6 +5,7 @@ import type { PluginKind } from '@strata/sdk';
  * only says what a module claims to be; this is the module delivering it.
  */
 const REQUIRED: Record<PluginKind, readonly Member[]> = {
+  stage: [['run', 'function']],
   language: [
     ['extensions', 'array'],
     ['analyze', 'function'],

@@ -1,7 +1,13 @@
-import type { LanguageAnalysis, MetricSeries, ParsedCommit } from '@strata/sdk';
+import type {
+  LanguageAnalysis,
+  MetricSeries,
+  ParsedCommit,
+  StageEntry,
+} from '@strata/sdk';
 import type { CacheOptions, CacheStats } from './cache/index.js';
 import type { CommitAnalytics } from './commits/index.js';
 import type { CrossLanguageGraph } from './graph/index.js';
+import type { StageProvenance } from './stages/index.js';
 
 export interface AnalyzeOptions {
   /** Working-tree root of the repo to analyse. */
@@ -80,5 +86,29 @@ export interface AnalysisReport {
   commits: ParsedCommit[];
   /** The same window, folded: per type and scope, conformance, activity. */
   commitAnalytics: CommitAnalytics;
+  /**
+   * One entry per stage this run planned, keyed by the **manifest id** of the
+   * plugin behind it — a status, and the output only when the stage succeeded.
+   *
+   * Keyed by id rather than by anything about the output, so two stages
+   * producing the same type both fit and a consumer that means one specific
+   * producer can find it. A stage that never ran is here too, saying so:
+   * "found nothing" and "did not run" have to be different answers
+   * ([ADR-15](../../../docs/adr/0015-partial-runs-and-per-stage-status.md)).
+   *
+   * The fields above are what the plugin kinds that have not migrated still
+   * fill in; a stage's output reaches them as well, so nothing downstream has
+   * to move before the last plugin has.
+   */
+  stages: Record<string, StageEntry>;
+  /**
+   * Every stage the run ordered, in that order, with the version of the plugin
+   * behind it and how it ended.
+   *
+   * What makes two runs comparable: a gate that flipped is either a change in
+   * the repository or a change in who measured it, and the second is not
+   * knowable from the numbers alone.
+   */
+  provenance: StageProvenance[];
   cache: CacheReport;
 }

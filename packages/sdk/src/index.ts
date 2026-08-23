@@ -1,7 +1,9 @@
 /**
  * @strata/sdk — the contracts every Strata plugin implements.
  *
- * There are three plugin kinds, each a small, versioned interface:
+ * A plugin contributes a **stage**: `run(ctx)` over the files its manifest
+ * filtered for and the outputs it consumes, producing one output type. Three
+ * older kinds are still honoured until the last plugin has migrated to it:
  *   - LanguagePlugin          per-language static analysis (deps, dead code, metrics)
  *   - CommitConventionPlugin  parse a commit message into structured meaning
  *   - GitMetricPlugin         derive a metric series from repository history
@@ -34,8 +36,11 @@ export * from './cycle.js';
 export * from './summary.js';
 export * from './finding.js';
 
-// The pipeline: what a stage produces, and its slot in a report
+// The pipeline: what a stage is given, what it produces, and its slot in a report
 export * from './output.js';
+export * from './stage-inputs.js';
+export * from './stage-context.js';
+export * from './stage-plugin.js';
 export * from './stage.js';
 
 // The three plugin kinds

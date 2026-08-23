@@ -1,7 +1,7 @@
 # Module: `@strata/plugin-git-hotspots` — Architecture (arc42)
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
-> Kind: **git-metric**.
+> Kind: **stage** — consumes `commits`, produces `metrics`.
 
 ## 1. Purpose & Goals
 
@@ -17,8 +17,11 @@ git metric.
 ## 3. Interfaces (Context)
 
 - **Depends on:** `@strata/sdk`.
-- **Consumed by:** the core's git-metric step → `MetricSeries { id: "hotspots" }`.
-- **Manifest:** `strata.plugin.json` (`kind: git-metric`).
+- **Consumed by:** the scheduler → a stage entry keyed `strata-git-hotspots`,
+  carrying `MetricSeries { id: "hotspots" }`. The same series still reaches
+  `report.metrics`, so the hotspots screen reads what it always did.
+- **Manifest:** `strata.plugin.json` (`kind: stage`, `consumes: ["commits"]`,
+  `produces: "metrics"`, `filter: { globs: ["**"] }`).
 
 ## 4. Building Blocks
 
@@ -30,7 +33,9 @@ git metric.
 
 ## 5. Runtime
 
-`compute(ctx, history)` → per-file points. Only files that actually churned are
+`run(ctx)` → per-file points, over `ctx.files` (every tracked file, as the
+filter asks for) and `ctx.history` (the run's window, because the manifest
+declares it consumes the commit log). Only files that actually churned are
 scored.
 
 ## 6. Decisions
@@ -39,6 +44,11 @@ scored.
   later supply real cyclomatic complexity to replace it.
 - Windowed by the same commit count the core used, so history caps apply
   consistently.
+- **The filter is every file**, and says so rather than being left out: a
+  hotspot is whatever churns, in whatever language, and a stage that declared
+  no filter would be handed no files at all. The core applies it, so the cache
+  key is the file set this stage was actually given
+  ([ADR-10](../../docs/adr/0010-open-analysis-pipeline.md)).
 
 ## 7. Quality & Risks
 

@@ -24,6 +24,8 @@ function reportFor(rev: string): AnalysisReport {
     dependencies: crossLanguageGraph([]),
     metrics: [],
     commits: [],
+    stages: {},
+    provenance: [],
     commitAnalytics: {
       total: 0,
       valid: 0,

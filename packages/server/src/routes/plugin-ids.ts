@@ -18,7 +18,11 @@ export function requireKnownPlugins(
 ): void {
   if (ids === null || ids === undefined) return;
 
-  const known = registry.loadedByKind(kind).map((l) => l.manifest.id);
+  // Everything that setting selects, which is that kind's plugins *and* the
+  // stages producing what it produced — a metric that has migrated is still
+  // what the `metrics` list means, and refusing its id here would make a
+  // screen unable to write back what it just rendered.
+  const known = registry.loadedFor(kind).map((l) => l.manifest.id);
   const unknown = (Array.isArray(ids) ? ids : [ids]).filter(
     (id) => !known.includes(id),
   );

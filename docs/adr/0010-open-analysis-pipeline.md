@@ -1,6 +1,6 @@
 # The analysis pipeline is an open, dependency-ordered graph of stages
 
-> Status: accepted, not yet implemented. See [ADR-11](0011-sdk-0-2-0-single-break.md) for sequencing.
+> Status: accepted, being implemented — the core schedules the stages and the first plugin (hotspots) runs as one; the other kinds run beside them until each has migrated. See [ADR-11](0011-sdk-0-2-0-single-break.md) for sequencing.
 
 `Strata.analyze` runs a fixed three-phase pipeline — languages, then history metrics, then commit parsing — with the report's shape and the order both hard-coded. Anything that is not one of those three (architecture fitness, the commit fold) has to be written into the core, which contradicts the claim that the tool grows without the core changing.
 

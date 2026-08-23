@@ -2,8 +2,10 @@
  * Where an analysis has got to, as the pipeline reports it while it runs.
  *
  * The stages are the pipeline's own sequence, not a percentage dressed up: a
- * reader following a run sees the same steps `Strata.analyze` takes, and two of
- * them (`language`, `metric`) repeat once per plugin that takes part.
+ * reader following a run sees the same steps `Strata.analyze` takes, and three
+ * of them (`stage`, `language`, `metric`) repeat once per plugin that takes
+ * part. `stage` is the scheduled pipeline; the other two are the plugin kinds
+ * that have not migrated to it yet.
  */
 export type AnalysisStage =
   /** Resolving the revision and the branch it names. */
@@ -12,6 +14,8 @@ export type AnalysisStage =
   | 'scanning'
   /** One language plugin parsing the files it claims; `detail` is its id. */
   | 'language'
+  /** One stage the scheduler ordered; `detail` is its plugin id. */
+  | 'stage'
   /** Reading the commit log for the history window. */
   | 'history'
   /** One git-metric plugin folding that log; `detail` is its id. */

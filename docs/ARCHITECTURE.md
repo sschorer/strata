@@ -104,7 +104,7 @@ strata/
 ├── plugins/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-coupling/             change-coupling metric         (git-metric)
-│   ├── git-hotspots/             churn × complexity metric      (git-metric)
+│   ├── git-hotspots/             churn × complexity metric      (stage)
 │   └── language-typescript/      TS/JS graph, metrics, dead code (language)
 ├── apps/
 │   └── web/     @strata/web      Web UI (SvelteKit SPA + Tailwind)
@@ -127,13 +127,22 @@ Quality/Risks). Start here:
 - [`plugins/language-typescript/ARCHITECTURE.md`](../plugins/language-typescript/ARCHITECTURE.md)
 - [`apps/web/ARCHITECTURE.md`](../apps/web/ARCHITECTURE.md)
 
-### Level 2 — the three plugin kinds
+### Level 2 — the plugin kinds
 
 | Kind | Contract (in `@strata/sdk`) | Produces |
 |------|------------------------------|----------|
+| `stage` | `StagePlugin.run(ctx)` | the one output type its manifest declares |
 | `language` | `LanguagePlugin.analyze(ctx)` | `LanguageAnalysis` (graph, graph summary, dead code, metrics) |
 | `commit-convention` | `CommitConventionPlugin.parse(commit)` | `ParsedCommit` |
 | `git-metric` | `GitMetricPlugin.compute(ctx, history)` | `MetricSeries` |
+
+`stage` is the one the core schedules, and the one the other three collapse
+into: a stage declares what it consumes and produces in its **manifest**, and
+the core orders the pipeline from those declarations
+([ADR-10](./adr/0010-open-analysis-pipeline.md)). The three below it are what a
+plugin was before that and run the way they always did until the last of them
+has migrated ([ADR-11](./adr/0011-sdk-0-2-0-single-break.md)); `git-hotspots` is
+the first that has.
 
 There is no AI kind: a provider is a configured instance in the app settings and
 the call surface for one is internal to the core
@@ -157,10 +166,17 @@ pipeline then does, on that thread:
 
 1. `Strata.analyze({root, rev})` resolves `rev` → sha and branch, and lists
    tracked files (each with its blob sha), narrowed once to the project's
-   scope — its analyse paths, minus its ignore globs.
+   scope — its analyse paths, minus its ignore globs. The **stages** are read
+   off the manifests and ordered here too, so a configuration nothing can
+   satisfy fails before anything is read.
 2. Files are routed to the enabled `language` plugins by extension.
-3. Commit history is streamed; the enabled `git-metric` plugins compute their
-   series.
+3. Commit history is streamed. Then the ordered **stages** run: the core applies
+   each one's filter, hands it every upstream output of the types it consumes
+   keyed by producer, and records what it produced as a **stage entry** in the
+   report ([ADR-10](./adr/0010-open-analysis-pipeline.md)). The enabled
+   `git-metric` plugins — the ones that have not migrated — compute their series
+   after them, and a migrated stage's output still reaches the report field its
+   kind's did.
 4. The active `commit-convention` plugin parses each commit, and the core folds
    the parsed log into `CommitAnalytics` — per type, per scope, how much of the
    history conforms, breaking changes, weekly activity.
@@ -168,7 +184,9 @@ pipeline then does, on that thread:
    summarised, and with every import cycle ordered into a path — so no consumer
    has to derive it a second time
    ([ADR-10](./adr/0010-open-analysis-pipeline.md)).
-6. Results merge into an `AnalysisReport`, returned by the API.
+6. Results merge into an `AnalysisReport`, returned by the API — the fields the
+   kinds fill in, plus one **stage entry** per stage keyed by manifest id and
+   the run's **provenance**: which stages it ordered, and at which versions.
 
 Which plugins are "enabled" and which convention is "active" are the project's
 configuration; a project that has configured neither runs every plugin and
@@ -230,9 +248,10 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   the exclusive group it belongs to. Static JSON, validated before the entry
   module is imported, so a run is planned without running third-party code
   ([ADR-10](./adr/0010-open-analysis-pipeline.md)); where the exported object
-  says the same thing, the registry holds the two to each other at load. Read
-  and reported (`GET /plugins`) but not yet scheduled from — the three kinds
-  above still drive a run.
+  says the same thing, the registry holds the two to each other at load. The
+  core **schedules from them**: it orders the stages, applies each filter and
+  resolves each dependency by output type. The other three kinds still drive
+  the part of a run whose plugins have not migrated.
 - **RepoContext** — the single immutable surface plugins are allowed to touch
   (`root`, `rev`, `files`, `git()`, `log`, `cache`).
 - **Incremental cache** — two levels in one SQLite file (`node:sqlite`, no
@@ -343,9 +362,10 @@ the record holds the trade-off and what it costs us.
 | [ADR-14](./adr/0014-cli-and-its-trust-model.md) | A first-class CLI beside the server, with no path allow-list |
 | [ADR-15](./adr/0015-partial-runs-and-per-stage-status.md) | A stage failure fails its dependents, not the run |
 
-ADR-10 through ADR-15 are **accepted but not yet implemented** — sections 5, 6
-and 8 above still describe the shipped three-phase pipeline. ADR-11 holds the
-landing order.
+ADR-10 is **being implemented**: the core schedules the stages that plugins have
+declared, and the plugin kinds still run beside them until each has migrated —
+sections 5, 6 and 8 describe both halves. ADR-11 through ADR-15 are accepted and
+not yet implemented; ADR-11 holds the landing order.
 
 New decisions are written straight into `docs/adr/` and listed here. The
 project's vocabulary is [`CONTEXT-MAP.md`](../CONTEXT-MAP.md).

@@ -46,6 +46,20 @@ export type {
   StrataOptions,
 } from './types.js';
 export {
+  declaredStages,
+  matchedFiles,
+  orderStages,
+  planStages,
+  runStages,
+  stagesToRun,
+  UnorderableStagesError,
+  type PlannedStage,
+  type Stage,
+  type StagePlan,
+  type StageProvenance,
+} from './stages/index.js';
+export { producedByKind } from './legacy-kinds.js';
+export {
   openAnalysisCache,
   nullCache,
   type AnalysisCache,

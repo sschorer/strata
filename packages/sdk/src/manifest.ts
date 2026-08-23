@@ -3,8 +3,13 @@ import type { OutputType } from './output.js';
 /**
  * Every plugin kind, as a value — a loader validating a hand-written manifest
  * needs the list at runtime, not just the type.
+ *
+ * `stage` is the one the pipeline schedules; the other three are what a plugin
+ * was before stages existed, and they run the way they always did until the
+ * last of them has migrated (`docs/adr/0011`).
  */
 export const PLUGIN_KINDS = [
+  'stage',
   'language',
   'commit-convention',
   'git-metric',
@@ -51,10 +56,12 @@ export interface PluginManifest {
    * rejecting a configuration that cannot be satisfied — must never require
    * running third-party code (`docs/adr/0010`).
    *
-   * Optional for as long as `kind` still drives a run: a plugin that declares
-   * none of them is an ordinary language, git-metric or commit-convention
-   * plugin and runs the way it always did. The stage contract lands beside the
-   * kinds and replaces them once nothing needs them (`docs/adr/0011`).
+   * A plugin of kind `stage` must declare what it `produces`; the rest are
+   * optional for as long as `kind` still drives a run, and a plugin that
+   * declares none of them is an ordinary language, git-metric or
+   * commit-convention plugin and runs the way it always did. The stage
+   * contract lands beside the kinds and replaces them once nothing needs them
+   * (`docs/adr/0011`).
    */
 
   /**
@@ -63,7 +70,7 @@ export interface PluginManifest {
    * plugins are installed.
    */
   consumes?: OutputType[];
-  /** The single output type the stage produces. */
+  /** The single output type the stage produces; required of a `stage`. */
   produces?: OutputType;
   /** The files it wants; omitted means it reads no files of its own. */
   filter?: StageFilter;

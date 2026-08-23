@@ -30,20 +30,33 @@ export function missingPlugins(
 ): MissingPlugins[] {
   if (!config) return [];
   return [
-    named('languages', 'language', plugins, config.languages),
-    named('metrics', 'git-metric', plugins, config.metrics),
-    named('convention', 'commit-convention', plugins, config.convention),
+    named('languages', 'language', 'graph', plugins, config.languages),
+    named('metrics', 'git-metric', 'metrics', plugins, config.metrics),
+    named(
+      'convention',
+      'commit-convention',
+      'commits',
+      plugins,
+      config.convention,
+    ),
   ].filter((entry): entry is MissingPlugins => entry !== null);
 }
 
 function named(
   setting: keyof RunPluginConfig,
   kind: LoadedPluginInfo['kind'],
+  produces: LoadedPluginInfo['produces'],
   plugins: readonly LoadedPluginInfo[],
   names: readonly string[] | string | null,
 ): MissingPlugins | null {
   if (names === null) return null;
-  const loaded = plugins.filter((p) => p.kind === kind).map((p) => p.id);
+  // What the setting selects: that kind's plugins, and the stages producing
+  // what it produced. A plugin that migrated to a stage still answers to the
+  // list that has always named it, so a project is not told its run will not
+  // start on the day hotspots became a stage.
+  const loaded = plugins
+    .filter((p) => p.kind === kind || (p.kind === 'stage' && p.produces === produces))
+    .map((p) => p.id);
   const ids = (typeof names === 'string' ? [names] : names).filter(
     (id) => !loaded.includes(id),
   );
