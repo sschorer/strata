@@ -31,8 +31,13 @@ export interface AnalyzeOptions {
   /** Ids of the `git-metric` plugins that may run; same rule. */
   metrics?: readonly string[] | null;
   /**
-   * Id of the `commit-convention` plugin that parses the history; omitted or
-   * `null` takes the first registered one.
+   * Id of the plugin that parses the history — a convention stage, or a
+   * `commit-convention` plugin that has not migrated.
+   *
+   * It is what settles the exclusive group the conventions share: omitted or
+   * `null` is no choice, which is fine while only one convention is loaded and
+   * fails the run once two are. A convention that has not migrated still falls
+   * back to the first registered, as its kind always did.
    */
   convention?: string | null;
   /** Set false to recompute everything for this run (nothing is read or written). */

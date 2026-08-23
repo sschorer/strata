@@ -9,5 +9,6 @@ export { claimedFiles } from './extensions.js';
 export { enabledPlugins } from './plugins.js';
 export { enabledStages } from './stages.js';
 export { chosenConvention, type LoadedConvention } from './convention.js';
+export { namedPlugins, type NamedPlugins } from './configured.js';
 export { requireLoaded } from './named.js';
 export { MissingPluginError, type NamedBy } from './errors.js';

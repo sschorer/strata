@@ -117,11 +117,64 @@ const SERIES = (id: string) => `export default {
 };
 `;
 
+/**
+ * A commit convention: the run's history window, read into a parsed log that
+ * stamps the convention's own name as the type, so a report says who parsed it.
+ */
+const CONVENTION = (id: string) => `export default {
+  kind: 'stage',
+  async run(ctx) {
+    (globalThis.__strataStageRuns ??= []).push('${id}');
+    return ctx.history.map((commit) => ({
+      type: '${id}',
+      scope: null,
+      breaking: false,
+      subject: commit.message,
+      tags: {},
+      valid: true,
+    }));
+  },
+};
+`;
+
+/**
+ * The commit fold, as far as this suite cares: it counts the window it was
+ * handed and the log whoever produced one parsed, and says which producers it
+ * saw. The real fold ships as its own plugin; what is being tested here is that
+ * the core wires the two together and carries the result.
+ */
+const FOLD = `export default {
+  kind: 'stage',
+  async run(ctx) {
+    (globalThis.__strataStageRuns ??= []).push('strata-commit-fold');
+    const producers = Object.keys(ctx.inputs.commits).sort();
+    const parsed = Object.values(ctx.inputs.commits)[0] ?? [];
+    return {
+      total: ctx.history.length,
+      valid: parsed.length,
+      invalid: 0,
+      validRate: parsed.length > 0 ? 1 : 0,
+      breaking: 0,
+      types: parsed.map((commit) => ({
+        name: commit.type,
+        count: 1,
+        share: 1,
+        breaking: 0,
+      })),
+      scopes: [],
+      weeks: [],
+      producers,
+    };
+  },
+};
+`;
+
 /** What a fixture's manifest declares about its stage. */
 interface Declarations {
   produces: OutputType;
   consumes?: OutputType[];
   filter?: StageFilter;
+  exclusive?: string;
   version?: string;
 }
 
@@ -349,8 +402,9 @@ describe('the files a stage is given', () => {
       'docs',
       'reads-no-files',
     ]);
-    // Two steps before the stages, the history read, the commit fold.
-    expect(steps.at(-1)).toMatchObject({ completed: 7, total: 7 });
+    // Two steps before the stages, the history read, and the three stages —
+    // nothing else, because no convention of the old kind parses here.
+    expect(steps.at(-1)).toMatchObject({ completed: 6, total: 6 });
   });
 });
 
@@ -428,6 +482,167 @@ describe('what the report carries', () => {
     await expect(
       strata.analyze({ root: repo, metrics: ['hot', 'gone'] }),
     ).rejects.toThrow(/"metrics" names git-metric plugin "gone"/);
+  });
+});
+
+/**
+ * A repository has one commit convention, and "96% conforming" only means
+ * something relative to one — so the conventions declare a shared **exclusive
+ * group**, configuration names the active member, and the rest are not in the
+ * run at all. The graph downstream then sees exactly one parsed log.
+ */
+describe('an exclusive group', () => {
+  /** A workbench with `ids` conventions loaded, all in the same group. */
+  async function conventions(...ids: string[]): Promise<PluginRegistry> {
+    const registry = new PluginRegistry();
+    for (const id of ids) {
+      await install(
+        registry,
+        id,
+        { produces: 'commits', consumes: ['commits'], exclusive: 'commit-convention' },
+        CONVENTION(id),
+      );
+    }
+    return registry;
+  }
+
+  it('runs the member the configuration named, and leaves the rest out', async () => {
+    const registry = await conventions('conventional', 'gitmoji');
+    const strata = new Strata(registry, { cache: false });
+
+    try {
+      const report = await strata.analyze({ root: repo, convention: 'gitmoji' });
+
+      expect(globalThis.__strataStageRuns).toEqual(['gitmoji']);
+      // Not skipped — out of the run entirely, as an allow-list leaves a stage.
+      expect(report.stages.conventional).toBeUndefined();
+      expect(report.provenance.map((entry) => entry.id)).toEqual(['gitmoji']);
+      expect(report.commits.map((commit) => commit.type)).toEqual(['gitmoji']);
+    } finally {
+      strata.close();
+    }
+  });
+
+  it('needs no choice while the group has one member', async () => {
+    const registry = await conventions('conventional');
+    const strata = new Strata(registry, { cache: false });
+
+    try {
+      // Installing a single convention is unambiguous on its own; an
+      // unconfigured workbench that did nothing with it would be useless.
+      const report = await strata.analyze({ root: repo });
+
+      expect(report.commits.map((commit) => commit.type)).toEqual([
+        'conventional',
+      ]);
+    } finally {
+      strata.close();
+    }
+  });
+
+  it('fails the run when two are loaded and nothing chose between them', async () => {
+    const registry = await conventions('conventional', 'gitmoji');
+    const strata = new Strata(registry, { cache: false });
+
+    try {
+      // Picking one would report the history as conforming to a convention
+      // nobody asked for, which no reader can tell from a history that does.
+      await expect(strata.analyze({ root: repo })).rejects.toThrow(
+        /exclusive group "commit-convention"/,
+      );
+      expect(globalThis.__strataStageRuns).toEqual([]);
+    } finally {
+      strata.close();
+    }
+  });
+
+  it('still fails a run naming a convention nobody loaded', async () => {
+    const registry = await conventions('conventional');
+    const strata = new Strata(registry, { cache: false });
+
+    try {
+      await expect(
+        strata.analyze({ root: repo, convention: 'gitmoji' }),
+      ).rejects.toThrow(/"convention" names commit-convention plugin "gitmoji"/);
+    } finally {
+      strata.close();
+    }
+  });
+});
+
+/**
+ * The commit fold is the first stage that consumes another stage's output
+ * rather than the repository — the pattern every later consumer follows. It
+ * asks for a parsed log by output type and is handed whatever produced one.
+ */
+describe('a stage that consumes another stage', () => {
+  let strata: Strata;
+
+  beforeAll(async () => {
+    const registry = new PluginRegistry();
+    // The fold is loaded first, so an order that came out right came from the
+    // declarations rather than from who was installed first.
+    await install(
+      registry,
+      'strata-commit-fold',
+      { produces: 'aggregate', consumes: ['commits'] },
+      FOLD,
+    );
+    await install(
+      registry,
+      'gitmoji',
+      { produces: 'commits', consumes: ['commits'], exclusive: 'commit-convention' },
+      CONVENTION('gitmoji'),
+    );
+    strata = new Strata(registry, { cache: false });
+  });
+
+  afterAll(() => strata.close());
+
+  it('runs after the convention and is handed its log, keyed by producer', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    expect(globalThis.__strataStageRuns).toEqual([
+      'gitmoji',
+      'strata-commit-fold',
+    ]);
+    expect(witnessed(report, 'strata-commit-fold')).toMatchObject({
+      producers: ['gitmoji'],
+      total: 1,
+      valid: 1,
+    });
+  });
+
+  it('still fills in the field the commit analytics have always reached', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    // What the *Commit analytics* screen reads. The fold is a stage now and
+    // the core counts nothing itself, but nothing downstream has moved yet.
+    expect(report.commitAnalytics).toMatchObject({
+      total: 1,
+      types: [{ name: 'gitmoji' }],
+    });
+  });
+
+  it('reports zeroes for a workbench with no fold installed', async () => {
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'gitmoji',
+      { produces: 'commits', consumes: ['commits'] },
+      CONVENTION('gitmoji'),
+    );
+    const unfolded = new Strata(registry, { cache: false });
+
+    try {
+      const report = await unfolded.analyze({ root: repo });
+
+      // Honest rather than helpful: the log was parsed, and nothing counted it.
+      expect(report.commits).toHaveLength(1);
+      expect(report.commitAnalytics.total).toBe(0);
+    } finally {
+      unfolded.close();
+    }
   });
 });
 

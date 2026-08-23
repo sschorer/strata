@@ -7,6 +7,7 @@
  * from declarations, so the pipeline grows without it.
  */
 export { declaredStages } from './declared.js';
+export { exclusiveStages } from './exclusive.js';
 export { orderStages } from './order.js';
 export { matchedFiles } from './filter.js';
 export { planStages, stagesToRun } from './plan.js';
@@ -14,7 +15,7 @@ export { runStages } from './run.js';
 export { stageOk, stageSkipped } from './entry.js';
 export { consumedInputs, noOutputs, type ProducedOutputs } from './inputs.js';
 export { stageRunKey, type HistoryWindow } from './key.js';
-export { UnorderableStagesError } from './errors.js';
+export { UnchosenStageGroupError, UnorderableStagesError } from './errors.js';
 export type {
   PlannedStage,
   Stage,

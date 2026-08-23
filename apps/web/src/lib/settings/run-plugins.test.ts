@@ -124,6 +124,110 @@ describe('runPlugins', () => {
     expect(entries[1]).toMatchObject({ runs: true, note: '' });
   });
 
+  it('runs the one member of an exclusive group without being asked to', () => {
+    // Installing a single convention is unambiguous on its own; an
+    // unconfigured project should not have to say so before anything happens.
+    const [entry] = runPlugins([
+      plugin({
+        id: 'strata-commit-conventional',
+        kind: 'stage',
+        produces: 'commits',
+        exclusive: 'commit-convention',
+      }),
+    ]);
+
+    expect(entry).toMatchObject({ runs: true, note: '' });
+  });
+
+  it('runs the member of a group the project named, and says who won', () => {
+    const entries = runPlugins(
+      [
+        plugin({
+          id: 'conventional',
+          name: 'Conventional Commits',
+          kind: 'stage',
+          produces: 'commits',
+          exclusive: 'commit-convention',
+        }),
+        plugin({
+          id: 'gitmoji',
+          name: 'Gitmoji',
+          kind: 'stage',
+          produces: 'commits',
+          exclusive: 'commit-convention',
+        }),
+      ],
+      { languages: null, metrics: null, convention: 'gitmoji' },
+    );
+
+    expect(entries[0]).toMatchObject({ runs: false });
+    expect(entries[0]?.note).toContain('Gitmoji');
+    expect(entries[1]).toMatchObject({ id: 'gitmoji', runs: true, note: '' });
+  });
+
+  it('says no run starts when a group of two is left open', () => {
+    // The pipeline refuses it rather than picking one, so a confident list
+    // here would be a promise about a run that is not going to happen.
+    const entries = runPlugins([
+      plugin({
+        id: 'conventional',
+        kind: 'stage',
+        produces: 'commits',
+        exclusive: 'commit-convention',
+      }),
+      plugin({
+        id: 'gitmoji',
+        kind: 'stage',
+        produces: 'commits',
+        exclusive: 'commit-convention',
+      }),
+    ]);
+
+    expect(entries.map((entry) => entry.runs)).toEqual([false, false]);
+    expect(entries[0]?.note).toContain('no run starts');
+  });
+
+  it('lets an allow-list settle a group, as the pipeline does', () => {
+    // Two rule engines in one group, one of them switched off: what is left is
+    // a group of one, and nobody has to choose between them.
+    const entries = runPlugins(
+      [
+        plugin({
+          id: 'rules-a',
+          kind: 'stage',
+          produces: 'metrics',
+          exclusive: 'rules',
+        }),
+        plugin({
+          id: 'rules-b',
+          kind: 'stage',
+          produces: 'metrics',
+          exclusive: 'rules',
+        }),
+      ],
+      { languages: null, metrics: ['rules-a'], convention: null },
+    );
+
+    expect(entries[0]).toMatchObject({ id: 'rules-a', runs: true, note: '' });
+    expect(entries[1]?.note).toContain('leaves it out');
+  });
+
+  it('stands a convention of the older kind by when a stage parses instead', () => {
+    const entries = runPlugins([
+      plugin({
+        id: 'strata-commit-conventional',
+        kind: 'stage',
+        produces: 'commits',
+        exclusive: 'commit-convention',
+      }),
+      plugin({ id: 'legacy-gitmoji', kind: 'commit-convention' }),
+    ]);
+
+    expect(entries[0]?.runs).toBe(true);
+    expect(entries[1]?.runs).toBe(false);
+    expect(entries[1]?.note).toContain('convention stage');
+  });
+
   it('stands a plugin of a kind this build has no step for by', () => {
     const [entry] = runPlugins([
       plugin({ id: 'strata-oracle', kind: 'oracle' as LoadedPluginInfo['kind'] }),

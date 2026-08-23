@@ -11,6 +11,7 @@ import {
   enabledPlugins,
   globMatcher,
   MissingPluginError,
+  namedPlugins,
   scopedFiles,
   type LoadedConvention,
 } from './index.js';
@@ -226,11 +227,6 @@ function convention(id: string, name: string): LoadedConvention {
   return { ...loaded(id, plugin), plugin };
 }
 
-const CONVENTION = {
-  setting: 'convention',
-  kind: 'commit-convention',
-} as const;
-
 describe('chosenConvention', () => {
   const all = [
     convention('commit-conventional', 'conventional'),
@@ -238,33 +234,52 @@ describe('chosenConvention', () => {
   ];
 
   it('takes the first registered one when the project names none', () => {
-    expect(chosenConvention(all, undefined, CONVENTION)?.convention).toBe(
-      'conventional',
-    );
-    expect(chosenConvention(all, null, CONVENTION)?.convention).toBe(
-      'conventional',
-    );
+    // What the kind has always done, and only for the conventions still of it:
+    // one that has migrated is a stage, and its group refuses to be guessed at.
+    expect(chosenConvention(all, undefined)?.convention).toBe('conventional');
+    expect(chosenConvention(all, null)?.convention).toBe('conventional');
   });
 
   it('takes the one the project names, wherever it loaded', () => {
-    expect(chosenConvention(all, 'commit-gitmoji', CONVENTION)?.convention).toBe(
-      'gitmoji',
-    );
+    expect(chosenConvention(all, 'commit-gitmoji')?.convention).toBe('gitmoji');
   });
 
-  it('ends the run rather than parsing a history with a convention nobody asked for', () => {
-    expect(() => chosenConvention(all, 'commit-jira', CONVENTION)).toThrow(
-      MissingPluginError,
-    );
+  it('parses nothing here when the name belongs to a convention that migrated', () => {
+    // A stage by that name may well be loaded; `requireLoaded` is what holds
+    // the name to the workbench, and the scheduler is what runs it.
+    expect(chosenConvention(all, 'strata-commit-conventional')).toBeUndefined();
   });
 
-  it('ends the run rather than parsing nothing, which reads as conforming to nothing', () => {
-    expect(() => chosenConvention([], 'commit-jira', CONVENTION)).toThrow(
-      /No commit-convention plugin is loaded/,
-    );
+  it('has nothing to choose when no convention of the kind is registered', () => {
+    expect(chosenConvention([], null)).toBeUndefined();
+  });
+});
+
+/**
+ * What an exclusive group is settled by. Only what configuration *named*: the
+ * lists mean "every plugin" when they are empty, but a group means "nobody has
+ * chosen yet", and the two must not be read as the same answer.
+ */
+describe('namedPlugins', () => {
+  it('collects every id a setting named, whichever setting named it', () => {
+    expect(
+      namedPlugins({
+        languages: ['lang-ts'],
+        metrics: ['hotspots', 'coupling'],
+        convention: 'commit-gitmoji',
+      }),
+    ).toEqual(['lang-ts', 'hotspots', 'coupling', 'commit-gitmoji']);
   });
 
-  it('has nothing to choose when no convention is registered and none is named', () => {
-    expect(chosenConvention([], null, CONVENTION)).toBeUndefined();
+  it('names nothing for a project that configured nothing', () => {
+    expect(namedPlugins({})).toEqual([]);
+    expect(
+      namedPlugins({ languages: null, metrics: null, convention: null }),
+    ).toEqual([]);
+  });
+
+  it('reads an empty allow-list as naming nothing, not as a choice', () => {
+    // "Run no metrics" switches every metric off; it does not appoint one.
+    expect(namedPlugins({ languages: [], metrics: [] })).toEqual([]);
   });
 });

@@ -55,7 +55,11 @@ produces, what files it wants, and what it is exclusive with:
   matched and its cache key covers only those files: an unrelated file changing
   does not invalidate it.
 - **`exclusive`** — a group of which at most one member runs; configuration
-  names the active one. A repository has one commit convention, not several.
+  names the active one. A repository has one commit convention, not several. A
+  group with a single member needs no naming — installing one convention is
+  unambiguous — but a group of two that nothing chose from **fails the run**,
+  because picking one would report a history as conforming to a convention
+  nobody asked for.
 
 All four are static JSON so the core can order the stages and reject a
 configuration it cannot satisfy **without importing any plugin code**
@@ -102,6 +106,8 @@ What the core promises a stage:
 - A stage whose filter matched no file is **skipped** rather than run over
   nothing, and the report says so — "found nothing" and "did not run" are
   different answers ([ADR-15](adr/0015-partial-runs-and-per-stage-status.md)).
+- A member of an exclusive group that configuration did not name is not in the
+  run at all — no entry, no step, nothing to wait for.
 
 The report carries one **stage entry** per stage, keyed by manifest id, plus the
 run's **provenance**: which stages ran, at which versions.
@@ -150,6 +156,13 @@ export default defineCommitConventionPlugin({
   },
 });
 ```
+
+The built-in convention is a **stage** now, and a new one should be written as
+one: declare `consumes: ["commits"]` — which is how a stage asks for the run's
+own history window — `produces: "commits"`, and the `exclusive` group
+`commit-convention`, then map `ctx.history` through your parser. The parsed log
+is the same `ParsedCommit[]` either way, and the commit fold counts it without
+knowing which convention produced it.
 
 ### Git-metric plugin
 

@@ -24,6 +24,42 @@ export class UnorderableStagesError extends Error {
   }
 }
 
+/**
+ * An **exclusive group** with more than one member that configuration did not
+ * settle to exactly one.
+ *
+ * Raised while the run is still being planned, for the same reason as the
+ * error above: a configuration that cannot be turned into a run has to fail
+ * while the failure still costs nothing and still has a name to give.
+ *
+ * Failing is the point of the group. Picking a member — the first loaded, the
+ * first alphabetically — would report a history as conforming to a convention
+ * nobody chose, and no reader of the report, screen or gate, can tell that from
+ * a history that conforms (`docs/adr/0010`).
+ */
+export class UnchosenStageGroupError extends Error {
+  constructor(
+    /** The group, as every member's manifest spells it. */
+    readonly group: string,
+    /** Every stage in it, in declaration order — what configuration may name. */
+    readonly members: readonly string[],
+    /** The members configuration did name; none, or more than one. */
+    readonly named: readonly string[],
+  ) {
+    super(
+      named.length === 0
+        ? `Stages ${quoted(members)} are all in the exclusive group ` +
+            `"${group}", of which one runs. Name the one this project means; ` +
+            `choosing for it would report a result nobody asked for as if it ` +
+            `had been asked for.`
+        : `Configuration names ${quoted(named)}, and they are all in the ` +
+            `exclusive group "${group}", of which one runs. Name exactly one ` +
+            `of ${quoted(members)}.`,
+    );
+    this.name = 'UnchosenStageGroupError';
+  }
+}
+
 function quoted(ids: readonly string[]): string {
   return ids.map((id) => `"${id}"`).join(', ');
 }

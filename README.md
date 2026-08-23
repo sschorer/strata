@@ -219,6 +219,7 @@ packages/
   server/   @strata/server Fastify HTTP API
 plugins/
   commit-conventional/     Conventional Commits parser
+  commit-fold/             what a history window adds up to
   git-coupling/            files that change together
   git-hotspots/            churn × complexity metric
   language-typescript/     TS/JS import graph, cycles + code metrics

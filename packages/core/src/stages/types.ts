@@ -23,6 +23,11 @@ export interface Stage {
   produces: OutputType;
   /** Omitted when the stage reads no files of its own. */
   filter?: StageFilter;
+  /**
+   * The group of which at most one member runs, if the manifest named one.
+   * Configuration names the active member.
+   */
+  exclusive?: string;
   run: StagePlugin['run'];
 }
 

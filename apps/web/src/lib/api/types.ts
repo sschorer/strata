@@ -195,7 +195,10 @@ export interface ProjectConfig {
   languages: string[] | null;
   /** Ids of the git-metric plugins that may run, or `null` for all of them. */
   metrics: string[] | null;
-  /** Id of the commit-convention plugin to parse with, or `null` for the first. */
+  /**
+   * Id of the plugin that parses the history, or `null` to leave the choice
+   * open — which is a run only while one convention is loaded.
+   */
   convention: string | null;
   rules: ArchitectureRule[];
 }

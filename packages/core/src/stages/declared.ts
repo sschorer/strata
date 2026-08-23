@@ -24,6 +24,7 @@ export function declaredStages(loaded: readonly LoadedPlugin[]): Stage[] {
       consumes: manifest.consumes ?? [],
       produces: manifest.produces,
       ...(manifest.filter ? { filter: manifest.filter } : {}),
+      ...(manifest.exclusive ? { exclusive: manifest.exclusive } : {}),
       run: (plugin as StagePlugin).run.bind(plugin),
     });
   }

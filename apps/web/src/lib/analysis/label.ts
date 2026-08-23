@@ -8,7 +8,7 @@ const STAGES: Record<AnalysisProgress['stage'], string> = {
   stage: 'Running',
   history: 'Reading the commit history',
   metric: 'Computing',
-  commits: 'Folding commit analytics',
+  commits: 'Parsing the commit log',
   finished: 'Finishing up',
 };
 

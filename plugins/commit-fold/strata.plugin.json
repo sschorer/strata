@@ -1,0 +1,12 @@
+{
+  "id": "strata-commit-fold",
+  "name": "Commit fold",
+  "kind": "stage",
+  "version": "0.1.0",
+  "sdk": "0.2.0",
+  "main": "./dist/index.js",
+  "description": "Folds the analysed history and the log a convention parsed into the commit analytics: per type and scope, conformance, breaking changes and weekly activity.",
+  "author": "Strata",
+  "consumes": ["commits"],
+  "produces": "aggregate"
+}

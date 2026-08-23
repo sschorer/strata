@@ -1,10 +1,13 @@
 {
   "id": "strata-commit-conventional",
   "name": "Conventional Commits",
-  "kind": "commit-convention",
-  "version": "0.1.0",
+  "kind": "stage",
+  "version": "0.2.0",
   "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Parses commit messages following the Conventional Commits spec.",
-  "author": "Strata"
+  "author": "Strata",
+  "consumes": ["commits"],
+  "produces": "commits",
+  "exclusive": "commit-convention"
 }
