@@ -5,10 +5,26 @@
   import HeatLegend from '$lib/hotspots/HeatLegend.svelte';
   import RankedTable from '$lib/hotspots/RankedTable.svelte';
   import Treemap from '$lib/hotspots/Treemap.svelte';
-  import { heatScale, hotspotRows } from '$lib/hotspots';
+  import { heatScale, hotspotRows, HOTSPOT_STAGE_ID } from '$lib/hotspots';
+  import { stagesProducing, troubleOf } from '$lib/stages';
+  import StageNotice from '$lib/stages/StageNotice.svelte';
 
   let report = $derived(analysis.report);
   let rows = $derived(report ? hotspotRows(report) : []);
+  // What became of the stage the whole screen is about — asked separately from
+  // the ranking, because a stage that threw and a repository where nothing
+  // churned both hand back no rows and are not the same news
+  // (`docs/adr/0015`).
+  let trouble = $derived(report ? troubleOf(report, HOTSPOT_STAGE_ID) : null);
+  // Whether this run planned the stage at all: a workbench without it renders
+  // an empty screen, not a failure.
+  let planned = $derived(
+    report
+      ? stagesProducing(report, 'metrics').some(
+          ({ id }) => id === HOTSPOT_STAGE_ID,
+        )
+      : false,
+  );
   // The ramp is fitted to what is on screen, so it stays informative on a repo
   // whose complexity spans two orders of magnitude and on one that does not.
   let scale = $derived(heatScale(rows.map((row) => row.complexity)));
@@ -52,11 +68,18 @@
     </p>
   {:else if analysis.status === 'running' && !report}
     <p class="text-muted text-sm">Running the pipeline…</p>
+  {:else if report && trouble}
+    <StageNotice troubles={[trouble]} what="the hotspot ranking" />
+  {:else if report && !planned}
+    <p class="text-muted text-sm">
+      No stage in this report ranks hotspots — nothing produced the <code
+        class="font-mono">{HOTSPOT_STAGE_ID}</code
+      > series this screen draws.
+    </p>
   {:else if report && rows.length === 0}
     <p class="text-muted text-sm">
-      No hotspot scores in this report — the <code class="font-mono"
-        >git-hotspots</code
-      > plugin found no file that changed inside the analysed history window.
+      No hotspot scores in this report — the stage ran and found no file that
+      changed inside the analysed history window.
     </p>
   {:else if report}
     <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

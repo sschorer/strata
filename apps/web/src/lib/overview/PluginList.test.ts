@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { LoadedPluginInfo } from '$lib/api';
+import { graphOf, languageOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
+import { failedStage, okStage, skippedStage } from '$lib/test/stages';
 import PluginList from './PluginList.svelte';
 
 const plugins: LoadedPluginInfo[] = [
@@ -67,6 +69,42 @@ describe('PluginList', () => {
     ui = render(PluginList, { plugins: [] });
 
     expect(ui.container.textContent).toContain('No plugins loaded');
+  });
+
+  it('says which loaded plugins had a stage that did not report', () => {
+    // Loading and running are two facts, and this list is where both are on
+    // screen: a plugin can be here and still have said nothing this run.
+    ui = render(PluginList, {
+      plugins,
+      stages: {
+        'strata-language-typescript': failedStage('graph', 'parser exploded'),
+        'acme-metric-coupling': skippedStage(
+          'metrics',
+          '"strata-commit-conventional" failed, and this stage consumes what it produces',
+          'strata-commit-conventional',
+        ),
+      },
+    });
+
+    expect(flat(ui.container)).toContain('failed');
+    expect(flat(ui.container)).toContain('parser exploded');
+    expect(flat(ui.container)).toContain('did not run');
+    expect(flat(ui.container)).toContain('consumes what it produces');
+  });
+
+  it('says nothing beside a plugin whose stage did what it declared', () => {
+    ui = render(PluginList, {
+      plugins,
+      stages: {
+        'strata-language-typescript': okStage(
+          'graph',
+          languageOf(graphOf('src/a.ts>src/b.ts')),
+        ),
+      },
+    });
+
+    expect(flat(ui.container)).not.toContain('failed');
+    expect(flat(ui.container)).not.toContain('did not run');
   });
 
   it('surfaces a server that would not answer', () => {

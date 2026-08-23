@@ -50,12 +50,13 @@ app-scoped settings screens. The face of Strata for browser/self-host use.
 | `src/lib/settings/*` | The settings area's frame: `scope` (path → project or app), `sections` (what each scope holds), `heading` (scope + project → what the area calls itself), `config.svelte` (the open project's config, held for every project section), and the views — `SettingsNav` (the rail in settings mode), `SettingsScreen` and `SectionList` (a scope's landing screen). Then the sections: `general` (the *General* form → the two patches a save sends) with `GeneralScreen`, and *Analyze / run* — `run-window` (project + config → what the next run reads), `run-plugins` (the loaded plugins → who takes part, and why the rest stand by), `missing-plugins` (the settings naming a plugin nobody loaded, which is why a run will not start), `recents` (the log's rules), `recents-storage` (where it is kept) and `recent-rows` (the log → strings) with `AnalyzeScreen`, `RunPlugins` and `RecentRuns` |
 | `src/lib/format/*` | `number` (compact counts), `path` (repo path → dir + name), `duration` and `age`, used by every screen |
 | `src/lib/geometry/*` | `squarify` — the squarified treemap layout |
-| `src/lib/overview/*` | The overview feature end to end: `stats` (report + plugins → the six cards), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
-| `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (report → rows), `heat` (ramp), and the three views |
+| `src/lib/stages/*` | How a report is read: `entries` (a report → the stages producing an output type, and what the ones that succeeded produced), `trouble` (the ones that produced nothing, and why), `phrase` (troubles → the line a stat card's hint has room for), and `StageNotice` — that, printed where an output would have been |
+| `src/lib/overview/*` | The overview feature end to end: `card` (what a stat card is), `stats` (report + plugins → the six cards), `stage-card` (a card, told what became of the stages behind its number), `bars` (the hotspot head, as shares of the top file), `commits` (history → change types and totals), `dead-code` (findings, and the files holding them), and the six views |
+| `src/lib/hotspots/*` | The hotspot feature end to end: `rows` (the hotspot stage's series + the graph stages' line counts → rows), `heat` (ramp), and the three views |
 | `src/lib/graph/*` | The dependency feature end to end, over the graph the report already carries: `tree`/`rows` (the folder tree), `collapse` (closed folders), `membership` (node → its cycle's number), `rank` + `lanes` + `layered` (the columned layout), `edges`, `degree`, `focus`, `viewport` (pan/zoom), and the five views |
 | `src/lib/components/*` | Reusable UI pieces |
 | `src/routes/*` | SvelteKit routes; `+layout.ts` pins the app to SPA mode |
-| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph, a language result and a report's cross-language fold, `commits` an empty history window, `api` stubs `fetch` per endpoint |
+| `src/lib/test/*` | Test helpers: `render` mounts a component, `graph` builds a graph, a graph stage's output and a report's cross-language fold, `stages` the three shapes of a stage entry, `report` an empty run to hang them on, `api` stubs `fetch` per endpoint |
 
 A screen is a **feature folder**: its pure functions and the components that
 render them sit together (`lib/hotspots/`), because they change together. Only
@@ -72,7 +73,10 @@ what more than one screen uses moves up into `lib/components/`.
    carries the workbench token when the browser holds one, and a 401 locks the
    session, which puts the unlock panel in place of the whole frame until a
    token is accepted.
-5. In dev, Vite proxies the API paths to `:4000`; in production the server
+5. A screen reads the run out of that store through `lib/stages`: the stages
+   producing the output type it draws, the outputs of the ones that succeeded,
+   and — where its panel would otherwise be empty — what became of the rest.
+6. In dev, Vite proxies the API paths to `:4000`; in production the server
    serves this build, so the same relative URLs hold.
 
 ## 6. Decisions
@@ -122,6 +126,9 @@ what more than one screen uses moves up into `lib/components/`.
 | 41 | **A dropped stream is not a failed run** | A connection held open for the length of an analysis gets dropped: by a proxy with an idle timeout, a laptop that slept, a network that blinked. `followJob` falls back to asking `GET /jobs/:id` — the same question, more slowly — because the job outlives its stream, and saying *Analysing…* over a run that finished ten minutes ago would be worse than either |
 | 42 | **A failed run takes the summary's slot, and says so** | A run can end with a reason and no report — a configuration naming a plugin nobody loaded fails deliberately rather than handing back one with a hole in it. So `Header` renders `RunFailure` where `RunSummary` would go: the previous run's chips left standing would describe an older revision under a button that has just refused, and the reader would have nothing telling them anything went wrong. *Analyze / run* goes further and says it before the button is pressed (`missing-plugins`), because who-takes-part is otherwise a confident answer about a run that is not going to happen |
 | 43 | **Progress is a stage and a count, not an invented percentage** | The server reports the pipeline's own steps and admits it does not know the total until the file list makes it knowable. `RunProgress` draws a bar only once there is one to draw and sweeps until then, so it never jumps backwards when the plan firms up. While a run is on it takes the slot the last run's summary had: those numbers describe the report on screen, and the one being replaced is the less interesting of the two |
+| 44 | **A screen looks its contents up by output type, and by producer id only where it means one** | The report keys a **stage entry** per stage by manifest id, and `lib/stages` is the only thing that reads them: `stagesProducing(report, 'graph')` is what the dependency screen asks, so a language module written years after the screen reaches it with no change here. Naming a producer is the exception and each one is deliberate — the hotspot treemap sizes by score and colours by complexity, which is `strata-git-hotspots`' own contract rather than something every metric series carries |
+| 45 | **A panel that has nothing to show says why, and a card with nothing behind it prints an em dash** | An empty panel reads as good news, which is the one thing a stage that threw must never look like (`docs/adr/0015`). So `StageNotice` goes where the output would have been, naming the stage, whether it *failed* or *did not run*, and the entry's own reason — which is also what separates a stage an upstream failure took out of the run from one whose filter matched nothing. `stageCard` does the same arithmetic for a number: nothing produced means `—` and a hint, half a run produced means the number *and* the hint, and neither is ever a zero standing in for an answer nobody gave |
+| 46 | **The screens still read the run's own cross-language fold, not a merge of their own** | `report.dependencies` is the graph stages' output merged, summarised and with every cycle closed into a path — folded once by the run so a screen, a CI gate and a second API client read one answer (decision 18, ADR-10). The stage entries beside it are what say whether that fold is the *whole* story: a graph the screen drew from a run where a module threw is a hole in the picture, and the notice above the canvas is the difference between a partial answer and a wrong one |
 
 ## 7. Quality & Risks
 
@@ -217,16 +224,23 @@ what more than one screen uses moves up into `lib/components/`.
   end to end — the window it opens on, the chips, the run it posts and folds
   into the registry, the log it opens on and remembers, a refused run, no
   project, and a config that could not be read — and its route,
-  the plugin store's load-once, the overview's pure layer (the six
-  cards' order, values, tones and links, a clean report reading as *none*, bar
+  the plugin store's load-once, how a report is read (the stages producing an
+  output type, what only the ones that succeeded produced, the one output of an
+  exclusive group, a named producer, and the troubles — a failure, an upstream
+  that took a stage out of the run, and a filter that matched nothing) with
+  `StageNotice`, the overview's pure layer (the six
+  cards' order, values, tones and links, stages that ran and found nothing
+  reading as *none*, a stage that failed or never ran reading as neither, bar
   shares held against the whole ranking, change types grouped and tied by name,
   and dead code counted per finding *and* per file) with its views — the stat
   grid through its cards, the hotspot bars, the change types, the cycle alert
-  and the plugin list — plus
+  and the plugin list, which says which loaded plugin's stage did not report —
+  plus
   the `/`, `/hotspots` and `/graph`
   routes end to end, and the folder picker (listing, walking in and back out,
   the path bar, picking a repository or the current folder, the hidden toggle,
   a refusal from the server, and a server that browses nothing) including the
   path it hands *Add project*. Components mount through `lib/test/render`;
-  graphs come from `lib/test/graph`; an API of more than one endpoint from
-  `lib/test/api`.
+  graphs come from `lib/test/graph`; a run's stage entries from
+  `lib/test/stages` on the empty report `lib/test/report` builds; an API of more
+  than one endpoint from `lib/test/api`.

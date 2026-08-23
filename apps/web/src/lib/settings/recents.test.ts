@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AnalysisReport, ProjectAnalysis } from '$lib/api';
-import { noCommits } from '$lib/test/commits';
-import { dependenciesOf } from '$lib/test/graph';
+import type { ProjectAnalysis } from '$lib/api';
+import { reportOf } from '$lib/test/report';
 import { mergeRun, RECENT_LIMIT, runEntry } from './recents';
 
 function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
@@ -18,7 +17,7 @@ function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
 
 describe('runEntry', () => {
   it('is the summary the registry keeps, taken from a report', () => {
-    const report = {
+    const report = reportOf({
       rev: '7f80d51cafe',
       run: {
         status: 'ok',
@@ -27,20 +26,7 @@ describe('runEntry', () => {
         durationMs: 2440,
         finishedAt: '2026-08-16T09:00:00.000Z',
       },
-      languages: {},
-      dependencies: dependenciesOf(),
-      metrics: [],
-      commits: [],
-      commitAnalytics: noCommits(),
-      cache: {
-        enabled: true,
-        hits: 0,
-        misses: 0,
-        runHits: 0,
-        runMisses: 0,
-        writes: 0,
-      },
-    } satisfies AnalysisReport;
+    });
 
     expect(runEntry(report)).toEqual(run());
   });

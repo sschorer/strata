@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
+import type { DependencyGraph } from '@strata/sdk';
 import { analysis } from '$lib/analysis';
-import { runRoutes, stubApi } from '$lib/test/api';
+import { partialRunRoutes, runRoutes, stubApi } from '$lib/test/api';
+import { cyclesOf, languageOf } from '$lib/test/graph';
 import { render } from '$lib/test/render';
+import { reportOf } from '$lib/test/report';
+import { failedStage, okStage, skippedStage } from '$lib/test/stages';
 import Page from './+page.svelte';
 
 /**
@@ -14,7 +18,7 @@ import Page from './+page.svelte';
  * against the report that run left behind.
  */
 
-const graph = {
+const graph: DependencyGraph = {
   nodes: [
     { id: 'src/a.ts', label: 'src/a.ts', kind: 'file', meta: { loc: 40 } },
     { id: 'src/b.ts', label: 'src/b.ts', kind: 'file', meta: { loc: 12 } },
@@ -28,23 +32,18 @@ const graph = {
   cycles: [['src/b.ts', 'src/a.ts']],
 };
 
+const TYPESCRIPT = 'strata-language-typescript';
+
 function reportWith(rev: string) {
-  return {
+  return reportOf({
     rev,
-    languages: {
-      typescript: { graph, deadCode: [], metrics: [] },
-    },
-    // The fold across every language, as the core hands it over: the screen
-    // draws these nodes, prints this summary and reads these cycle paths.
+    // The fold across every graph stage, as the core hands it over: the screen
+    // draws these nodes, prints this summary and reads these cycle paths. The
+    // stage entry beside it is what says whether the fold is the whole story.
     dependencies: {
       nodes: graph.nodes,
       edges: graph.edges,
-      cycles: [
-        {
-          nodes: ['src/a.ts', 'src/b.ts'],
-          path: ['src/a.ts', 'src/b.ts', 'src/a.ts'],
-        },
-      ],
+      cycles: cyclesOf([['src/a.ts', 'src/b.ts']]),
       summary: {
         nodes: 3,
         edges: 3,
@@ -54,17 +53,8 @@ function reportWith(rev: string) {
         maxFanOut: { id: 'src/a.ts', count: 1 },
       },
     },
-    metrics: [],
-    commits: [],
-    cache: {
-      enabled: false,
-      hits: 0,
-      misses: 0,
-      runHits: 0,
-      runMisses: 0,
-      writes: 0,
-    },
-  };
+    stages: { [TYPESCRIPT]: okStage('graph', languageOf(graph)) },
+  });
 }
 
 /** Analyse a repository, as picking a project and running it would. */
@@ -161,6 +151,64 @@ describe('graph page', () => {
     expect(
       nodeFor(ui.container, 'src/a.ts').closest('g')!.getAttribute('opacity'),
     ).toBe('1');
+  });
+
+  it('says the stage failed where the graph would have been', async () => {
+    stubApi(
+      partialRunRoutes(
+        reportOf({
+          stages: {
+            [TYPESCRIPT]: failedStage('graph', 'tsconfig.json is not readable'),
+          },
+        }),
+      ),
+    );
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain(TYPESCRIPT);
+    expect(ui.container.textContent).toContain('tsconfig.json is not readable');
+    // No canvas at all: an empty one would read as a repository with no imports.
+    expect(ui.container.querySelector('svg[role="group"]')).toBeNull();
+  });
+
+  it('draws what the stages that did report built, and says who did not', async () => {
+    stubApi(
+      runRoutes({
+        ...reportWith('44444444dddd'),
+        stages: {
+          [TYPESCRIPT]: okStage('graph', languageOf(graph)),
+          'acme-language-python': skippedStage(
+            'graph',
+            'its filter matched no file at this revision',
+          ),
+        },
+      }),
+    );
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain('acme-language-python');
+    expect(ui.container.textContent).toContain('did not run');
+    // The graph the other stage built is still on screen.
+    expect(ui.container.textContent).toContain('3 files · 3 imports');
+  });
+
+  it('renders an empty state for a run with no graph stage at all', async () => {
+    stubApi(runRoutes(reportOf()));
+    await analysis.run('/repo/strata');
+
+    ui = render(Page);
+    await tick();
+
+    expect(ui.container.textContent).toContain(
+      'No stage in this report produced a dependency graph',
+    );
+    expect(ui.container.querySelector('.text-danger')).toBeNull();
   });
 
   it('surfaces a failed run', async () => {

@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysis, ROOT_STORAGE_KEY } from '$lib/analysis';
 import type { AnalysisReport, Project } from '$lib/api';
 import { runRoutes, stubApi } from '$lib/test/api';
-import { noCommits } from '$lib/test/commits';
-import { dependenciesOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
 import { SELECTION_STORAGE_KEY } from './selection';
 import { ProjectsStore } from './store.svelte';
 
@@ -37,7 +36,7 @@ const kernel: Project = {
 
 const registry = { projects: [strata, kernel] };
 
-const report: AnalysisReport = {
+const report: AnalysisReport = reportOf({
   rev: 'abc12345678',
   run: {
     status: 'ok',
@@ -46,20 +45,7 @@ const report: AnalysisReport = {
     durationMs: 300,
     finishedAt: '2026-08-16T11:00:00.000Z',
   },
-  languages: {},
-  dependencies: dependenciesOf(),
-  metrics: [],
-  commits: [],
-  commitAnalytics: noCommits(),
-  cache: {
-    enabled: false,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
-  },
-};
+});
 
 async function loaded(routes: Record<string, unknown> = {}) {
   stubApi({ '/projects': registry, ...routes });

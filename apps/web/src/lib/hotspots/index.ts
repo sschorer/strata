@@ -9,4 +9,4 @@ export {
   type HeatLevel,
   type HeatScale,
 } from './heat';
-export { hotspotRows, HOTSPOT_SERIES_ID, type HotspotRow } from './rows';
+export { hotspotRows, HOTSPOT_STAGE_ID, type HotspotRow } from './rows';

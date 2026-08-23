@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { partialRunRoutes, runRoutes, stubApi } from '$lib/test/api';
-import { dependenciesOf } from '$lib/test/graph';
+import { reportOf } from '$lib/test/report';
 import { analysis } from './store.svelte';
 import { ROOT_STORAGE_KEY } from './root-storage';
 
@@ -11,21 +11,7 @@ import { ROOT_STORAGE_KEY } from './root-storage';
  * that lands belongs to the repository the workbench is still pointed at.
  */
 
-const report = {
-  rev: 'abc123',
-  languages: {},
-  dependencies: dependenciesOf(),
-  metrics: [],
-  commits: [],
-  cache: {
-    enabled: false,
-    hits: 0,
-    misses: 0,
-    runHits: 0,
-    runMisses: 0,
-    writes: 0,
-  },
-};
+const report = reportOf();
 
 beforeEach(() => {
   localStorage.clear();

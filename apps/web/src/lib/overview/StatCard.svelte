@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { StatCard, StatTone } from './stats';
+  import type { StatCard, StatTone } from './card';
 
   interface Props {
     card: StatCard;

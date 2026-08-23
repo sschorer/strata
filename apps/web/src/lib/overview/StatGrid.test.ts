@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from '$lib/test/render';
 import StatGrid from './StatGrid.svelte';
-import type { StatCard } from './stats';
+import type { StatCard } from './card';
 
 const cards: StatCard[] = [
   { key: 'files', label: 'Files', value: '1.2k', hint: 'typescript', tone: 'plain' },

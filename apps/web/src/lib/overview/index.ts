@@ -1,4 +1,5 @@
 export { hotspotBars, BAR_LIMIT, type HotspotBar } from './bars';
+export { worseTone, type StatCard, type StatTone } from './card';
 export {
   commitTotals,
   commitTypes,
@@ -7,9 +8,5 @@ export {
   type CommitTypeRow,
 } from './commits';
 export { deadCodeCount, type DeadCodeCount } from './dead-code';
-export {
-  overviewStats,
-  type PluginTally,
-  type StatCard,
-  type StatTone,
-} from './stats';
+export { stageCard, type StageState } from './stage-card';
+export { overviewStats, type PluginTally } from './stats';
