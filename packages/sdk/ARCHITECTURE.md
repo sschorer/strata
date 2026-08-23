@@ -47,7 +47,8 @@ path (`@strata/sdk`).
 | `graph.ts` | `GraphNode`, `GraphEdge`, `DependencyGraph` |
 | `cycle.ts` | `GraphCycle`, `orderedCycles` — a component closed into a walk over real edges |
 | `summary.ts` | `GraphSummary`, `DegreeEntry`, `summariseGraph` — a graph's headline numbers |
-| `language.ts` | `LanguagePlugin`, `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` |
+| `analysis.ts` | `LanguageAnalysis`, `DeadCodeFinding`, `CodeMetric` — the shape behind the `graph` output type |
+| `language.ts` | `LanguagePlugin` |
 | `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
 | `metric.ts` | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
 | `output.ts` | `OutputType`, `OUTPUT_TYPES`, `StageOutputs`, `Aggregate` — the closed set of what a stage may produce, and the shape behind each |
@@ -96,6 +97,12 @@ runtime — it must be resolvable from the plugin (see
   an output type, never on another stage's id, so a report stays renderable by a
   consumer that does not know which stages ran. Adding an output type is a
   change here; adding a stage is not.
+- **A `graph` is a language module's whole result** — the graph, its summary,
+  the dead code and the per-file metrics, because they are one pass over one
+  file set: the resolution that decides what imports what is the same one that
+  decides which export nobody asks for. Splitting them across stages would parse
+  a repository twice and key two caches on the same files. A consumer that means
+  the graph reads `.graph` and never learns the rest is there.
 - **`0.2.0`, deliberately not `1.0.0`** — the contract is real but not yet
   load-bearing for anyone outside this repo
   ([ADR-11](../../docs/adr/0011-sdk-0-2-0-single-break.md)).

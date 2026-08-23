@@ -30,6 +30,8 @@ const exec = promisify(execFile);
 /** Every stage that actually ran, in order, across the current run. */
 declare global {
   var __strataStageRuns: string[] | undefined;
+  /** Every file a stage had to look at itself, rather than read from cache. */
+  var __strataFileScans: string[] | undefined;
 }
 
 /** A stage that says what it was handed, as an aggregate nobody narrows. */
@@ -50,15 +52,49 @@ const WITNESS = (id: string) => `export default {
 };
 `;
 
-/** A stage producing a dependency graph over whatever files it was given. */
+/**
+ * A language module: a dependency graph over whatever files it was given, and
+ * what it learned about them on the way. It returns no summary, so the run's is
+ * the one the core derives for a module that did not count its own.
+ */
 const GRAPH = (id: string) => `export default {
   kind: 'stage',
   async run(ctx) {
     (globalThis.__strataStageRuns ??= []).push('${id}');
     return {
-      nodes: ctx.files.map((f) => ({ id: f.path, label: f.path, kind: 'file' })),
-      edges: [],
-      cycles: [],
+      graph: {
+        nodes: ctx.files.map((f) => ({ id: f.path, label: f.path, kind: 'file' })),
+        edges: [],
+        cycles: [],
+      },
+      deadCode: ctx.files.map((f) => ({ path: f.path, reason: 'unreachable-file' })),
+      metrics: ctx.files.map((f) => ({ path: f.path, loc: 1 })),
+    };
+  },
+};
+`;
+
+/**
+ * A stage that does its per-file work through `ctx.cache`, recording what it
+ * actually had to look at — the half of the incremental path a whole-stage
+ * cache miss does not spare a language module.
+ */
+const SCANNER = (id: string) => `export default {
+  kind: 'stage',
+  async run(ctx) {
+    (globalThis.__strataStageRuns ??= []).push('${id}');
+    const nodes = [];
+    for (const file of ctx.files) {
+      const loc = await ctx.cache.file(file, async (f) => {
+        (globalThis.__strataFileScans ??= []).push(f.path);
+        return (await f.read()).split('\\n').length;
+      });
+      nodes.push({ id: file.path, label: file.path, kind: 'file', meta: { loc } });
+    }
+    return {
+      graph: { nodes, edges: [], cycles: [] },
+      deadCode: [],
+      metrics: nodes.map((n) => ({ path: n.id, loc: n.meta.loc })),
     };
   },
 };
@@ -396,6 +432,78 @@ describe('what the report carries', () => {
 });
 
 /**
+ * A language module is a stage producing a `graph`, and a graph is the whole of
+ * what the module knows about the files it was handed — the graph itself, the
+ * dead code it found and what it measured per file. All of it has to arrive in
+ * one stage entry, and all of it has to keep reaching the fields the screens
+ * still read.
+ */
+describe('what a language module reaches', () => {
+  let strata: Strata;
+
+  beforeAll(async () => {
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'lang-ts',
+      { produces: 'graph', version: '0.7.0', filter: { extensions: ['ts'] } },
+      GRAPH('lang-ts'),
+    );
+    strata = new Strata(registry, { cache: false });
+  });
+
+  afterAll(() => strata.close());
+
+  it('carries its graph, its dead code and its metrics in one stage entry', async () => {
+    const report = await strata.analyze({ root: repo });
+    const entry = report.stages['lang-ts'];
+
+    if (entry?.status !== 'ok') throw new Error('the stage did not run');
+    expect(entry.type).toBe('graph');
+    expect(entry.output).toMatchObject({
+      graph: { nodes: [{ id: 'src/a.ts' }, { id: 'src/b.ts' }] },
+      deadCode: [
+        { path: 'src/a.ts', reason: 'unreachable-file' },
+        { path: 'src/b.ts', reason: 'unreachable-file' },
+      ],
+      metrics: [
+        { path: 'src/a.ts', loc: 1 },
+        { path: 'src/b.ts', loc: 1 },
+      ],
+    });
+  });
+
+  it('still fills in the field a language result has always reached', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    // Keyed by manifest id rather than by the extensions it claimed
+    // (`docs/adr/0011`), and folded into the cross-language graph as ever.
+    expect(Object.keys(report.languages)).toEqual(['lang-ts']);
+    expect(report.dependencies.nodes.map((node) => node.id)).toEqual([
+      'src/a.ts',
+      'src/b.ts',
+    ]);
+  });
+
+  it('is summarised by the core when the module counted nothing itself', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    expect(report.languages['lang-ts']?.summary).toMatchObject({
+      nodes: 2,
+      edges: 0,
+      cycles: 0,
+    });
+  });
+
+  it('leaves the module out of a run its allow-list left out', async () => {
+    const report = await strata.analyze({ root: repo, languages: [] });
+
+    expect(report.stages['lang-ts']).toBeUndefined();
+    expect(report.languages).toEqual({});
+  });
+});
+
+/**
  * What `consumes` and `filter` are worth once a run is over: a stage is asked
  * again only when something it was actually given has changed. The whole point
  * of the core applying the filter is that the key covers the matched files
@@ -498,5 +606,82 @@ describe("a stage's cache key", () => {
     await strata.analyze({ root: changing, historyLimit: 1 });
 
     expect(ran()).toEqual(['windowed']);
+  });
+});
+
+/**
+ * The cache *underneath* a stage: `ctx.cache.file` is keyed by blob, so a stage
+ * the run key sent back to work still only does the work the change made
+ * necessary. A language module parses every file it is handed, and one edit
+ * must not cost a whole repository's parse.
+ */
+describe('the per-file cache a stage is scoped', () => {
+  let changing: string;
+  let cacheDir: string;
+  let strata: Strata;
+
+  async function commit(name: string, body: string): Promise<void> {
+    writeFileSync(join(changing, name), body);
+    await exec('git', ['add', '-A'], { cwd: changing });
+    await exec('git', ['commit', '-q', '-m', `chore: ${name}`], {
+      cwd: changing,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'Strata Test',
+        GIT_AUTHOR_EMAIL: 'test@example.com',
+        GIT_COMMITTER_NAME: 'Strata Test',
+        GIT_COMMITTER_EMAIL: 'test@example.com',
+      },
+    });
+  }
+
+  /** The files scanned since the last call. */
+  function scanned(): string[] {
+    const seen = globalThis.__strataFileScans ?? [];
+    globalThis.__strataFileScans = [];
+    return seen.sort();
+  }
+
+  beforeAll(async () => {
+    changing = mkdtempSync(join(tmpdir(), 'strata-staged-blob-repo-'));
+    cacheDir = mkdtempSync(join(tmpdir(), 'strata-staged-blob-cache-'));
+    await exec('git', ['init', '-q', '-b', 'main'], { cwd: changing });
+    writeFileSync(join(changing, 'a.ts'), 'export const a = 1;\n');
+    await commit('b.ts', 'export const b = 2;\n');
+
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'scanner',
+      { produces: 'graph', filter: { extensions: ['ts'] } },
+      SCANNER('scanner'),
+    );
+    strata = new Strata(registry, { cache: { dir: cacheDir } });
+  }, 30_000);
+
+  afterAll(() => {
+    strata.close();
+    for (const dir of [changing, cacheDir]) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('scans every file on a cold cache', async () => {
+    await strata.analyze({ root: changing });
+
+    expect(scanned()).toEqual(['a.ts', 'b.ts']);
+  });
+
+  it('re-scans the file that changed, and no other', async () => {
+    await commit('b.ts', 'export const b = 2;\nexport const c = 3;\n');
+
+    const report = await strata.analyze({ root: changing });
+
+    expect(scanned()).toEqual(['b.ts']);
+    expect(report.cache).toMatchObject({ hits: 1, misses: 1 });
+    expect(report.languages.scanner?.metrics).toEqual([
+      { path: 'a.ts', loc: 2 },
+      { path: 'b.ts', loc: 3 },
+    ]);
   });
 });

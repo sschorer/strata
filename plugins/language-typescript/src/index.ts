@@ -1,10 +1,10 @@
 import {
-  defineLanguagePlugin,
+  defineStage,
   summariseGraph,
   type CodeMetric,
   type GraphNode,
   type LanguageAnalysis,
-  type RepoContext,
+  type StageContext,
 } from '@strata/sdk';
 import { aliasScopes } from './aliases.js';
 import { findCycles } from './cycles.js';
@@ -26,15 +26,20 @@ import { readManifests } from './workspace.js';
  * `tsconfig.json` aliases (`aliases.ts`), finds import cycles via Tarjan's SCC
  * (`cycles.ts`), measures every file (`complexity.ts`, `nesting.ts`,
  * `duplication.ts`) and reports dead code — unreferenced exports, unreachable
- * files and unused dependencies (`deadcode.ts`). The reference language plugin:
+ * files and unused dependencies (`deadcode.ts`). The reference language module:
  * Angular and other TS-based analyzers build on the shape it returns.
+ *
+ * A stage: the manifest declares that it produces a dependency graph and which
+ * files it wants — including `.mts`/`.cts`, the module-explicit TypeScript
+ * extensions the resolver has always been willing to resolve *to* and that went
+ * unanalysed for as long as nothing claimed them. The **core** applies that
+ * filter, so `ctx.files` is this module's own files and its cache key covers
+ * them and nothing else (`docs/adr/0010`). What git tracks beyond them — the
+ * manifests, the TypeScript configs — is still read through `ctx.git`, because
+ * dead code hangs off entry points declared in files no language claims.
  */
-export default defineLanguagePlugin({
-  // `.mts`/`.cts` are the module-explicit TypeScript extensions the resolver
-  // has always been willing to resolve *to*; leaving them unclaimed meant the
-  // files themselves were never analysed.
-  extensions: ['ts', 'tsx', 'mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'],
-  async analyze(ctx: RepoContext): Promise<LanguageAnalysis> {
+export default defineStage<'graph'>({
+  async run(ctx: StageContext): Promise<LanguageAnalysis> {
     const byPath = new Map(ctx.files.map((f) => [f.path, f]));
     const nodes: GraphNode[] = [];
     const scans = new Map<string, FileScan>();

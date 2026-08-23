@@ -136,7 +136,7 @@ describe('incremental analysis', () => {
 
     expect(scans()).toEqual(['b.ts']); // a.ts came from the cache
     expect(report.cache).toMatchObject({ hits: 1, misses: 1, runHits: 0 });
-    expect(report.languages.ts?.graph.nodes).toContainEqual({
+    expect(report.languages['test-language']?.graph.nodes).toContainEqual({
       id: 'b.ts',
       label: 'b.ts',
       kind: 'file',

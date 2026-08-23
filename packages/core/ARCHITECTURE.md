@@ -131,17 +131,20 @@ itself behaves.
    (blob-keyed), narrowed once by `scopedFiles()` to the project's analyse
    paths minus its ignore globs.
 2. Build `RepoContext`, one `cache` scope per plugin.
-3. Route files to the enabled `language` plugins by extension — skipping any
-   plugin whose input digest already has a stored result.
+3. Route files to the enabled `language` plugins that have not migrated, by
+   extension — skipping any plugin whose input digest already has a stored
+   result.
 4. Stream `history`; run the ordered **stages**, each over the files its filter
    matched and the outputs of the types it consumes; then the enabled
    `git-metric` plugins that have not migrated (same skip).
 5. Parse commits with the project's `commit-convention` plugin — the first
    registered when it names none — then fold the log into `CommitAnalytics`
    (per type, per scope, conformance, breaking changes, weekly activity).
-6. Fold every language's graph into one `CrossLanguageGraph` — deduplicated,
-   with a node for each package an import left for, each cycle ordered into a
-   path and the whole thing counted once.
+6. Collect every language module's result — from its stage entry, or from the
+   legacy pass for one that has not migrated — into `report.languages`, keyed by
+   manifest id, and fold their graphs into one `CrossLanguageGraph`:
+   deduplicated, with a node for each package an import left for, each cycle
+   ordered into a path and the whole thing counted once.
 7. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
    branch, file count, duration, finished-at) beside the resolved `rev`, one
    **stage entry** per stage keyed by manifest id, and the run's **provenance**.
@@ -209,7 +212,9 @@ section keeps its value — because each section is one settings screen.
   A stage's output also still reaches the report field its kind's used to, so
   the screens change when they are ready to (#123) rather than when the
   pipeline does.
-- **Extension-based routing** for language plugins (simple, fast).
+- **Extension-based routing** for language plugins — the same matcher a stage's
+  `filter.extensions` goes through, so a module routes the same way before and
+  after it migrates (simple, fast).
 - **Third-party plugins are drop-in, and nothing about them is trusted** — one
   directory per plugin under `userPluginsDir()`, every manifest field validated,
   `main` confined to the plugin's own directory, the export checked both for the

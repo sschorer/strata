@@ -151,7 +151,7 @@ export class Strata {
 
     // 1. Per-language static analysis, routed by file extension — across the
     // language plugins this project enabled that are still `language` plugins.
-    const languages: Record<string, LanguageAnalysis> = {};
+    const legacyAnalyses = new Map<string, LanguageAnalysis>();
     for (const {
       loaded: { manifest, plugin },
       matched,
@@ -161,14 +161,13 @@ export class Strata {
       // The result depends on nothing but the matched files' contents, so their
       // digest is the whole cache key.
       const runKey = digest(['language', filesDigest(matched)]);
-      const key = plugin.extensions.join(',');
       const hit = cache.getRun<LanguageAnalysis>(
         manifest.id,
         manifest.version,
         runKey,
       );
       if (hit) {
-        languages[key] = summarised(hit);
+        legacyAnalyses.set(manifest.id, hit);
         continue;
       }
 
@@ -178,7 +177,7 @@ export class Strata {
         cache: cache.scope(manifest.id, manifest.version),
       });
       cache.setRun(manifest.id, manifest.version, runKey, analysis);
-      languages[key] = summarised(analysis);
+      legacyAnalyses.set(manifest.id, analysis);
       cache.flush();
     }
 
@@ -203,6 +202,18 @@ export class Strata {
       cache,
       progress,
     });
+
+    // One record either way, in the order the workbench loaded the plugins and
+    // keyed by **manifest id** rather than by a joined extension list — a
+    // language module that has migrated to a stage reaches the report where it
+    // always did, so the screens reading it do not know the difference yet
+    // (`docs/adr/0011`).
+    const languages: Record<string, LanguageAnalysis> = {};
+    for (const { manifest } of languagePlugins) {
+      const analysis =
+        staged.outputs.graph[manifest.id] ?? legacyAnalyses.get(manifest.id);
+      if (analysis) languages[manifest.id] = summarised(analysis);
+    }
 
     // 3. Git-history metrics from the plugins that are still `git-metric`.
     const legacySeries = new Map<string, MetricSeries>();

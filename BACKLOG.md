@@ -80,9 +80,8 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the two plugin migrations left — *the TypeScript language
-      module* and *commit convention and the commit fold* — plus *a failing
-      stage fails only its dependents*.
+      Ready to start: the plugin migration left — *commit convention and the
+      commit fold* — plus *a failing stage fails only its dependents*.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -126,7 +125,20 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         it always reached, so nothing downstream moved; the core keys the whole
         stage on the files it matched and the history window, so a rerun over an
         unchanged repository still recomputes nothing.
-  - [ ] **P1** Migrate the TypeScript language module to a stage
+  - [x] Migrate the TypeScript language module to a stage
+        The TS/JS module runs through the scheduler: its manifest declares the
+        extensions it used to hold itself and that it produces a graph, and the
+        core hands it exactly the files that filter matched. A `graph` is a
+        language module's whole result — the graph, its summary, the dead code
+        and the per-file metrics, one pass over one file set — so all of it
+        arrives in one stage entry keyed `strata-language-typescript`, and all
+        of it still reaches `report.languages` (now keyed by manifest id) and
+        the cross-language fold. A run over this repository produces a
+        byte-identical graph, dead-code list and metric set across the
+        migration. Per-blob caching underneath is unchanged, and the stage's own
+        key covers only the files it matched, so a README edit no longer has
+        anything to say about a TypeScript graph.
+        Three of the five built-ins are stages now.
   - [ ] **P1** Migrate commit convention and the commit fold to stages
   - [ ] **P1** A failing stage fails only its dependents
   - [ ] **P1** Web reads stage entries

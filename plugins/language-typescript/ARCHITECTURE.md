@@ -1,35 +1,42 @@
 # Module: `@strata/plugin-language-typescript` — Architecture (arc42)
 
 > Trimmed arc42, consistent with [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
-> Kind: **language**.
+> Kind: **stage** — produces `graph`, over the files its filter matched.
 
 ## 1. Purpose & Goals
 
 Per-language analysis for **TypeScript / JavaScript**: build a file-level import
 dependency graph, detect import cycles, measure each file (LOC, cyclomatic
 complexity, nesting depth, duplication), and report dead code (unreferenced
-exports, unreachable files, unused dependencies). The reference language plugin
+exports, unreachable files, unused dependencies). The reference language module
 — Angular and other TS-based analyzers build on its shape.
 
 ## 2. Constraints
 
-- Emits the standard `LanguageAnalysis` shape so the UI renders it for free.
+- Emits the standard `LanguageAnalysis` shape — what a `graph` output *is* — so
+  the UI renders it for free.
 - Parsing is **tree-sitter**, loaded as WebAssembly, so installing the plugin
   never needs a compiler or a platform-specific build.
+- The file filter is the **manifest's**, and the core applies it: this module
+  never routes files itself, and its cache key covers the files it matched.
 
 ## 3. Interfaces (Context)
 
 - **Depends on:** `@strata/sdk`, `web-tree-sitter`, `@vscode/tree-sitter-wasm`
   (the pre-built `typescript` and `tsx` grammars).
-- **Consumed by:** the core's language step, routed by extensions
-  `ts,tsx,mts,cts,js,jsx,mjs,cjs`.
-- **Manifest:** `strata.plugin.json` (`kind: language`).
+- **Consumed by:** the scheduler → a stage entry keyed
+  `strata-language-typescript`, carrying the graph, its summary, the dead code
+  and the per-file metrics. The same result still reaches `report.languages`
+  (keyed by that id) and is folded into the cross-language graph, so the screens
+  reading it are unchanged.
+- **Manifest:** `strata.plugin.json` (`kind: stage`, `produces: "graph"`,
+  `filter: { extensions: ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"] }`).
 
 ## 4. Building Blocks
 
 | File | Responsibility |
 |------|----------------|
-| `index.ts` | The plugin: assemble nodes/edges/metrics, summarise the graph, return `LanguageAnalysis`. |
+| `index.ts` | The stage: assemble nodes/edges/metrics, summarise the graph, return `LanguageAnalysis`. |
 | `parser.ts` | Load the grammars once; parse one file and lend out its syntax tree. |
 | `scan.ts` | Everything derivable from one file → `{ loc, imports, exports, stars, complexity, nesting, fingerprint }`, cached per blob via `ctx.cache`. |
 | `imports.ts` | Read `import` / `require` / `import()` off the tree → specifier + the names taken. |
@@ -59,9 +66,11 @@ exports, unreachable files, unused dependencies). The reference language plugin
 
 ## 5. Runtime
 
-`analyze(ctx)` first reads what git tracks but `ctx.files` does not — the
-manifests and the TypeScript configs — because the alias scopes have to exist
-before the first specifier is resolved. It then iterates the matched files,
+`run(ctx)` is handed the files the manifest's filter matched — the core applied
+it — and first reads what git tracks but `ctx.files` does not: the manifests and
+the TypeScript configs, because the alias scopes have to exist before the first
+specifier is resolved, and because the entry points dead code hangs off are
+declared in files no language claims. It then iterates the matched files,
 collects each file's scan (one parse per file) and resolves its specifiers into
 nodes/edges. Finally it runs the cross-file passes — duplication, and the three
 dead-code passes over the resolved graph plus the workspace manifests — and
@@ -131,7 +140,14 @@ Dead code is three questions against one graph:
   checking them would produce noise rather than dead code.
 - **Cache the scan, not the resolution** — specifier resolution and fingerprint
   matching depend on the whole file set, so only the contents-derived half is
-  cacheable per blob.
+  cacheable per blob. The core caches the whole stage on top of that, keyed on
+  the files its filter matched, so an unrelated file changing does not
+  invalidate the graph
+  ([ADR-10](../../docs/adr/0010-open-analysis-pipeline.md)).
+- **The graph, the dead code and the metrics are one output** — a stage produces
+  one output type, and these three are one pass over one file set: the
+  resolution that decides what imports what is the same one that decides which
+  export nobody asks for. Three stages would parse the repository three times.
 - **Count nodes, not tokens** — a decision point is an `if_statement` or a
   short-circuiting operator, so a `case` in a string, an `&&` in a comment and
   the `?` of an optional parameter cannot inflate the number, and a conditional
@@ -157,9 +173,10 @@ Dead code is three questions against one graph:
   user-declared entry points arrive with the per-project plugin settings.
 - **Risk:** a dependency used only from a file this plugin never sees (a `.vue`
   template, a JSON config) reads as unused.
-- **Debt:** the core keys the cached run on the *matched* files alone, so
-  editing only a `package.json` or a `tsconfig.json` reuses the previous run
-  until a source file changes.
+- **Debt:** the core keys the cached run on the files the *filter* matched, so
+  editing only a `package.json` or a `tsconfig.json` — read through `ctx.git`,
+  and so outside the filter — reuses the previous run until a source file
+  changes.
 - **Debt:** the grammars are pinned by `@vscode/tree-sitter-wasm`, which ships
   every grammar VS Code uses (~22 MB installed) for the two this plugin loads.
 - **Debt:** a checked-in bundle is parsed like any other file — ~0.8 s and a few

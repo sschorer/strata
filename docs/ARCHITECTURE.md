@@ -105,7 +105,7 @@ strata/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
 │   ├── git-coupling/             change-coupling metric         (stage)
 │   ├── git-hotspots/             churn × complexity metric      (stage)
-│   └── language-typescript/      TS/JS graph, metrics, dead code (language)
+│   └── language-typescript/      TS/JS graph, metrics, dead code (stage)
 ├── apps/
 │   └── web/     @strata/web      Web UI (SvelteKit SPA + Tailwind)
 │                  app.css + lib/theme/ (tokens, both palettes) ·
@@ -141,8 +141,8 @@ into: a stage declares what it consumes and produces in its **manifest**, and
 the core orders the pipeline from those declarations
 ([ADR-10](./adr/0010-open-analysis-pipeline.md)). The three below it are what a
 plugin was before that and run the way they always did until the last of them
-has migrated ([ADR-11](./adr/0011-sdk-0-2-0-single-break.md)); `git-hotspots`
-and `git-coupling` have.
+has migrated ([ADR-11](./adr/0011-sdk-0-2-0-single-break.md)); `git-hotspots`,
+`git-coupling` and `language-typescript` have.
 
 There is no AI kind: a provider is a configured instance in the app settings and
 the call surface for one is internal to the core
@@ -169,14 +169,17 @@ pipeline then does, on that thread:
    scope — its analyse paths, minus its ignore globs. The **stages** are read
    off the manifests and ordered here too, so a configuration nothing can
    satisfy fails before anything is read.
-2. Files are routed to the enabled `language` plugins by extension.
+2. Files are routed to the enabled `language` plugins by extension — the ones
+   that have not migrated; a language module that has is filtered by the core
+   like any other stage.
 3. Commit history is streamed. Then the ordered **stages** run: the core applies
    each one's filter, hands it every upstream output of the types it consumes
    keyed by producer, and records what it produced as a **stage entry** in the
    report ([ADR-10](./adr/0010-open-analysis-pipeline.md)). The enabled
    `git-metric` plugins — the ones that have not migrated — compute their series
    after them, and a migrated stage's output still reaches the report field its
-   kind's did.
+   kind's did: a `graph` is one language module's whole result, so its dead code
+   and per-file metrics land in `report.languages` beside its stage entry.
 4. The active `commit-convention` plugin parses each commit, and the core folds
    the parsed log into `CommitAnalytics` — per type, per scope, how much of the
    history conforms, breaking changes, weekly activity.

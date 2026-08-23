@@ -107,12 +107,15 @@ async function install(
   await registry.loadFrom(join(dir, 'strata.plugin.json'));
 }
 
-/** Which files one language plugin was handed, from the graph it returned. */
+/**
+ * Which files one language plugin was handed, from the graph it returned —
+ * looked up by the plugin's manifest id, which is how a report keys them.
+ */
 function analysed(
   languages: Record<string, { graph: { nodes: { id: string }[] } }>,
-  ext: string,
+  id: string,
 ): string[] {
-  return (languages[ext]?.graph.nodes ?? []).map((n) => n.id).sort();
+  return (languages[id]?.graph.nodes ?? []).map((n) => n.id).sort();
 }
 
 beforeAll(async () => {
@@ -163,11 +166,11 @@ describe('a run without a configuration', () => {
     const report = await strata.analyze({ root: repo });
 
     expect(report.run.files).toBe(3);
-    expect(analysed(report.languages, 'ts')).toEqual([
+    expect(analysed(report.languages, 'lang-ts')).toEqual([
       'src/a.test.ts',
       'src/a.ts',
     ]);
-    expect(analysed(report.languages, 'md')).toEqual(['docs/note.md']);
+    expect(analysed(report.languages, 'lang-md')).toEqual(['docs/note.md']);
     expect(report.metrics.map((m) => m.id)).toEqual(['metric-a', 'metric-b']);
     expect(report.commits[0]?.type).toBe('first');
   });
@@ -177,12 +180,12 @@ describe('scope', () => {
   it('routes only the analysed paths to the plugins', async () => {
     const report = await strata.analyze({ root: repo, paths: ['src'] });
 
-    expect(analysed(report.languages, 'ts')).toEqual([
+    expect(analysed(report.languages, 'lang-ts')).toEqual([
       'src/a.test.ts',
       'src/a.ts',
     ]);
     // Nothing matched the markdown plugin's extension, so it never ran.
-    expect(report.languages.md).toBeUndefined();
+    expect(report.languages['lang-md']).toBeUndefined();
   });
 
   it('takes the ignored globs back out', async () => {
@@ -192,7 +195,7 @@ describe('scope', () => {
       ignore: ['**/*.test.ts'],
     });
 
-    expect(analysed(report.languages, 'ts')).toEqual(['src/a.ts']);
+    expect(analysed(report.languages, 'lang-ts')).toEqual(['src/a.ts']);
   });
 
   it('reports the file count the run actually analysed', async () => {
@@ -206,7 +209,7 @@ describe('enabled plugins', () => {
   it('calls only the language plugins the project allows', async () => {
     const report = await strata.analyze({ root: repo, languages: ['lang-md'] });
 
-    expect(Object.keys(report.languages)).toEqual(['md']);
+    expect(Object.keys(report.languages)).toEqual(['lang-md']);
   });
 
   it('calls only the git metrics the project allows', async () => {
