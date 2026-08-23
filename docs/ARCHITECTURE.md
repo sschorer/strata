@@ -103,7 +103,7 @@ strata/
 │                  worker/ (analysis-worker, runner, thread, protocol)
 ├── plugins/
 │   ├── commit-conventional/      Conventional Commits parser   (commit-convention)
-│   ├── git-coupling/             change-coupling metric         (git-metric)
+│   ├── git-coupling/             change-coupling metric         (stage)
 │   ├── git-hotspots/             churn × complexity metric      (stage)
 │   └── language-typescript/      TS/JS graph, metrics, dead code (language)
 ├── apps/
@@ -141,8 +141,8 @@ into: a stage declares what it consumes and produces in its **manifest**, and
 the core orders the pipeline from those declarations
 ([ADR-10](./adr/0010-open-analysis-pipeline.md)). The three below it are what a
 plugin was before that and run the way they always did until the last of them
-has migrated ([ADR-11](./adr/0011-sdk-0-2-0-single-break.md)); `git-hotspots` is
-the first that has.
+has migrated ([ADR-11](./adr/0011-sdk-0-2-0-single-break.md)); `git-hotspots`
+and `git-coupling` have.
 
 There is no AI kind: a provider is a configured instance in the app settings and
 the call surface for one is internal to the core

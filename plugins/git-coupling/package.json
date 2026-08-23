@@ -1,7 +1,7 @@
 {
   "name": "@strata/plugin-git-coupling",
-  "version": "0.1.0",
-  "description": "Change-coupling (files that change together) git-metric plugin for Strata.",
+  "version": "0.2.0",
+  "description": "Change-coupling (files that change together) stage for Strata.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

@@ -80,10 +80,9 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the three plugin migrations, now that the scheduler runs
-      — *change coupling*, *the TypeScript language module*, and *commit
-      convention and the commit fold* — plus *a failing stage fails only its
-      dependents*.
+      Ready to start: the two plugin migrations left — *the TypeScript language
+      module* and *commit convention and the commit fold* — plus *a failing
+      stage fails only its dependents*.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -119,7 +118,14 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         overview cards are unchanged, because a stage's output still reaches the
         report field its kind's did. Every other plugin still runs the legacy
         way.
-  - [ ] **P1** Migrate change coupling to a stage
+  - [x] Migrate change coupling to a stage
+        Change coupling runs through the scheduler: its manifest declares that
+        it consumes the commit log, produces a metric series and wants every
+        file, and its result reaches the report as a stage entry keyed
+        `strata-git-coupling`. The series is the one it always was, in the place
+        it always reached, so nothing downstream moved; the core keys the whole
+        stage on the files it matched and the history window, so a rerun over an
+        unchanged repository still recomputes nothing.
   - [ ] **P1** Migrate the TypeScript language module to a stage
   - [ ] **P1** Migrate commit convention and the commit fold to stages
   - [ ] **P1** A failing stage fails only its dependents

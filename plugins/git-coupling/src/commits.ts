@@ -15,7 +15,7 @@ const SEP = '\x1e';
  */
 export async function changedFilesByCommit(
   ctx: RepoContext,
-  history: RawCommit[],
+  history: readonly RawCommit[],
 ): Promise<string[][]> {
   if (history.length === 0) return [];
 

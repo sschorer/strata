@@ -1,4 +1,4 @@
-import type { RawCommit, RepoContext, RepoFile } from '@strata/sdk';
+import type { RawCommit, RepoFile, StageContext } from '@strata/sdk';
 import { describe, expect, it, vi } from 'vitest';
 import plugin from './index.js';
 
@@ -7,7 +7,17 @@ function gitLog(commits: string[][]): string {
   return commits.map((files) => `\x1e\n\n${files.join('\n')}\n`).join('');
 }
 
-function context(paths: string[], log: string): RepoContext {
+/**
+ * A stage context as the core builds one: the files the manifest's filter
+ * matched, the outputs of the types it consumes (none produce a parsed log
+ * here), and the run's history window, which it gets because it consumes
+ * `commits`.
+ */
+function context(
+  paths: string[],
+  log: string,
+  history: readonly RawCommit[],
+): StageContext {
   return {
     root: '/repo',
     rev: 'deadbeef',
@@ -15,6 +25,14 @@ function context(paths: string[], log: string): RepoContext {
     git: vi.fn(async () => log),
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     cache: { file: (_file, compute) => compute(_file) },
+    inputs: {
+      graph: {},
+      metrics: {},
+      findings: {},
+      commits: {},
+      aggregate: {},
+    },
+    history,
   };
 }
 
@@ -27,7 +45,7 @@ const history = (n: number): RawCommit[] =>
     message: 'chore: work',
   }));
 
-describe('change-coupling plugin', () => {
+describe('change-coupling stage', () => {
   it('reports the pairs that keep changing together', async () => {
     const commits = [
       ['src/route.ts', 'src/client.ts'],
@@ -38,9 +56,10 @@ describe('change-coupling plugin', () => {
     const ctx = context(
       ['src/route.ts', 'src/client.ts', 'README.md'],
       gitLog(commits),
+      history(commits.length),
     );
 
-    const series = await plugin.compute(ctx, history(commits.length));
+    const series = await plugin.run(ctx);
 
     expect(series.id).toBe('change-coupling');
     expect(series.unit).toBe('%');
@@ -58,8 +77,8 @@ describe('change-coupling plugin', () => {
   });
 
   it('returns an empty series for an empty history', async () => {
-    const ctx = context(['a.ts'], '');
-    const series = await plugin.compute(ctx, []);
+    const ctx = context(['a.ts'], '', []);
+    const series = await plugin.run(ctx);
 
     expect(series.points).toEqual([]);
     expect(ctx.git).not.toHaveBeenCalled();
