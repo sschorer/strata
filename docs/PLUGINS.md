@@ -44,9 +44,12 @@ produces, what files it wants, and what it is exclusive with:
   type arrives keyed by the plugin that produced it, so a stage consuming
   `graph` works with language modules that did not exist when it was written.
 - **`produces`** — the one output type the stage produces. The set is closed:
-  `graph`, `metrics`, `findings`, `commits`, `aggregate`. `aggregate` is
-  whatever a stage folded for itself, in a shape only it and a consumer that
-  means it understand.
+  `graph`, `metrics`, `findings`, `commits`, `aggregate`. A `graph` is a whole
+  language module's result — the dependency graph, its summary, the dead code
+  and the per-file metrics — because all four come out of one pass over one file
+  set; a consumer that means the graph reads `.graph`. `aggregate` is whatever a
+  stage folded for itself, in a shape only it and a consumer that means it
+  understand.
 - **`filter`** — the files it wants, by extension (bare, no dot) and/or by
   repo-relative glob. The **core** applies it, so the stage sees only what it
   matched and its cache key covers only those files: an unrelated file changing
@@ -122,10 +125,11 @@ export default defineLanguagePlugin({
 });
 ```
 
-Route real parsing through **tree-sitter** for accuracy — the TypeScript plugin
+Route real parsing through **tree-sitter** for accuracy — the TypeScript module
 loads `web-tree-sitter` with a pre-built WASM grammar, which keeps installation
-free of a native build step and is the pattern to copy. Return the standard
-`LanguageAnalysis` shape and the UI renders it for free.
+free of a native build step and is the pattern to copy. It is a **stage** now,
+producing `graph`; the shape it returns is the same `LanguageAnalysis` either
+way, and the UI renders it for free.
 
 `summary` is the graph's headline numbers — node and edge counts, how many
 cycles and how many files they hold, and the busiest node in each direction.

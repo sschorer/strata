@@ -1,6 +1,6 @@
+import type { LanguageAnalysis } from './analysis.js';
 import type { ParsedCommit } from './commit.js';
 import type { Finding } from './finding.js';
-import type { DependencyGraph } from './graph.js';
 import type { MetricSeries } from './metric.js';
 
 /**
@@ -48,8 +48,12 @@ export type Aggregate = unknown;
  * thing to the producer, the consumer, the cache and the screen.
  */
 export interface StageOutputs {
-  /** A dependency graph over files, modules or packages. */
-  graph: DependencyGraph;
+  /**
+   * A dependency graph over files, modules or packages, with everything the
+   * stage that built it learned on the way: the graph's summary, the dead code
+   * it found and the per-file metrics it measured.
+   */
+  graph: LanguageAnalysis;
   /** One measured series — hotspots, change coupling, code age. */
   metrics: MetricSeries;
   /** Everything one stage found, in one list. */

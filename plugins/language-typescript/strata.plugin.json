@@ -1,10 +1,14 @@
 {
   "id": "strata-language-typescript",
   "name": "TypeScript / JavaScript",
-  "kind": "language",
-  "version": "0.6.0",
+  "kind": "stage",
+  "version": "0.7.0",
   "sdk": "0.2.0",
   "main": "./dist/index.js",
   "description": "Import dependency graph, cycle detection, and metrics for TS/JS. Angular and other analyzers build on this.",
-  "author": "Strata"
+  "author": "Strata",
+  "produces": "graph",
+  "filter": {
+    "extensions": ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"]
+  }
 }

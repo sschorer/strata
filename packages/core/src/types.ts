@@ -74,6 +74,15 @@ export interface RunReport {
 export interface AnalysisReport {
   rev: string;
   run: RunReport;
+  /**
+   * Every language module's result, keyed by the **manifest id** of the plugin
+   * behind it — the graph, its summary, the dead code and the per-file metrics.
+   *
+   * By id rather than by a joined extension list, so two modules claiming the
+   * same extension both fit and a reader that means one of them can find it
+   * (`docs/adr/0011`). A module that has migrated to a stage reaches this field
+   * as well as its stage entry, so nothing downstream has to move first.
+   */
   languages: Record<string, LanguageAnalysis>;
   /**
    * Every language's graph as one — merged, summarised, and with each cycle

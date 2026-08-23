@@ -1,13 +1,18 @@
-import type { RepoContext, RepoFile } from '@strata/sdk';
+import type { RepoFile, StageContext } from '@strata/sdk';
 import { describe, expect, it, vi } from 'vitest';
 import plugin from './index.js';
 
 /**
- * A repository as the core hands it over: `ctx.files` is already filtered to
- * the extensions this plugin claims, so a package.json only ever arrives
- * through `ctx.git` — which is exactly what the fake below mimics.
+ * A stage context as the core builds one: `ctx.files` is already narrowed to
+ * what the manifest's filter matched, so a package.json only ever arrives
+ * through `ctx.git` — which is exactly what the fake below mimics. Nothing
+ * upstream produces anything this stage consumes, and it is handed no history,
+ * because it declared it consumes neither.
  */
-function context(sources: Record<string, string>, tracked: Record<string, string> = {}): RepoContext {
+function context(
+  sources: Record<string, string>,
+  tracked: Record<string, string> = {},
+): StageContext {
   const files: RepoFile[] = Object.entries(sources).map(([path, text]) => ({
     path,
     blob: path,
@@ -26,6 +31,14 @@ function context(sources: Record<string, string>, tracked: Record<string, string
     }),
     log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     cache: { file: (file, compute) => compute(file) },
+    inputs: {
+      graph: {},
+      metrics: {},
+      findings: {},
+      commits: {},
+      aggregate: {},
+    },
+    history: [],
   };
 }
 
@@ -39,7 +52,7 @@ const PACKAGE = JSON.stringify(
   2,
 );
 
-describe('typescript plugin', () => {
+describe('typescript stage', () => {
   it('finds all three shapes of dead code', async () => {
     const ctx = context(
       {
@@ -57,7 +70,7 @@ describe('typescript plugin', () => {
       { 'package.json': PACKAGE },
     );
 
-    const { deadCode } = await plugin.analyze(ctx);
+    const { deadCode } = await plugin.run(ctx);
 
     expect(deadCode).toEqual([
       { path: 'package.json', symbol: 'unused', line: 6, reason: 'unused-dependency' },
@@ -81,7 +94,7 @@ describe('typescript plugin', () => {
       { 'package.json': '{ "name": "demo", "main": "./dist/index.js" }' },
     );
 
-    const { graph, deadCode } = await plugin.analyze(ctx);
+    const { graph, deadCode } = await plugin.run(ctx);
 
     expect(graph.edges).toEqual([
       { from: 'src/index.ts', to: 'src/helper.ts', kind: 'import' },
@@ -108,7 +121,7 @@ describe('typescript plugin', () => {
       },
     );
 
-    const { graph, deadCode } = await plugin.analyze(ctx);
+    const { graph, deadCode } = await plugin.run(ctx);
 
     expect(graph.edges).toEqual([
       { from: 'src/main.ts', to: 'src/user.ts', kind: 'import' },
@@ -139,7 +152,7 @@ describe('typescript plugin', () => {
       { 'package.json': '{ "name": "demo", "main": "./dist/index.js" }' },
     );
 
-    const { summary } = await plugin.analyze(ctx);
+    const { summary } = await plugin.run(ctx);
 
     expect(summary).toEqual({
       nodes: 4,
@@ -163,7 +176,7 @@ describe('typescript plugin', () => {
       ].join('\n'),
     });
 
-    const { summary } = await plugin.analyze(ctx);
+    const { summary } = await plugin.run(ctx);
 
     expect(summary.cycles).toBe(1);
     expect(summary.cycleNodes).toBe(2);
@@ -175,7 +188,7 @@ describe('typescript plugin', () => {
       'src/b.ts': 'export const b = 2;',
     });
 
-    expect((await plugin.analyze(ctx)).deadCode).toEqual([]);
+    expect((await plugin.run(ctx)).deadCode).toEqual([]);
   });
 
   it('keeps working when git cannot be reached', async () => {
@@ -184,7 +197,7 @@ describe('typescript plugin', () => {
       throw new Error('not a repository');
     });
 
-    await expect(plugin.analyze(ctx)).resolves.toMatchObject({ deadCode: [] });
+    await expect(plugin.run(ctx)).resolves.toMatchObject({ deadCode: [] });
     expect(ctx.log.warn).toHaveBeenCalled();
   });
 });

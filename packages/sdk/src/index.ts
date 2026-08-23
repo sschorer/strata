@@ -34,6 +34,7 @@ export * from './repo.js';
 export * from './graph.js';
 export * from './cycle.js';
 export * from './summary.js';
+export * from './analysis.js';
 export * from './finding.js';
 
 // The pipeline: what a stage is given, what it produces, and its slot in a report
