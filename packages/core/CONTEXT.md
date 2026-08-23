@@ -37,20 +37,25 @@ _Avoid_: merged graph, the graph (a language produces one too)
 **Stage entry**:
 A stage's slot in the report — `ok`, `failed` or `skipped`, carrying the output
 only when `ok`. A consumer cannot read an output without seeing that it is
-absent.
+absent. A skipped entry names the stage that failed it when that is why it did
+not run, which is what tells an empty branch from a hole.
 _Avoid_: stage result, diagnostics
 
 **Partial run**:
-A run in which at least one stage failed or was skipped. Still a run, still
-recorded, and never a passing gate.
+A run in which a stage failed and something else still produced output. Still a
+run, still recorded, and never a passing gate. A stage skipped for having no
+file to work on does not make a run partial — nothing was lost — and a run in
+which nothing survived the failures is a *failed* run, not a partial one.
+_Avoid_: degraded run, incomplete run
 
 **Provenance**:
 The record, in the report, of which stages ran and at which versions — what
 makes a comparison between two runs, or a gate that flipped, explainable.
 
 **Job**:
-A run on the queue — queued, running, then succeeded or failed. A job outlives
-the request that asked for it.
+A run on the queue — queued, running, then succeeded, partial or failed. A job
+outlives the request that asked for it. `partial` and `failed` are told apart by
+what there is to collect: a partial job has a report, a failed one has a reason.
 
 **Analysis config**:
 What an analysis of a repository does: scope, stages, convention, architecture

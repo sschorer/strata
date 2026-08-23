@@ -65,6 +65,7 @@ const loaded: LoadedPluginInfo[] = [
 const report: AnalysisReport = {
   rev: '7f80d51cafebabe',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
@@ -210,6 +211,7 @@ describe('AnalyzeScreen', () => {
       ...strata,
       lastAnalysis: {
         rev: 'aaaa1111bbbb',
+        status: 'ok',
         branch: 'main',
         files: 900,
         durationMs: 1200,
@@ -222,6 +224,7 @@ describe('AnalyzeScreen', () => {
         strata: [
           {
             rev: 'cccc2222dddd',
+            status: 'ok',
             branch: 'main',
             files: 880,
             durationMs: 1100,

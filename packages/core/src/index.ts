@@ -29,6 +29,7 @@ export {
 export {
   AnalysisQueue,
   inlineRunner,
+  isFinalState,
   jobSummary,
   requestKey,
   type AnalysisJob,
@@ -47,13 +48,16 @@ export type {
 } from './types.js';
 export {
   declaredStages,
+  failureSummary,
   matchedFiles,
   orderStages,
   planStages,
   runStages,
+  runStatus,
   stagesToRun,
   UnorderableStagesError,
   type PlannedStage,
+  type RunStatus,
   type Stage,
   type StagePlan,
   type StageProvenance,

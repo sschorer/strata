@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { jobSummary, type AnalysisJob } from '@strata/core';
+import { isFinalState, jobSummary, type AnalysisJob } from '@strata/core';
 import type { RouteContext } from './context.js';
 import { httpError } from './http-error.js';
 import { openEventStream } from './sse.js';
@@ -47,7 +47,7 @@ export function jobsRoute(app: FastifyInstance, ctx: RouteContext): void {
     const stream = openEventStream(req, reply);
     const send = (update: AnalysisJob): void => {
       stream.send(update.state, update);
-      if (update.state === 'succeeded' || update.state === 'failed') {
+      if (isFinalState(update.state)) {
         unwatch();
         stream.close();
       }

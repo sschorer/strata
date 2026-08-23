@@ -62,6 +62,19 @@ export function runRoutes(report: unknown, id = 'run-1'): ApiRoutes {
 }
 
 /**
+ * The same three endpoints for a **partial** run: a stage failed, the rest of
+ * the pipeline ran, and there is a report to collect — which is why the job
+ * settles into a state of its own rather than into `failed` (`docs/adr/0015`).
+ */
+export function partialRunRoutes(report: unknown, id = 'run-1'): ApiRoutes {
+  return jobRoutes(id, {
+    state: 'partial',
+    finishedAt: '2026-08-15T10:00:02.000Z',
+    report,
+  });
+}
+
+/**
  * The same three endpoints for a run that failed — a configuration naming a
  * plugin nobody loaded is the ordinary way to reach this, and it is deliberate:
  * the run ends with a reason and no report at all.

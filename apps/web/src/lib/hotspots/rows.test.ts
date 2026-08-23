@@ -8,6 +8,7 @@ function report(partial: Partial<AnalysisReport> = {}): AnalysisReport {
   return {
     rev: 'abc123',
     run: {
+      status: 'ok',
       branch: 'main',
       files: 0,
       durationMs: 1,

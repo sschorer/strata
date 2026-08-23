@@ -7,6 +7,7 @@ const NOW = Date.parse('2026-08-16T12:00:00.000Z');
 function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
   return {
     rev: '7f80d51cafebabe',
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,

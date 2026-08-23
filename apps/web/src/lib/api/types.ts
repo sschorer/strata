@@ -51,8 +51,19 @@ export interface CacheReport {
   writes: number;
 }
 
+/**
+ * How a run ended: `ok` when every stage that had something to do did it,
+ * `partial` when one failed and the rest of the pipeline carried on without it,
+ * `failed` when nothing survived. A partial run is still a run — it has a
+ * report, it refreshes the project's last-run summary, and it never passes a
+ * gate (`docs/adr/0015`).
+ */
+export type RunStatus = 'ok' | 'partial' | 'failed';
+
 /** What one run did — what the header line and the overview stat cards read. */
 export interface RunReport {
+  /** How it ended; a `partial` report has holes in it, and says where. */
+  status: RunStatus;
   /** Branch the analysed revision names; null for a detached HEAD, sha or tag. */
   branch: string | null;
   files: number;
@@ -275,8 +286,19 @@ export interface AnalysisProgress {
   total: number;
 }
 
-/** `queued` and `running` will change again; the other two never do. */
-export type JobState = 'queued' | 'running' | 'succeeded' | 'failed';
+/**
+ * `queued` and `running` will change again; the other three never do.
+ *
+ * `partial` is a run that produced a report with a hole in it — a stage failed
+ * and everything downstream of it was skipped, while the rest of the pipeline
+ * ran. It has a report to collect; `failed` says there is none.
+ */
+export type JobState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'partial'
+  | 'failed';
 
 /** One analysis, from the moment it was asked for to whatever became of it. */
 export interface AnalysisJob {

@@ -28,6 +28,17 @@ export interface StageSkipped<T extends OutputType = OutputType> {
   status: 'skipped';
   type: T;
   reason: string;
+  /**
+   * The stage whose failure took this one out of the run — the one that threw,
+   * not whichever link of the chain sits between them, because that is the one
+   * somebody has to fix.
+   *
+   * Absent when the stage was skipped for having nothing to work on, which is
+   * how the two are told apart without reading the sentence: a filter that
+   * matched no file is an empty branch, and an upstream that failed is a hole
+   * where an answer should have been (`docs/adr/0015`).
+   */
+  blockedBy?: string;
 }
 
 /**

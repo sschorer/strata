@@ -49,7 +49,10 @@ itself behaves.
 | `stages/plan.ts` | `planStages()` / `stagesToRun()` — the run's order, settled before anything runs. |
 | `stages/inputs.ts` | `noOutputs()` / `record()` / `consumedInputs()` — what a stage produced, and what the next one is given. |
 | `stages/key.ts` | `stageRunKey()` — the cache key of a whole stage: what it was handed, and nothing else. |
-| `stages/entry.ts` | `stageOk()` / `stageSkipped()` — a stage's slot in the report. |
+| `stages/entry.ts` | `stageOk()` / `stageFailed()` / `stageSkipped()` / `stageBlocked()` — a stage's slot in the report. |
+| `stages/fallout.ts` | `nothingLost()` / `lose()` / `blockedBy()` — the output types a stage that threw took down, and what failed them. |
+| `stages/outcome.ts` | `runStatus()` — `ok`, `partial` or `failed`, read off what the stages did. |
+| `stages/failures.ts` | `failureSummary()` — every stage that threw, in one line, for a job that has to say why. |
 | `stages/run.ts` | `runStages()` — run the plan, collect the entries, the provenance and the outputs. |
 | `stages/errors.ts` | `UnorderableStagesError` — a stage graph with a knot in it; `UnchosenStageGroupError` — an exclusive group nobody chose from. |
 | `legacy-kinds.ts` | `producedByKind()` — what each pre-stage kind produced, so a setting still names a plugin that migrated. |
@@ -70,6 +73,7 @@ itself behaves.
 | `progress/types.ts` | `AnalysisProgress`, `AnalysisStage`, `ProgressListener` — what a run says about itself while it runs. |
 | `progress/tracker.ts` | `ProgressTracker` — counts a run's steps so the pipeline only has to name them. |
 | `jobs/types.ts` | `AnalysisJob`, `AnalysisJobSummary`, `AnalysisRunner`, `JobState`, queue options. |
+| `jobs/final.ts` | `isFinalState()` — whether a job has reached a state it will never leave. |
 | `jobs/queue.ts` | `AnalysisQueue` — one run at a time, identical requests joined, every job watchable and collectable afterwards. |
 | `jobs/key.ts` | `requestKey()` — the digest that decides which requests are the same run. |
 | `jobs/inline.ts` | `inlineRunner()` — run in the calling thread (CI, scripts, tests). |
@@ -164,7 +168,10 @@ report a total of `0` rather than a number that would move.
 `AnalysisQueue` is the layer a server puts in front of all of it. `submit()`
 returns a job straight away and runs it behind whatever is already going;
 `settled(id)` is the report when there is one, `watch(id, …)` is every change
-until then, and `clearCache()` takes its turn in the same line. Where the run
+until then, and `clearCache()` takes its turn in the same line. A job settles
+into the run's own verdict — `succeeded`, `partial` or `failed` — so a caller
+that acts on the outcome is not left inferring it from a report it would have to
+walk. Where the run
 actually happens is the `AnalysisRunner`'s business — `inlineRunner()` runs it
 here, and `@strata/server` runs it on a worker thread.
 
@@ -207,6 +214,19 @@ section keeps its value — because each section is one settings screen.
   matched no file means the stage never ran, which is not the same as a stage
   that ran and found nothing — and it is not a step anyone is told to wait for
   ([ADR-15](../../docs/adr/0015-partial-runs-and-per-stage-status.md)).
+- **A stage that throws costs its own branch and no more.** It is recorded as
+  failed with its reason, every stage consuming an output type it was going to
+  produce is recorded as skipped naming it, and every other branch runs and
+  reports as usual — a **partial run**, which is still a run, still refreshes
+  the project's last-run summary and never passes a gate
+  ([ADR-15](../../docs/adr/0015-partial-runs-and-per-stage-status.md)). Only a
+  run in which nothing survived the failures is a failed one. Downstream is
+  computed from the declarations like everything else: a consumer of a type a
+  failed stage produced is downstream of it, whoever else also produces that
+  type, because a stage was declared to work on every output of that type in the
+  run and an answer computed from half of them is the empty result this design
+  exists to prevent. A failed stage writes **no** run cache entry, so a retry
+  re-runs it and nothing else.
 - **The migration is per plugin, and nothing downstream moves with it.** A
   plugin becomes a stage on its own; the kinds that have not run beside it. A
   setting still names plugins per kind, so it selects by what a plugin

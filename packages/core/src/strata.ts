@@ -33,6 +33,7 @@ import {
   exclusiveStages,
   planStages,
   runStages,
+  runStatus,
   stagesToRun,
 } from './stages/index.js';
 import { summarised } from './summarise.js';
@@ -52,6 +53,14 @@ import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
  * off the manifests, so the order a run takes follows from what is installed
  * rather than from anything written here
  * ([ADR-10](../../../docs/adr/0010-open-analysis-pipeline.md)).
+ *
+ * A stage that *throws* does not end the run. It is recorded as failed
+ * and everything downstream of it as skipped, while every other branch runs and
+ * reports as it always did — a **partial run**, which is still a run, is still
+ * recorded, and never passes a gate
+ * ([ADR-15](../../../docs/adr/0015-partial-runs-and-per-stage-status.md)). What
+ * still ends a run is a configuration that cannot be turned into one, which is
+ * knowable before any work happens and costs nothing to refuse.
  *
  * It is also where a project's configuration turns into behaviour: the scope
  * narrows the file list once, before any plugin sees it, the enabled-plugin
@@ -312,6 +321,11 @@ export class Strata {
     return {
       rev,
       run: {
+        // Read off the stage entries rather than tracked as the run goes: a
+        // stage that threw took its dependents with it, and whether that
+        // leaves a run worth reading is only knowable once they have all
+        // reported (`docs/adr/0015`).
+        status: runStatus(staged.entries),
         branch,
         files: files.length,
         durationMs: Math.round(performance.now() - startedAt),

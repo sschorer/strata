@@ -6,6 +6,7 @@ import RecentRuns from './RecentRuns.svelte';
 function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
   return {
     rev: '7f80d51cafebabe',
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,

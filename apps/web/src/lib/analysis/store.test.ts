@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { runRoutes, stubApi } from '$lib/test/api';
+import { partialRunRoutes, runRoutes, stubApi } from '$lib/test/api';
 import { dependenciesOf } from '$lib/test/graph';
 import { analysis } from './store.svelte';
 import { ROOT_STORAGE_KEY } from './root-storage';
@@ -156,6 +156,20 @@ describe('analysis store', () => {
     // The request worked; the analysis did not, and that is the news.
     expect(analysis.status).toBe('error');
     expect(analysis.error).toBe('the plugin threw');
+  });
+
+  it('adopts a partial run rather than waiting for it to succeed', async () => {
+    stubApi(partialRunRoutes({ ...report, rev: 'partial1' }));
+
+    await analysis.run('/repo/strata');
+
+    // A stage failed and the rest of the pipeline ran: there is a report, the
+    // screens render it, and the stages that failed say so inside it
+    // (`docs/adr/0015`). A follower that held out for `succeeded` would still
+    // be polling a run that is over.
+    expect(analysis.status).toBe('ready');
+    expect(analysis.report?.rev).toBe('partial1');
+    expect(analysis.error).toBe('');
   });
 
   it('asks the server what happened when the stream never opens', async () => {

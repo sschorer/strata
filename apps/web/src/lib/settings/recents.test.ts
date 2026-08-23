@@ -7,6 +7,7 @@ import { mergeRun, RECENT_LIMIT, runEntry } from './recents';
 function run(overrides: Partial<ProjectAnalysis> = {}): ProjectAnalysis {
   return {
     rev: '7f80d51cafe',
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
@@ -20,6 +21,7 @@ describe('runEntry', () => {
     const report = {
       rev: '7f80d51cafe',
       run: {
+        status: 'ok',
         branch: 'main',
         files: 1240,
         durationMs: 2440,

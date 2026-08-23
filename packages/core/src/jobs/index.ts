@@ -3,6 +3,7 @@
  * time, watchable while they run.
  */
 export { AnalysisQueue } from './queue.js';
+export { isFinalState } from './final.js';
 export { inlineRunner } from './inline.js';
 export { requestKey } from './key.js';
 export { jobSummary } from './summary.js';

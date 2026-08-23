@@ -8,11 +8,36 @@ export function printReport(report, target) {
     `\nStrata — ${target} — ${at} · ${files} files · ` +
       `${(durationMs / 1000).toFixed(2)}s\n`,
   );
+  printStageTrouble(report);
   printHotspots(report);
   printCoupling(report);
   printCommits(report);
   printCache(report);
   printLanguages(report);
+}
+
+/**
+ * What the run lost, before anything it found. A stage that threw costs only
+ * its own branch, so the rest of this report is worth reading — but reading it
+ * without being told which stages are missing is the empty result ADR-15 exists
+ * to prevent (`docs/adr/0015`).
+ */
+function printStageTrouble(report) {
+  const failed = [];
+  const blocked = [];
+  for (const [id, entry] of Object.entries(report.stages ?? {})) {
+    if (entry.status === 'failed') failed.push(`${id}: ${entry.reason}`);
+    else if (entry.blockedBy) blocked.push(`${id} (needs ${entry.blockedBy})`);
+  }
+  if (failed.length === 0) return;
+
+  const run = report.run.status === 'failed' ? 'Failed run' : 'Partial run';
+  console.log(`${run} — ${failed.length} stage(s) failed:`);
+  for (const line of failed) console.log(`  x ${line}`);
+  if (blocked.length > 0) {
+    console.log(`  skipped with them: ${blocked.join(', ')}`);
+  }
+  console.log('');
 }
 
 function printHotspots(report, limit = 15) {

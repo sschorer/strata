@@ -51,7 +51,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Only entries in the registry's own shape are shown; the rest are dropped. */
+/**
+ * Only entries in the registry's own shape are shown; the rest are dropped.
+ *
+ * The run's `status` is not among the fields checked, deliberately: entries
+ * written before a run had one are still a true record of a run, and dropping
+ * somebody's log to insist on a field no row here renders yet would cost more
+ * than it buys.
+ */
 function isRun(value: unknown): value is ProjectAnalysis {
   if (!isRecord(value)) return false;
   return (

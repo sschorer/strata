@@ -1,6 +1,9 @@
 # A stage failure fails its dependents, not the run
 
-> Status: accepted, not yet implemented.
+> Status: accepted, implemented — a stage that throws fails itself and its
+> dependents, the report carries a status per stage, and a partial run is a
+> job state of its own. Gates read it once there are gates to read it
+> ([#124](https://github.com/sschorer/strata/issues/124)).
 
 Today any plugin that throws propagates out of `Strata.analyze`, and the worker marks the whole job failed. Once anyone can add a stage ([ADR-10](0010-open-analysis-pipeline.md)), that means a third-party stage dividing by zero discards twenty minutes of successful language analysis.
 

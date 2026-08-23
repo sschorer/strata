@@ -193,8 +193,9 @@ pipeline then does, on that thread:
    has to derive it a second time
    ([ADR-10](./adr/0010-open-analysis-pipeline.md)).
 6. Results merge into an `AnalysisReport`, returned by the API — the fields the
-   kinds fill in, plus one **stage entry** per stage keyed by manifest id and
-   the run's **provenance**: which stages it ordered, and at which versions.
+   kinds fill in, plus one **stage entry** per stage keyed by manifest id, the
+   run's **provenance** (which stages it ordered, and at which versions) and how
+   the run itself ended: `ok`, `partial` or `failed`.
 
 Which plugins are "enabled" and which convention is "active" are the project's
 configuration; a project that has configured neither runs every plugin, and the
@@ -212,6 +213,18 @@ clean one — an analysis missing the plugin that would have found the problem
 looks exactly like an analysis that found no problem, and a gate reading it
 passes a build that checked nothing
 ([ADR-12](./adr/0012-repo-owned-config-file.md)).
+
+A stage that **throws**, on the other hand, costs only its own branch. It is
+recorded as failed with its reason, every stage consuming an output type it was
+going to produce is recorded as skipped naming it, and everything else runs and
+reports as usual: a **partial run**, which still refreshes the project's
+last-run summary, is a job state of its own, and never passes a gate. Only a run
+in which nothing survived the failures is a failed run. The deliberate
+inconsistency with the paragraph above is the point — a missing plugin is a
+configuration error knowable before any work happens, while a throwing stage is
+discovered after most of the work is done, and once anyone can add a stage, one
+of them dividing by zero must not discard twenty minutes of analysis that had
+nothing to do with it ([ADR-15](./adr/0015-partial-runs-and-per-stage-status.md)).
 
 Steps 2 and 3 go through the cache. The core skips any plugin whose inputs
 digest to a stored result — that part needs no cooperation. Per-file reuse
@@ -414,5 +427,6 @@ project's vocabulary is [`CONTEXT-MAP.md`](../CONTEXT-MAP.md).
 | **RepoContext** | The immutable repo view handed to plugins. |
 | **Plugin manifest** | `strata.plugin.json` describing a plugin to the registry. |
 | **Project** | A repository registered with this workbench: id, display name, root, last-analysis summary. |
-| **Job** | One analysis on the queue — queued, running, then succeeded or failed. Outlives the request that asked for it. |
+| **Job** | One analysis on the queue — queued, running, then succeeded, partial or failed. Outlives the request that asked for it. |
+| **Partial run** | A run in which a stage failed and the rest of the pipeline still produced output. Still a run, still recorded, never a passing gate. |
 | **Vouch** | Granting a contributor's approval the power to unblock merges. |

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { AnalysisProgress } from '../progress/index.js';
+import { failureSummary } from '../stages/index.js';
 import type { AnalysisReport, AnalyzeOptions } from '../types.js';
+import { isFinalState } from './final.js';
 import { requestKey } from './key.js';
 import type {
   AnalysisJob,
@@ -11,6 +13,9 @@ import type {
 } from './types.js';
 
 const DEFAULT_HISTORY = 20;
+
+/** The states a job that was actually started can settle into. */
+type Settled = Extract<JobState, 'succeeded' | 'partial' | 'failed'>;
 
 /** A job plus what the queue needs to run it and to answer for it afterwards. */
 interface JobRecord {
@@ -69,7 +74,7 @@ export class AnalysisQueue {
 
     const key = requestKey(options);
     const live = [...this.#records.values()].find(
-      (r) => r.key === key && !isFinal(r.job.state),
+      (r) => r.key === key && !isFinalState(r.job.state),
     );
     if (live) return live.job;
 
@@ -181,28 +186,30 @@ export class AnalysisQueue {
       const report = await this.runner.analyze(record.options, (progress) =>
         this.#report(record, progress),
       );
-      this.#settle(record, 'succeeded', { report });
+      this.#settle(record, outcome(report), { report, ...failure(report) });
     } catch (err) {
+      // The run never got far enough to have a report: a configuration that
+      // could not be turned into one, or the analysis thread going down.
       this.#settle(record, 'failed', { error: message(err) });
     }
   }
 
   /** A step of a run. Ignored once the job has settled (a late worker message). */
   #report(record: JobRecord, progress: AnalysisProgress): void {
-    if (isFinal(record.job.state)) return;
+    if (isFinalState(record.job.state)) return;
     this.#update(record, { progress });
   }
 
   #settle(
     record: JobRecord,
-    state: Extract<JobState, 'succeeded' | 'failed'>,
-    outcome: { report?: AnalysisReport; error?: string },
+    state: Settled,
+    settlement: { report?: AnalysisReport; error?: string },
   ): void {
     this.#update(record, {
       state,
       finishedAt: new Date().toISOString(),
-      report: outcome.report ?? null,
-      error: outcome.error ?? null,
+      report: settlement.report ?? null,
+      error: settlement.error ?? null,
     });
     record.finish(record.job);
     // Every reader has just been handed the final state; there is nothing left
@@ -230,7 +237,7 @@ export class AnalysisQueue {
   /** Keep the last `history` settled jobs; live ones are never dropped. */
   #prune(): void {
     const settled = [...this.#records.values()].filter((r) =>
-      isFinal(r.job.state),
+      isFinalState(r.job.state),
     );
     for (const record of settled.slice(0, settled.length - this.#history)) {
       this.#records.delete(record.job.id);
@@ -239,8 +246,28 @@ export class AnalysisQueue {
   }
 }
 
-function isFinal(state: JobState): boolean {
-  return state === 'succeeded' || state === 'failed';
+/**
+ * What became of a job that produced a report: the run's own verdict, which is
+ * the stages' verdict (`docs/adr/0015`). A report is not a pass — a run in
+ * which every stage threw has one, and it says so on every line.
+ */
+function outcome(report: AnalysisReport): Settled {
+  const { status } = report.run;
+  if (status === 'ok') return 'succeeded';
+  return status === 'partial' ? 'partial' : 'failed';
+}
+
+/**
+ * The failure a run that kept nothing settles with. A partial one carries none:
+ * it has a report worth reading, and the stages that threw are named in it.
+ */
+function failure(report: AnalysisReport): { error?: string } {
+  if (report.run.status !== 'failed') return {};
+  return {
+    error:
+      'The run produced nothing: every stage that ran failed — ' +
+      failureSummary(report.stages),
+  };
 }
 
 function message(err: unknown): string {

@@ -8,6 +8,7 @@ import {
 
 const run: ProjectAnalysis = {
   rev: '7f80d51cafe',
+  status: 'ok',
   branch: 'main',
   files: 1240,
   durationMs: 2440,

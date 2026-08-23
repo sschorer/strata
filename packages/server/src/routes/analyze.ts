@@ -95,8 +95,21 @@ export function analyzeRoute(app: FastifyInstance, ctx: RouteContext): void {
   });
 }
 
-/** The report a finished job produced, or the failure as an error response. */
+/**
+ * The report a finished job produced, or the failure as an error response.
+ *
+ * A **partial** run answers with its report like any other: a stage threw, the
+ * rest of the pipeline ran, and what it found is worth having — the entries in
+ * `stages` say which of them are missing and why, and the job's state says so
+ * to anyone who asks for it (`docs/adr/0015`). A run that kept nothing is an
+ * error here as it always was, even though it now has a report of its own to
+ * explain itself, because a caller that waited for an analysis and got a
+ * report of nothing but failures must not read a 200.
+ */
 function reported(job: AnalysisJob | undefined) {
+  if (job?.state === 'failed') {
+    throw httpError(500, job.error ?? 'The analysis failed.');
+  }
   if (job?.report) return job.report;
   // The queue keeps a job at least until whoever submitted it has been handed
   // the outcome, so no job here means it was never accepted.
@@ -111,7 +124,11 @@ async function record(
   log: FastifyBaseLogger,
 ): Promise<void> {
   const job = await settled;
-  if (!job?.report) return;
+  // A partial run is a run: it looked at this repository at this revision and
+  // has something to say about it, so the switcher's summary moves on and is
+  // marked partial (`docs/adr/0015`). A run that kept nothing leaves the last
+  // real run standing rather than overwriting it with an empty one.
+  if (!job?.report || job.state === 'failed') return;
   try {
     ctx.projects.recordAnalysis(id, { rev: job.report.rev, ...job.report.run });
   } catch (err) {
