@@ -5,6 +5,7 @@ const STAGES: Record<AnalysisProgress['stage'], string> = {
   resolving: 'Resolving the revision',
   scanning: 'Listing tracked files',
   language: 'Analysing',
+  stage: 'Running',
   history: 'Reading the commit history',
   metric: 'Computing',
   commits: 'Folding commit analytics',

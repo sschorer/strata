@@ -5,9 +5,11 @@
 > **dead code**, with **configurable AI providers** — run it locally or
 > self-host it over the browser.
 
-Strata is a small core plus three kinds of plugins. Everything an analysis does
-— a new language, a new commit convention, a new git metric — is a plugin, so
-the tool grows without the core changing. An AI provider is not: it is a local
+Strata is a small core plus plugins. Everything an analysis does is a **stage**
+a plugin contributes — a new language, a new commit convention, a new git
+metric, a rule engine nobody has written yet — and the core orders the pipeline
+from what each stage says it consumes and produces, so the tool grows without
+the core changing. An AI provider is not: it is a local
 coding agent you configure in the app settings, and analysis itself never calls
 a model.
 

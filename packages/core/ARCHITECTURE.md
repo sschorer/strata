@@ -4,9 +4,12 @@
 
 ## 1. Purpose & Goals
 
-The **orchestrator**. Ingests a git repository, holds the plugin registry, builds
-the immutable `RepoContext`, and drives the analysis pipeline that fans work out
-to plugins. This is the only module that knows about all three plugin kinds.
+The **orchestrator**, and — for everything that has migrated to a stage — the
+**scheduler**. Ingests a git repository, holds the plugin registry, builds the
+immutable `RepoContext`, orders the stages from what their manifests declared,
+and drives the rest of the pipeline that fans work out to the plugin kinds that
+have not migrated yet. This is the only module that knows about every plugin
+kind.
 
 It also owns what the workbench has to remember between runs: the incremental
 cache, the **project registry** — which repositories are registered, and what
@@ -38,6 +41,17 @@ itself behaves.
 | `index.ts` | Barrel — the package's public surface, no logic. |
 | `strata.ts` | The `Strata` orchestrator. |
 | `types.ts` | `AnalyzeOptions`, `StrataOptions`, `AnalysisReport`, `RunReport`, `CacheReport`. |
+| `stages/types.ts` | `Stage`, `PlannedStage`, `StagePlan`, `StageProvenance` — a stage as the core schedules it. |
+| `stages/declared.ts` | `declaredStages()` — the stages among a set of loaded plugins, read off their manifests. |
+| `stages/order.ts` | `orderStages()` — producers before consumers, by output type; stable on ties. |
+| `stages/filter.ts` | `matchedFiles()` — the files one stage's filter matched, extensions ∪ globs. |
+| `stages/plan.ts` | `planStages()` / `stagesToRun()` — the run's order, settled before anything runs. |
+| `stages/inputs.ts` | `noOutputs()` / `record()` / `consumedInputs()` — what a stage produced, and what the next one is given. |
+| `stages/key.ts` | `stageRunKey()` — the cache key of a whole stage: what it was handed, and nothing else. |
+| `stages/entry.ts` | `stageOk()` / `stageSkipped()` — a stage's slot in the report. |
+| `stages/run.ts` | `runStages()` — run the plan, collect the entries, the provenance and the outputs. |
+| `stages/errors.ts` | `UnorderableStagesError` — a stage graph with a knot in it. |
+| `legacy-kinds.ts` | `producedByKind()` — what each pre-stage kind produced, so a setting still names a plugin that migrated. |
 | `graph/fold.ts` | `crossLanguageGraph()` — every language's graph as the one graph, summary and ordered cycles a report carries. |
 | `graph/merge.ts` | `mergedGraph()` — the union of the per-language graphs, deduplicated. |
 | `graph/packages.ts` | `packageNodes()` — a node for each end of an edge that left the analysed file set. |
@@ -47,7 +61,7 @@ itself behaves.
 | `commits/weeks.ts` | `weeklyActivity()` — commits per Monday-started week (UTC). |
 | `commits/types.ts` | `CommitAnalytics`, `CommitBucket`, `CommitWeek`. |
 | `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
-| `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()`. |
+| `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()` / `loadedFor()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
 | `plugin-shape.ts` | `pluginShapeError()` — does the module implement the kind it claims? |
 | `stage-declarations.ts` | `stageDeclarationError()` — are a manifest's stage declarations ones the core could honour? Read from the JSON alone. |
@@ -65,6 +79,7 @@ itself behaves.
 | `scope/files.ts` | `scopedFiles()` — the tracked files narrowed to a project's `paths` minus its `ignore`. |
 | `scope/extensions.ts` | `claimedFiles()` — the files one language plugin claims, by extension. |
 | `scope/plugins.ts` | `enabledPlugins()` — the plugins of one kind a run may call. |
+| `scope/stages.ts` | `enabledStages()` — the stages a run may call; unnamed means enabled. |
 | `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history. |
 | `scope/named.ts` | `requireLoaded()` — hold what a setting names to what loaded; one rule for every setting that names a plugin. |
 | `scope/errors.ts` | `MissingPluginError`, `NamedBy` — the run a configuration cannot have, with the plugin and the setting that asked for it. |
@@ -118,7 +133,9 @@ itself behaves.
 2. Build `RepoContext`, one `cache` scope per plugin.
 3. Route files to the enabled `language` plugins by extension — skipping any
    plugin whose input digest already has a stored result.
-4. Stream `history`; run the enabled `git-metric` plugins (same skip).
+4. Stream `history`; run the ordered **stages**, each over the files its filter
+   matched and the outputs of the types it consumes; then the enabled
+   `git-metric` plugins that have not migrated (same skip).
 5. Parse commits with the project's `commit-convention` plugin — the first
    registered when it names none — then fold the log into `CommitAnalytics`
    (per type, per scope, conformance, breaking changes, weekly activity).
@@ -126,7 +143,12 @@ itself behaves.
    with a node for each package an import left for, each cycle ordered into a
    path and the whole thing counted once.
 7. Merge into `AnalysisReport`, with the run's own metadata (`RunReport`:
-   branch, file count, duration, finished-at) beside the resolved `rev`.
+   branch, file count, duration, finished-at) beside the resolved `rev`, one
+   **stage entry** per stage keyed by manifest id, and the run's **provenance**.
+
+The stage order and each stage's file set are settled between 1 and 2, off the
+manifests alone: a configuration that cannot be ordered fails there, before
+anything has been read on the strength of it.
 
 Each of those steps is announced to `onProgress`, if a caller passed one. The
 plan — how many steps the run holds — is worked out between 2 and 3, once the
@@ -159,6 +181,34 @@ section keeps its value — because each section is one settings screen.
 
 ## 6. Decisions
 
+- **The pipeline is ordered from declarations, not written down here.** A stage
+  says what it consumes and produces in its manifest and the core sorts the
+  graph from that, so adding a stage is not a change to this module
+  ([ADR-10](../../docs/adr/0010-open-analysis-pipeline.md)). Dependencies
+  resolve **by output type**: a stage consuming a graph receives every graph
+  produced upstream, keyed by producer, and therefore works with a language
+  module that did not exist when it was written. A knot in that graph is
+  refused while the run is still being planned — an unsatisfiable configuration
+  is a validation error, not a crash halfway through an analysis.
+- **The core applies each stage's filter, and the stage never sees the tree.**
+  That is what keeps the cache key honest: the key covers the files the stage
+  actually matched and the outputs it actually consumes, so an unrelated file
+  changing does not invalidate it. A stage left to filter itself would force a
+  key over the whole repository. The commit window is in the key of a stage
+  that consumes `commits`, and of no other — keying every stage on the revision
+  would undo the arrangement on the first README edit.
+- **A stage with nothing to work on is skipped, and says so.** A filter that
+  matched no file means the stage never ran, which is not the same as a stage
+  that ran and found nothing — and it is not a step anyone is told to wait for
+  ([ADR-15](../../docs/adr/0015-partial-runs-and-per-stage-status.md)).
+- **The migration is per plugin, and nothing downstream moves with it.** A
+  plugin becomes a stage on its own; the kinds that have not run beside it. A
+  setting still names plugins per kind, so it selects by what a plugin
+  *produces* rather than by what it calls itself (`legacy-kinds.ts`) — a project
+  that switched hotspots on by id keeps it on the day hotspots becomes a stage.
+  A stage's output also still reaches the report field its kind's used to, so
+  the screens change when they are ready to (#123) rather than when the
+  pipeline does.
 - **Extension-based routing** for language plugins (simple, fast).
 - **Third-party plugins are drop-in, and nothing about them is trusted** — one
   directory per plugin under `userPluginsDir()`, every manifest field validated,
@@ -218,9 +268,11 @@ section keeps its value — because each section is one settings screen.
   measuring its own round-trip would be measuring the network too. A revision
   that names no branch (detached HEAD, sha, tag) reports `null` rather than
   inventing one.
-- **A run reports itself in the pipeline's own stages**, not as a percentage.
-  The steps a reader is shown are the steps `analyze()` takes, a plugin that
-  claims none of this repository's file types is never counted as one, and the
+- **A run reports itself in the pipeline's own steps**, not as a percentage.
+  The steps a reader is shown are the steps `analyze()` takes — the stages the
+  scheduler ordered among them, counted from that order rather than from an
+  expression written here. A plugin that claims none of this repository's file
+  types is never counted as one, and the
   total is `0` — an honest unknown — until the file list makes it knowable. A
   bar that jumps backwards when the plan firms up would be worse than no bar.
   A run nobody watches pays nothing: the tracker's methods are no-ops without a

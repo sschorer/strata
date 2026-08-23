@@ -1,7 +1,13 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { Logger, PluginManifest, StrataPlugin } from '@strata/sdk';
+import type {
+  Logger,
+  PluginKind,
+  PluginManifest,
+  StrataPlugin,
+} from '@strata/sdk';
 import { discoverPlugins } from './discover.js';
+import { producedByKind } from './legacy-kinds.js';
 import { createConsoleLogger } from './logger.js';
 import { readManifest, resolveEntry } from './manifest.js';
 import { pluginAgreementError } from './plugin-agreement.js';
@@ -156,6 +162,27 @@ export class PluginRegistry {
     return this.plugins.filter(
       (l): l is LoadedPlugin & { plugin: Extract<StrataPlugin, { kind: K }> } =>
         l.plugin.kind === kind,
+    );
+  }
+
+  /**
+   * The plugins a setting that names one *kind* may select — that kind's own
+   * plugins, plus the stages that produce what it produced.
+   *
+   * A plugin that migrates to a stage stops being a `git-metric` and keeps
+   * being what the `metrics` setting has always meant, so the two have to be
+   * one list: a project that switched hotspots on by id would otherwise be
+   * naming a plugin nobody loaded, and get no run at all. Registry order is
+   * preserved, so a report's series keep the order they have always had.
+   *
+   * Transitional, and it goes when the kinds do (`docs/adr/0011`).
+   */
+  loadedFor(kind: PluginKind): LoadedPlugin[] {
+    const produced = producedByKind(kind);
+    return this.plugins.filter(
+      (l) =>
+        l.manifest.kind === kind ||
+        (l.plugin.kind === 'stage' && l.manifest.produces === produced),
     );
   }
 

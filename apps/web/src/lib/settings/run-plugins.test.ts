@@ -99,6 +99,31 @@ describe('runPlugins', () => {
     expect(entries[0]?.note).toContain('no run starts');
   });
 
+  it('leaves a stage on the setting that names what it produces', () => {
+    // Hotspots is a stage now and is still what the `metrics` list means: a
+    // project that switched it off stays switched off across the migration.
+    const entries = runPlugins(
+      [
+        plugin({
+          id: 'strata-git-hotspots',
+          kind: 'stage',
+          produces: 'metrics',
+        }),
+        plugin({
+          id: 'strata-rules',
+          kind: 'stage',
+          produces: 'findings',
+        }),
+      ],
+      { languages: null, metrics: [], convention: null },
+    );
+
+    expect(entries[0]).toMatchObject({ runs: false });
+    expect(entries[0]?.note).toContain('leaves it out');
+    // Nothing selects a findings stage yet, and unnamed means enabled.
+    expect(entries[1]).toMatchObject({ runs: true, note: '' });
+  });
+
   it('stands a plugin of a kind this build has no step for by', () => {
     const [entry] = runPlugins([
       plugin({ id: 'strata-oracle', kind: 'oracle' as LoadedPluginInfo['kind'] }),

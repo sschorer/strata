@@ -7,6 +7,7 @@ export { globMatcher } from './glob.js';
 export { scopedFiles, type FileScope } from './files.js';
 export { claimedFiles } from './extensions.js';
 export { enabledPlugins } from './plugins.js';
+export { enabledStages } from './stages.js';
 export { chosenConvention, type LoadedConvention } from './convention.js';
 export { requireLoaded } from './named.js';
 export { MissingPluginError, type NamedBy } from './errors.js';

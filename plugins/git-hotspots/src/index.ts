@@ -1,9 +1,8 @@
 import {
-  defineGitMetricPlugin,
+  defineStage,
   type MetricPoint,
   type MetricSeries,
-  type RawCommit,
-  type RepoContext,
+  type StageContext,
 } from '@strata/sdk';
 import { churnByPath } from './churn.js';
 import { indentComplexity } from './complexity.js';
@@ -15,11 +14,14 @@ import { indentComplexity } from './complexity.js';
  * change a lot AND are complex are where bugs and maintenance cost concentrate.
  * Churn we read straight from git history (`churn.ts`); complexity here is a
  * cheap proxy (`complexity.ts`) so the metric has zero language deps.
+ *
+ * A stage: the manifest declares that it consumes the commit log, produces a
+ * metric series and wants every file — every file being the honest filter for a
+ * measure that scores whatever churned, whatever language it is in.
  */
-export default defineGitMetricPlugin({
-  id: 'hotspots',
-  async compute(ctx: RepoContext, history: RawCommit[]): Promise<MetricSeries> {
-    const churn = await churnByPath(ctx, history);
+export default defineStage<'metrics'>({
+  async run(ctx: StageContext): Promise<MetricSeries> {
+    const churn = await churnByPath(ctx, ctx.history);
 
     const points: MetricPoint[] = [];
     for (const file of ctx.files) {

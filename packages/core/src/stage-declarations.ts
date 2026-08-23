@@ -16,7 +16,13 @@ import { OUTPUT_TYPES } from '@strata/sdk';
 export function stageDeclarationError(
   fields: Record<string, unknown>,
 ): string | null {
-  const { consumes, produces, filter, exclusive } = fields;
+  const { kind, consumes, produces, filter, exclusive } = fields;
+
+  // A stage is scheduled by what it produces, so a stage that names no output
+  // type is one the core could order but never wire to anything.
+  if (kind === 'stage' && produces === undefined) {
+    return 'is a stage and declares no "produces" output type';
+  }
 
   if (consumes !== undefined) {
     if (!Array.isArray(consumes)) {

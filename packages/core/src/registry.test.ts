@@ -420,4 +420,53 @@ describe('stage declarations', () => {
 
     expect(await registry.loadDirectory(dir)).toHaveLength(1);
   });
+
+  it('refuses a stage that declares no output type', async () => {
+    // A stage is scheduled by what it produces; one that names nothing could
+    // be ordered and then wired to nobody.
+    writePlugin('alpha', {}, 'stage');
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/is a stage and declares no "produces"/),
+    ]);
+  });
+
+  it('refuses a stage whose module does not implement run()', async () => {
+    const pluginDir = writePlugin('alpha', { produces: 'metrics' }, 'stage');
+    writeFileSync(join(pluginDir, 'index.js'), 'export default { kind: "stage" };');
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    expect(registry.all()).toEqual([]);
+    expect(errors(registry)).toEqual([
+      expect.stringMatching(/is missing run\(\)/),
+    ]);
+  });
+
+  it('lists a stage under the setting that names what it produces', async () => {
+    const pluginDir = writePlugin('alpha', { produces: 'metrics' }, 'stage');
+    writeFileSync(
+      join(pluginDir, 'index.js'),
+      'export default { kind: "stage", async run() { return {}; } };',
+    );
+    writePlugin('beta', {}, 'git-metric');
+
+    const registry = new PluginRegistry(silent);
+    await registry.loadDirectory(dir);
+
+    // `metrics` has always selected everything that produces a metric series,
+    // and a plugin that migrates to a stage must keep answering to it.
+    expect(registry.loadedFor('git-metric').map((l) => l.manifest.id)).toEqual([
+      'strata-alpha',
+      'strata-beta',
+    ]);
+    expect(registry.loadedByKind('git-metric').map((l) => l.manifest.id)).toEqual(
+      ['strata-beta'],
+    );
+  });
 });

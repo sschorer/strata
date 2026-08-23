@@ -65,6 +65,8 @@ const report = {
     scopes: [],
     weeks: [],
   },
+  stages: {},
+  provenance: [],
   cache: {
     enabled: false,
     hits: 0,

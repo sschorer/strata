@@ -7,8 +7,10 @@ A plugin is a package with:
    from `@strata/sdk`.
 
 The core loads the manifest, checks the `sdk` major matches, imports `main`,
-and registers the default export by its `kind`. It does not have to live in
-this repo — see [Installing a plugin](#installing-a-plugin).
+and registers the default export by its `kind`. A plugin of kind `stage` is then
+placed in the pipeline by what its manifest declares, without the core knowing
+anything about what it does. It does not have to live in this repo — see
+[Installing a plugin](#installing-a-plugin).
 
 ## Manifest
 
@@ -58,10 +60,52 @@ configuration it cannot satisfy **without importing any plugin code**
 where the exported object still says the same thing — a language plugin's
 `extensions` against `filter.extensions` — the two must agree.
 
-They are optional today: a plugin that declares none of them runs the way it
-always did, by its `kind`. Declaring them is what lets the scheduler place it.
+A plugin of kind `stage` **must** declare what it produces; the rest are
+optional. A plugin that declares none of them is one of the three older kinds
+and runs the way it always did.
 
-## The three kinds
+## The kinds
+
+### Stage
+
+The kind the core schedules, and the one the other three collapse into. The
+manifest says where it sits in the pipeline; the module does the work:
+
+```ts
+import { defineStage, type MetricSeries } from '@strata/sdk';
+
+export default defineStage<'metrics'>({
+  async run(ctx): Promise<MetricSeries> {
+    // ctx.files    the files your filter matched — the core applied it
+    // ctx.inputs   every upstream output of each type you consume, by producer
+    // ctx.history  the run's commit window, if you consume `commits`
+    // ctx.cache    the blob-keyed cache, as every plugin gets
+    return { id: 'code-age', label: 'Code age', points: [] };
+  },
+});
+```
+
+What the core promises a stage:
+
+- It runs **after** every stage producing a type it consumes, and it never
+  learns which plugins are installed — `ctx.inputs.graph` is keyed by producing
+  plugin id, and is empty when nothing produced one.
+- It is handed **only** what it declared. The files are its filter's matches;
+  the outputs are the types in its `consumes`; the history window arrives only
+  for a stage that consumes `commits`, because a `RawCommit` is not an output
+  type and nothing can produce one.
+- Its whole result is cached on exactly that input, so a stage is not asked
+  again unless something it was actually given changed.
+- A stage whose filter matched no file is **skipped** rather than run over
+  nothing, and the report says so — "found nothing" and "did not run" are
+  different answers ([ADR-15](adr/0015-partial-runs-and-per-stage-status.md)).
+
+The report carries one **stage entry** per stage, keyed by manifest id, plus the
+run's **provenance**: which stages ran, at which versions.
+
+The three kinds below are what a plugin was before stages, and they still run
+the way they always did. Each will migrate to `run()`, and the kind goes when
+the last one has ([ADR-11](adr/0011-sdk-0-2-0-single-break.md)).
 
 ### Language plugin
 
@@ -204,7 +248,7 @@ scanned; nesting is not searched.
 
 What the loader enforces, because a drop-in plugin is not first-party code:
 
-- Every manifest field is validated, and the `kind` must be one of the three.
+- Every manifest field is validated, and the `kind` must be one of the four.
   A manifest naming a kind Strata has since dropped (`ai-provider`) is refused
   with what replaced it, rather than as an unknown word.
 - The stage declarations are validated **before the entry module is imported**
@@ -249,6 +293,6 @@ needed between runs. Discovery happens once at startup.
 
 `strata.plugin.json.sdk` must share a major with the running SDK. Breaking a
 published contract in `@strata/sdk` means a major bump and a migration note.
-The SDK is at `0.2.0`, which added the stage declarations above; `0.x` is
-deliberate, and the open pipeline gets used in anger before it is promised
+The SDK is at `0.2.0`, which added the stage contract and the declarations
+above; `0.x` is deliberate, and the open pipeline gets used in anger before it is promised
 ([ADR-11](adr/0011-sdk-0-2-0-single-break.md)).

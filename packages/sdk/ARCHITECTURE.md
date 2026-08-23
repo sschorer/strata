@@ -5,10 +5,11 @@
 ## 1. Purpose & Goals
 
 The **public contract** every plugin implements and the core consumes. Defines
-the three plugin kinds, their data shapes, and the `define*` helpers — and, from
-`0.2.0`, the vocabulary of the open pipeline: what a **stage** declares about
-itself in its manifest, the closed set of **output types** it may produce, and
-the **stage entry** a report carries per stage. It is the one module whose
+the plugin kinds, their data shapes, and the `define*` helpers — and, from
+`0.2.0`, the whole vocabulary of the open pipeline: the **stage** contract
+(`run(ctx)`), what a stage declares about itself in its manifest, the closed set
+of **output types** it may produce, and the **stage entry** a report carries per
+stage. It is the one module whose
 stability matters most — a breaking change here ripples to all plugins.
 
 Goals: a minimal, strongly-typed, SemVer-stable surface.
@@ -23,10 +24,10 @@ Goals: a minimal, strongly-typed, SemVer-stable surface.
 
 - **Consumed by:** `@strata/core` (registry validates `manifest.sdk` against
   `SDK_VERSION`) and every `plugins/*` package.
-- **Exports:** types (`RepoContext`, `LanguageAnalysis`, `ParsedCommit`,
-  `MetricSeries`, `OutputType`, `StageEntry`, …) and helpers
-  (`defineLanguagePlugin`, `defineCommitConventionPlugin`,
-  `defineGitMetricPlugin`).
+- **Exports:** types (`RepoContext`, `StageContext`, `StageInputs`,
+  `LanguageAnalysis`, `ParsedCommit`, `MetricSeries`, `OutputType`,
+  `StageEntry`, …) and helpers (`defineStage`, `defineLanguagePlugin`,
+  `defineCommitConventionPlugin`, `defineGitMetricPlugin`).
 - **Not exported:** anything about AI. A provider is a configured instance in
   the app settings and the call surface for one lives inside `@strata/core`
   ([ADR-13](../../docs/adr/0013-providers-are-configured-instances.md)).
@@ -50,6 +51,9 @@ path (`@strata/sdk`).
 | `commit.ts` | `CommitConventionPlugin`, `RawCommit`, `ParsedCommit` |
 | `metric.ts` | `GitMetricPlugin`, `MetricSeries`, `MetricPoint` |
 | `output.ts` | `OutputType`, `OUTPUT_TYPES`, `StageOutputs`, `Aggregate` — the closed set of what a stage may produce, and the shape behind each |
+| `stage-inputs.ts` | `StageInput`, `StageInputs` — every upstream output of a type, keyed by producer |
+| `stage-context.ts` | `StageContext` — the repository as a run sees it, plus what upstream produced |
+| `stage-plugin.ts` | `StagePlugin`, `defineStage` — the one function a stage contributes |
 | `finding.ts` | `Finding` — one thing a stage found, whichever stage found it |
 | `stage.ts` | `StageStatus`, `StageEntry` (+ `StageOk` / `StageFailed` / `StageSkipped`) — a report's per-stage slot |
 | `plugin.ts` | `StrataPlugin` — the discriminated union |
@@ -70,6 +74,15 @@ runtime — it must be resolvable from the plugin (see
 
 - **`define*` helpers over bare objects** — give plugin authors full type
   inference and set `kind` centrally.
+- **A stage is one function, and everything else is declaration.** `run(ctx)` is
+  all that is left on the exported object, because a core that plans a run
+  without importing anything can only read declarations
+  ([ADR-10](../../docs/adr/0010-open-analysis-pipeline.md)). The three older
+  kinds keep their shapes until each has migrated to it.
+- **A stage is handed only what it declared** — the files its filter matched,
+  the output types it consumes, and the commit window only when it consumes
+  `commits`. Anything else would be an input the core did not key its cache on,
+  and so an answer served stale on the next run.
 - **Discriminated union (`StrataPlugin`)** — lets the registry switch on `kind`
   type-safely.
 - **`RepoContext.cache` is always present** — the core injects a pass-through

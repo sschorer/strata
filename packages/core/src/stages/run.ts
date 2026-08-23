@@ -1,0 +1,102 @@
+import type {
+  RawCommit,
+  RepoContext,
+  StageEntry,
+  StageOutput,
+} from '@strata/sdk';
+import type { AnalysisCache } from '../cache/index.js';
+import type { ProgressTracker } from '../progress/index.js';
+import { stageOk, stageSkipped } from './entry.js';
+import {
+  consumedInputs,
+  noOutputs,
+  record,
+  type ProducedOutputs,
+} from './inputs.js';
+import { stageRunKey, type HistoryWindow } from './key.js';
+import type { StagePlan, StageProvenance } from './types.js';
+
+export interface StageRunOptions {
+  plan: StagePlan;
+  /** The repository as this run sees it, minus what the core scopes per stage. */
+  repo: Omit<RepoContext, 'cache' | 'files'>;
+  /** The run's history window; only a stage that consumes commits is given it. */
+  history: readonly RawCommit[];
+  /** What that window is, for the cache key of the stages that read it. */
+  window: HistoryWindow;
+  cache: AnalysisCache;
+  progress: ProgressTracker;
+}
+
+/** What a run's stages left behind: the report's half, and the scheduler's. */
+export interface StageResults {
+  /** One entry per planned stage, keyed by manifest id (`docs/adr/0015`). */
+  entries: Record<string, StageEntry>;
+  /** Every planned stage in the order it was ordered, with its version. */
+  provenance: StageProvenance[];
+  /** What they produced, for whoever reads a report's older fields. */
+  outputs: ProducedOutputs;
+}
+
+/**
+ * Run a planned set of stages in order and collect what they said.
+ *
+ * Each stage is handed only what it declared: the files its filter matched, the
+ * outputs of the types it consumes keyed by producer, and — when it consumes
+ * commits — the run's history window. Nothing about which plugins are installed
+ * reaches a stage, which is what lets one written today consume a graph from a
+ * language module written next year (`docs/adr/0010`).
+ *
+ * A stage whose whole input digests to a stored result is not called at all;
+ * one that runs writes its result back before the next stage starts, so a run
+ * interrupted halfway keeps what it had already earned.
+ */
+export async function runStages({
+  plan,
+  repo,
+  history,
+  window,
+  cache,
+  progress,
+}: StageRunOptions): Promise<StageResults> {
+  const entries: Record<string, StageEntry> = {};
+  const outputs = noOutputs();
+
+  for (const { stage, files, skipped } of plan) {
+    if (skipped !== undefined) {
+      entries[stage.id] = stageSkipped(stage.produces, skipped);
+      continue;
+    }
+
+    progress.enter('stage', stage.id);
+    const inputs = consumedInputs(outputs, stage.consumes);
+    const runKey = stageRunKey(stage, files, inputs, window);
+    const hit = cache.getRun<StageOutput>(stage.id, stage.version, runKey);
+    const output =
+      hit ??
+      (await stage.run({
+        ...repo,
+        files,
+        inputs,
+        history: stage.consumes.includes('commits') ? history : [],
+        cache: cache.scope(stage.id, stage.version),
+      }));
+
+    if (!hit) {
+      cache.setRun(stage.id, stage.version, runKey, output);
+      cache.flush();
+    }
+    record(outputs, stage.id, stage.produces, output);
+    entries[stage.id] = stageOk(stage.produces, output);
+  }
+
+  return {
+    entries,
+    provenance: plan.map(({ stage }) => ({
+      id: stage.id,
+      version: stage.version,
+      status: entries[stage.id]!.status,
+    })),
+    outputs,
+  };
+}

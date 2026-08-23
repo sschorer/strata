@@ -92,6 +92,18 @@ describe('missingPlugins', () => {
     ]);
   });
 
+  it('counts a stage under the setting that names what it produces', () => {
+    // Hotspots is a stage; `metrics` is still the list that switches it on, so
+    // naming it is not naming something nobody loaded.
+    const loaded = [
+      plugin({ id: 'strata-git-hotspots', kind: 'stage', produces: 'metrics' }),
+    ];
+
+    expect(
+      missingPlugins(loaded, config({ metrics: ['strata-git-hotspots'] })),
+    ).toEqual([]);
+  });
+
   it('reports every setting that is wrong, not the first one', () => {
     const named = config({
       languages: ['strata-language-rust'],

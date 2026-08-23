@@ -80,8 +80,10 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the one left with no blockers, *the scheduler runs its
-      first stage: hotspots*.
+      Ready to start: the three plugin migrations, now that the scheduler runs
+      — *change coupling*, *the TypeScript language module*, and *commit
+      convention and the commit fold* — plus *a failing stage fails only its
+      dependents*.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -105,7 +107,18 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         carries the closed output-type set and the stage entry a report will
         hold; `GET /plugins` reports every declaration. Nothing runs differently
         yet.
-  - [ ] **P0** The scheduler runs its first stage: hotspots
+  - [x] The scheduler runs its first stage: hotspots
+        The core orders the stages from their manifests, applies each one's
+        filter itself and runs them, handing every stage the outputs of the
+        types it consumes keyed by the plugin that produced them. A stage graph
+        with a knot in it is refused before anything is read; a stage whose
+        filter matched nothing is skipped and is nobody's step to wait for; a
+        stage's cache key covers what it was handed and nothing else. The report
+        carries a stage entry per stage, keyed by manifest id, and the run's
+        provenance. Hotspots is the first plugin through it — its screen and the
+        overview cards are unchanged, because a stage's output still reaches the
+        report field its kind's did. Every other plugin still runs the legacy
+        way.
   - [ ] **P1** Migrate change coupling to a stage
   - [ ] **P1** Migrate the TypeScript language module to a stage
   - [ ] **P1** Migrate commit convention and the commit fold to stages

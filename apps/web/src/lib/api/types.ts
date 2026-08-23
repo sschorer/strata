@@ -247,13 +247,16 @@ export interface AnalyzeRequest {
 }
 
 /**
- * The pipeline's own sequence, as it reports itself while it runs. Two of the
- * stages repeat once per plugin that takes part.
+ * The pipeline's own sequence, as it reports itself while it runs. Three of the
+ * steps repeat once per plugin that takes part — `stage` for the scheduled
+ * pipeline, `language` and `metric` for the plugin kinds still waiting to
+ * migrate to it.
  */
 export type AnalysisStage =
   | 'resolving'
   | 'scanning'
   | 'language'
+  | 'stage'
   | 'history'
   | 'metric'
   | 'commits'

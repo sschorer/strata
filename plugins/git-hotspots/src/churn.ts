@@ -7,7 +7,7 @@ import type { RawCommit, RepoContext } from '@strata/sdk';
  */
 export async function churnByPath(
   ctx: RepoContext,
-  history: RawCommit[],
+  history: readonly RawCommit[],
 ): Promise<Map<string, number>> {
   const churn = new Map<string, number>();
   if (history.length === 0) return churn;
