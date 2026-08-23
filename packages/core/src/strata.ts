@@ -1,5 +1,10 @@
 import { isAbsolute, relative, resolve } from 'node:path';
-import type { LanguageAnalysis, MetricSeries, RepoContext } from '@strata/sdk';
+import type {
+  LanguageAnalysis,
+  MetricSeries,
+  ParsedCommit,
+  RepoContext,
+} from '@strata/sdk';
 import {
   deltaStats,
   digest,
@@ -8,7 +13,7 @@ import {
   openAnalysisCache,
   type AnalysisCache,
 } from './cache/index.js';
-import { analyseCommits } from './commits/index.js';
+import { foldedCommits } from './commits/index.js';
 import { branchAt, git, history, listFiles, resolveRev } from './git/index.js';
 import { crossLanguageGraph } from './graph/index.js';
 import { consoleLogger } from './logger.js';
@@ -19,10 +24,13 @@ import {
   claimedFiles,
   enabledPlugins,
   enabledStages,
+  namedPlugins,
+  requireLoaded,
   scopedFiles,
 } from './scope/index.js';
 import {
   declaredStages,
+  exclusiveStages,
   planStages,
   runStages,
   stagesToRun,
@@ -40,17 +48,20 @@ import type { AnalysisReport, AnalyzeOptions, StrataOptions } from './types.js';
  * entire input is unchanged is skipped.
  *
  * Nothing about the stages is domain knowledge: what each one consumes, what it
- * produces and which files it wants are read off the manifests, so the order a
- * run takes follows from what is installed rather than from anything written
- * here ([ADR-10](../../../docs/adr/0010-open-analysis-pipeline.md)).
+ * produces, which files it wants and which group it is exclusive with are read
+ * off the manifests, so the order a run takes follows from what is installed
+ * rather than from anything written here
+ * ([ADR-10](../../../docs/adr/0010-open-analysis-pipeline.md)).
  *
  * It is also where a project's configuration turns into behaviour: the scope
- * narrows the file list once, before any plugin sees it, and the enabled-plugin
- * lists and the chosen commit convention decide who is called at all. A caller
- * that passes none of them gets the whole repository and every plugin, which is
- * what an unconfigured project asks for; one that names a plugin this workbench
- * has not loaded gets no run at all, because the alternative is a report that
- * looks like a clean one.
+ * narrows the file list once, before any plugin sees it, the enabled-plugin
+ * lists decide who is called at all, and the name a project gives its commit
+ * convention settles the exclusive group the conventions share. A caller that
+ * passes none of them gets the whole repository and every plugin, which is what
+ * an unconfigured project asks for; one that names a plugin this workbench has
+ * not loaded gets no run at all, because the alternative is a report that looks
+ * like a clean one — and one that leaves an exclusive group open gets no run
+ * either, because choosing for it would be the same thing.
  *
  * A run is also watchable: hand `analyze` a listener and it reports every step
  * as it enters it. Nothing else changes — the steps are the pipeline's own, and
@@ -90,14 +101,31 @@ export class Strata {
       opts.metrics,
       { setting: 'metrics', kind: 'git-metric' },
     );
-    const convention = chosenConvention(
-      this.registry.loadedByKind('commit-convention'),
+    // A convention named but not loaded fails the run like anything else a
+    // setting names, and the one a project means may be a stage now — so the
+    // check is over both forms, and only the conventions that have *not*
+    // migrated are candidates for parsing here.
+    requireLoaded(
+      this.registry.loadedFor('commit-convention'),
       opts.convention,
       { setting: 'convention', kind: 'commit-convention' },
     );
-    // Who takes part as a stage, and who is still one of the three kinds.
-    const stages = declaredStages(
-      enabledStages(this.registry.all(), [...languagePlugins, ...metricPlugins]),
+    const convention = chosenConvention(
+      this.registry.loadedByKind('commit-convention'),
+      opts.convention,
+    );
+    // Who takes part as a stage, and who is still one of the three kinds. The
+    // allow-lists decide first, then each exclusive group is settled to the one
+    // member configuration named — a group left open ends the run here rather
+    // than letting a convention nobody chose say what this history conforms to.
+    const stages = exclusiveStages(
+      declaredStages(
+        enabledStages(this.registry.all(), [
+          ...languagePlugins,
+          ...metricPlugins,
+        ]),
+      ),
+      namedPlugins(opts),
     );
     const legacyLanguages = stillOfKind(
       this.registry.loadedByKind('language'),
@@ -143,10 +171,23 @@ export class Strata {
     // anyone is waiting for either.
     const plan = planStages(stages, files);
     const scheduled = stagesToRun(plan);
+    // The core parses the log itself only for a convention that has not
+    // migrated, and only when no stage produces one: one window, one answer.
+    const legacyConvention =
+      convention &&
+      !scheduled.some(({ stage }) => stage.produces === 'commits')
+        ? convention
+        : undefined;
     // Every step this run holds, counted rather than guessed: the two above,
-    // each plugin and stage that takes part, the history read, the fold.
+    // each plugin and stage that takes part, the history read, and the legacy
+    // parse when there is one — the fold is a stage and is counted as one.
     progress.plan(
-      2 + languageRuns.length + 1 + scheduled.length + metricRuns.length + 1,
+      2 +
+        languageRuns.length +
+        1 +
+        scheduled.length +
+        metricRuns.length +
+        (legacyConvention ? 1 : 0),
     );
 
     // 1. Per-language static analysis, routed by file extension — across the
@@ -256,12 +297,15 @@ export class Strata {
       return series ? [series] : [];
     });
 
-    // 4. Commit-convention parsing (the project's convention, else the first
-    // registered), then the aggregates over the parsed log — folded once here
-    // rather than by every screen, card and gate that wants them.
-    progress.enter('commits');
-    const commits = convention ? commitLog.map((c) => convention.parse(c)) : [];
-    const commitAnalytics = analyseCommits(commitLog, commits);
+    // 4. The parsed commit log, read off the run's convention **stage** by
+    // output type — exactly one is in the graph, so no reader of the log has to
+    // know which convention produced it. A convention that has not migrated
+    // parses here instead, exactly as it always did.
+    let commits: ParsedCommit[] = Object.values(staged.outputs.commits)[0] ?? [];
+    if (legacyConvention) {
+      progress.enter('commits');
+      commits = commitLog.map((commit) => legacyConvention.parse(commit));
+    }
 
     cache.flush();
     progress.finish();
@@ -281,7 +325,9 @@ export class Strata {
       ),
       metrics,
       commits,
-      commitAnalytics,
+      // Folded by a stage of its own now, and still reaching the field the
+      // *Commit analytics* screen reads until that screen reads stage entries.
+      commitAnalytics: foldedCommits(staged.outputs),
       // What the scheduled half of the pipeline said, keyed by manifest id —
       // beside the fields above, which the kinds that have not migrated still
       // fill in (`docs/adr/0015`).

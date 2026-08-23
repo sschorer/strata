@@ -73,9 +73,6 @@ export {
   type CrossLanguageGraph,
 } from './graph/index.js';
 export {
-  analyseCommits,
-  bucketBy,
-  weeklyActivity,
   type CommitAnalytics,
   type CommitBucket,
   type CommitWeek,

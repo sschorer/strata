@@ -1,44 +1,29 @@
-import {
-  defineCommitConventionPlugin,
-  type ParsedCommit,
-  type RawCommit,
-} from '@strata/sdk';
-import { headerLine, parseHeader } from './header.js';
-import { extractTags, hasBreakingFooter } from './tags.js';
+import { defineStage, type ParsedCommit, type StageContext } from '@strata/sdk';
+import { parseCommit } from './parse.js';
 
 /**
- * Conventional Commits parser.
- * https://www.conventionalcommits.org/
+ * Conventional Commits, as a stage: the analysed history window, read into a
+ * parsed commit log.
  *
- * Matches `type(scope)!: subject` (`header.ts`), captures breaking changes via
- * the `!` marker or a `BREAKING CHANGE:` footer, and pulls issue references and
- * co-authors into `tags` (`tags.ts`). Swap this plugin out for gitmoji / Jira /
- * a custom convention without touching the core.
+ * The manifest declares the whole of where it sits. It consumes `commits`,
+ * which is how the core knows to hand it the run's history window — a
+ * `RawCommit` is the repository's own record and no stage produces one — and it
+ * produces `commits`, the same window as this convention read it. It declares
+ * no filter: a convention reads messages, and the tree is none of its business.
+ *
+ * It also declares the exclusive group **`commit-convention`**, because a
+ * repository has one convention and "96% conforming" only means something
+ * relative to one. However many conventions are loaded, configuration names the
+ * active one and the graph sees exactly one parsed log — which is what lets the
+ * fold downstream consume that log by output type without ever asking who
+ * produced it.
+ *
+ * Swap this plugin out for gitmoji / Jira / a custom convention without
+ * touching the core: parsing one message is `parse.ts`, and everything else
+ * here is the declaration above.
  */
-export default defineCommitConventionPlugin({
-  convention: 'conventional',
-  parse(commit: RawCommit): ParsedCommit {
-    const tags = extractTags(commit.message);
-    const header = parseHeader(commit.message);
-
-    if (!header) {
-      return {
-        type: null,
-        scope: null,
-        breaking: false,
-        subject: headerLine(commit.message),
-        tags,
-        valid: false,
-      };
-    }
-
-    return {
-      type: header.type,
-      scope: header.scope,
-      breaking: header.bang || hasBreakingFooter(commit.message),
-      subject: header.subject,
-      tags,
-      valid: true,
-    };
+export default defineStage<'commits'>({
+  async run(ctx: StageContext): Promise<ParsedCommit[]> {
+    return ctx.history.map(parseCommit);
   },
 });

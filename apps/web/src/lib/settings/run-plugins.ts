@@ -47,15 +47,19 @@ const SELECTED_BY: Partial<
  *
  * The rule is the orchestrator's own, not a wish. Every language module and
  * every git-metric plugin the project enables is called — a list is an
- * allow-list, and no list at all is all of them; one commit convention parses
- * the history, the one the project chose or else the first registered. A
- * language module whose extensions match no file in the repository is skipped
- * when the run gets there — that depends on the repository rather than on the
- * settings, so it is not something this list can promise.
+ * allow-list, and no list at all is all of them. Of an **exclusive group** at
+ * most one member runs, and configuration names which: a repository has one
+ * commit convention, not several. A language module whose extensions match no
+ * file in the repository is skipped when the run gets there — that depends on
+ * the repository rather than on the settings, so it is not something this list
+ * can promise.
  *
  * What this cannot say is that the run happens at all: a setting naming a
  * plugin nobody loaded fails it outright, and that is `missingPlugins()`'s
- * question rather than this one's.
+ * question rather than this one's. A group of more than one that nothing chose
+ * from fails it too, and that one *is* this list's question — every member says
+ * so, because the alternative is a confident list in front of a button that is
+ * going to fail.
  *
  * Without a config — a project whose settings have not arrived yet — the answer
  * is the unconfigured one, which is what such a run would do.
@@ -77,10 +81,13 @@ export function runPlugins(
       case 'stage': {
         // A stage answers to the setting that names what it produces, for as
         // long as configuration names plugins per kind at all — a metric that
-        // has migrated is still switched on and off through `metrics`.
-        const setting = plugin.produces ? SELECTED_BY[plugin.produces] : null;
-        return setting
-          ? allowed(entry, config?.[setting])
+        // has migrated is still switched on and off through `metrics`. The
+        // allow-list decides first, exactly as the pipeline lets it.
+        if (!selectedBySetting(plugin, config)) {
+          return { ...entry, runs: false, note: 'this project leaves it out' };
+        }
+        return plugin.exclusive
+          ? grouped(entry, plugin, plugins, config)
           : { ...entry, runs: true, note: '' };
       }
       case 'language':
@@ -92,9 +99,7 @@ export function runPlugins(
         return {
           ...entry,
           runs: false,
-          note: parses
-            ? 'another convention already parses this history'
-            : 'this project names a convention nobody loaded, so no run starts',
+          note: conventionNote(plugins, parses),
         };
       default:
         // A kind this build does not know about: the server loaded it, the
@@ -109,17 +114,99 @@ export function runPlugins(
 }
 
 /**
- * Which convention will actually parse, or `null` when none will — a project
- * naming one that is no longer installed gets no run at all rather than a
- * fallback to another, so every loaded convention stands by and says why.
+ * Whether the allow-list that names what this stage produces lets it run.
+ *
+ * A stage producing something no setting names has no list to be left out of,
+ * and unnamed means enabled — which is the rule the repository's config file
+ * makes general, and the reason installing a stage visibly does something.
+ */
+function selectedBySetting(
+  plugin: LoadedPluginInfo,
+  config?: RunPluginConfig | null,
+): boolean {
+  const setting = plugin.produces ? SELECTED_BY[plugin.produces] : undefined;
+  const ids = setting ? config?.[setting] : null;
+  return !ids || ids.includes(plugin.id);
+}
+
+/**
+ * A member of an exclusive group, of which at most one runs.
+ *
+ * One member needs no choosing — installing a single convention is unambiguous
+ * on its own. More than one, and configuration has to name the active member:
+ * the core refuses the run rather than picking, because a history reported as
+ * conforming to a convention nobody asked for reads exactly like one that
+ * conforms.
+ */
+function grouped(
+  entry: Omit<RunPlugin, 'runs' | 'note'>,
+  plugin: LoadedPluginInfo,
+  plugins: readonly LoadedPluginInfo[],
+  config?: RunPluginConfig | null,
+): RunPlugin {
+  // Only the members that survived the allow-lists: leaving one out settles a
+  // group of two, exactly as it does in the pipeline.
+  const members = plugins.filter(
+    (other) =>
+      other.exclusive === plugin.exclusive && selectedBySetting(other, config),
+  );
+  if (members.length < 2) return { ...entry, runs: true, note: '' };
+
+  const named = namedIds(config);
+  const chosen = members.filter((member) => named.includes(member.id));
+  if (chosen.length !== 1) {
+    return {
+      ...entry,
+      runs: false,
+      note: `this project chooses none of the ${members.length} plugins in "${plugin.exclusive}", so no run starts`,
+    };
+  }
+  if (chosen[0]?.id === entry.id) return { ...entry, runs: true, note: '' };
+  return {
+    ...entry,
+    runs: false,
+    note: `this project runs ${chosen[0]?.name} instead`,
+  };
+}
+
+/** Every plugin id this project's settings name, whatever setting names it. */
+function namedIds(config?: RunPluginConfig | null): string[] {
+  return [
+    ...(config?.languages ?? []),
+    ...(config?.metrics ?? []),
+    ...(config?.convention ? [config.convention] : []),
+  ];
+}
+
+/**
+ * Which convention of the **older kind** will parse in the core, or `null` when
+ * none will: a project naming one that is no longer installed gets no run at
+ * all rather than a fallback to another, and a convention that has migrated to
+ * a stage is run by the scheduler instead, which leaves the ones that have not
+ * with nothing to parse.
  */
 function parsingConvention(
   plugins: readonly LoadedPluginInfo[],
   chosen: string | null,
 ): string | null {
+  if (plugins.some((p) => p.kind === 'stage' && p.produces === 'commits')) {
+    return null;
+  }
   const conventions = plugins.filter((p) => p.kind === 'commit-convention');
   if (!chosen) return conventions[0]?.id ?? null;
   return conventions.some((p) => p.id === chosen) ? chosen : null;
+}
+
+/** Why a convention of the older kind is not the one parsing this history. */
+function conventionNote(
+  plugins: readonly LoadedPluginInfo[],
+  parses: string | null,
+): string {
+  if (parses) return 'another convention already parses this history';
+  if (plugins.some((p) => p.kind === 'stage' && p.produces === 'commits')) {
+    return 'a convention stage already parses this history';
+  }
+  return 'this project names a convention nobody loaded, so no run starts';
 }
 
 function allowed(

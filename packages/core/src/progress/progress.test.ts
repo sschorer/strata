@@ -19,6 +19,10 @@ const exec = promisify(execFile);
  * The repository holds one `.ts` file and no `.md` file, and two language
  * plugins are loaded — one that claims `ts` and one that claims `md`. The
  * second is the one nobody should be told to wait for.
+ *
+ * Every plugin here is one of the kinds that have not migrated, which is what
+ * the steps below are: the scheduled half reports itself as `stage`, once per
+ * stage it ordered, and is covered in `staged-run.test.ts`.
  */
 
 const LANGUAGE = (ext: string) => `export default {
@@ -40,6 +44,20 @@ const METRIC = (id: string) => `export default {
   async compute() {
     return { id: '${id}', label: '${id}', points: [] };
   },
+};
+`;
+
+const CONVENTION = `export default {
+  kind: 'commit-convention',
+  convention: 'test',
+  parse: (commit) => ({
+    type: null,
+    scope: null,
+    breaking: false,
+    subject: commit.message,
+    tags: {},
+    valid: false,
+  }),
 };
 `;
 
@@ -101,6 +119,7 @@ beforeAll(async () => {
   await install(registry, 'lang-ts', 'language', LANGUAGE('ts'));
   await install(registry, 'lang-md', 'language', LANGUAGE('md'));
   await install(registry, 'metric-a', 'git-metric', METRIC('metric-a'));
+  await install(registry, 'convention-a', 'commit-convention', CONVENTION);
 
   strata = new Strata(registry, { cache: false });
 }, 30_000);

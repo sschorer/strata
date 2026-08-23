@@ -21,8 +21,9 @@ const ALLOW_LISTED: readonly OutputType[] = ['graph', 'metrics'];
  * reason installing a stage visibly does something.
  *
  * The parsed commit log is deliberately not allow-listed here. One convention
- * runs and the rest stand by, which is an exclusive group rather than a list,
- * and it starts being enforced when the conventions become stages.
+ * runs and the rest stand by, which is an exclusive group rather than a list —
+ * `exclusiveStages()` settles that, from the group the conventions themselves
+ * declare.
  */
 export function enabledStages(
   loaded: readonly LoadedPlugin[],

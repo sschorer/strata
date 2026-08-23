@@ -238,9 +238,23 @@ describe('commit convention', () => {
     });
 
     expect(report.commits.map((c) => c.type)).toEqual(['second']);
-    expect(report.commitAnalytics.types).toEqual([
-      { name: 'second', count: 1, share: 1, breaking: 0 },
-    ]);
+  });
+
+  it('parses with the first registered when the project chose none', async () => {
+    // What a `commit-convention` plugin has always done. The conventions that
+    // have migrated are an exclusive group instead, and one left open ends the
+    // run rather than falling back to whoever loaded first.
+    const report = await strata.analyze({ root: repo });
+
+    expect(report.commits.map((c) => c.type)).toEqual(['first']);
+  });
+
+  it('counts nothing, because the fold is a stage and none is installed', async () => {
+    const report = await strata.analyze({ root: repo });
+
+    // The core folds nothing itself any more (`plugins/commit-fold`), and a
+    // window nobody counted reads as counted-by-nobody rather than as empty.
+    expect(report.commitAnalytics.total).toBe(0);
   });
 });
 

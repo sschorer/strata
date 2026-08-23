@@ -180,9 +180,14 @@ pipeline then does, on that thread:
    after them, and a migrated stage's output still reaches the report field its
    kind's did: a `graph` is one language module's whole result, so its dead code
    and per-file metrics land in `report.languages` beside its stage entry.
-4. The active `commit-convention` plugin parses each commit, and the core folds
-   the parsed log into `CommitAnalytics` — per type, per scope, how much of the
-   history conforms, breaking changes, weekly activity.
+   Reading the history and folding it are stages among them — the active
+   convention parses the window into a parsed log, and the **commit fold**
+   consumes that log by output type and counts it into `CommitAnalytics`: per
+   type, per scope, how much of the history conforms, breaking changes, weekly
+   activity. Both still reach `report.commits` and `report.commitAnalytics`.
+4. A `commit-convention` plugin that has not migrated parses the window here
+   instead, exactly as its kind always did — and only when no stage produced a
+   log, so one window is read into one answer.
 5. The per-language graphs are folded into one cross-language graph — merged,
    summarised, and with every import cycle ordered into a path — so no consumer
    has to derive it a second time
@@ -192,8 +197,11 @@ pipeline then does, on that thread:
    the run's **provenance**: which stages it ordered, and at which versions.
 
 Which plugins are "enabled" and which convention is "active" are the project's
-configuration; a project that has configured neither runs every plugin and
-parses with the first convention registered. The scope and those lists are
+configuration; a project that has configured neither runs every plugin, and the
+one convention it loaded parses. Conventions declare a shared **exclusive
+group**, of which one member runs: with two loaded and nothing naming one, the
+run is refused rather than a convention nobody chose deciding what this history
+conforms to. The scope and those lists are
 applied at the top of the pipeline rather than inside any plugin, so one answer
 serves the plugins, the file count the report prints and the cache keys alike.
 
@@ -252,7 +260,8 @@ publish. The Linux desktop job is still a stub — it produces no bundle until
   module is imported, so a run is planned without running third-party code
   ([ADR-10](./adr/0010-open-analysis-pipeline.md)); where the exported object
   says the same thing, the registry holds the two to each other at load. The
-  core **schedules from them**: it orders the stages, applies each filter and
+  core **schedules from them**: it orders the stages, applies each filter,
+  settles each exclusive group to the one member configuration named, and
   resolves each dependency by output type. The other three kinds still drive
   the part of a run whose plugins have not migrated.
 - **RepoContext** — the single immutable surface plugins are allowed to touch

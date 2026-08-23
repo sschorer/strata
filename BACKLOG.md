@@ -80,8 +80,8 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: the plugin migration left — *commit convention and the
-      commit fold* — plus *a failing stage fails only its dependents*.
+      Ready to start: *a failing stage fails only its dependents*, and then the
+      consumers — *web reads stage entries* and the deletion of the old form.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -139,7 +139,26 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         key covers only the files it matched, so a README edit no longer has
         anything to say about a TypeScript graph.
         Three of the five built-ins are stages now.
-  - [ ] **P1** Migrate commit convention and the commit fold to stages
+  - [x] Migrate commit convention and the commit fold to stages
+        The convention runs through the scheduler: its manifest declares that it
+        consumes the commit log — which is how a stage asks for the run's own
+        history window — produces the parsed one, and belongs to the exclusive
+        group `commit-convention`. The fold stops being something the core does
+        on the side and becomes `@strata/plugin-commit-fold`, the first stage
+        that consumes another stage's output rather than the repository: it asks
+        for a parsed log by output type and counts whatever produced one, so a
+        gitmoji or Jira convention is folded exactly as the conventional one is.
+        The numbers are identical to the ones the core folded — per type and
+        scope, conformance, breaking changes and contiguous Monday-started weeks
+        — and still reach `report.commits` and `report.commitAnalytics`.
+        Exclusive groups start being enforced with them: however many
+        conventions are loaded, configuration names the active one, only that
+        one runs and the graph sees exactly one parsed log. A group of one needs
+        no naming; a group of two that nothing chose from ends the run, because
+        picking one would report a history as conforming to a convention nobody
+        asked for.
+        Every built-in is a stage now; the kinds run only what somebody else
+        has not migrated.
   - [ ] **P1** A failing stage fails only its dependents
   - [ ] **P1** Web reads stage entries
   - [ ] **P1** Delete the legacy plugin kinds and report fields

@@ -20,7 +20,10 @@ export type AnalysisStage =
   | 'history'
   /** One git-metric plugin folding that log; `detail` is its id. */
   | 'metric'
-  /** Parsing the log with the convention and folding the analytics. */
+  /**
+   * Parsing the log with a convention that has not migrated to a stage. A
+   * convention that has is a `stage` step like any other, and so is the fold.
+   */
   | 'commits'
   /** Everything is done and the report is being handed back. */
   | 'finished';

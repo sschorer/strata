@@ -1,7 +1,7 @@
 {
   "name": "@strata/plugin-commit-conventional",
-  "version": "0.1.0",
-  "description": "Conventional Commits parser plugin for Strata.",
+  "version": "0.2.0",
+  "description": "Conventional Commits parser stage for Strata.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

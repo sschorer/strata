@@ -44,22 +44,21 @@ itself behaves.
 | `stages/types.ts` | `Stage`, `PlannedStage`, `StagePlan`, `StageProvenance` — a stage as the core schedules it. |
 | `stages/declared.ts` | `declaredStages()` — the stages among a set of loaded plugins, read off their manifests. |
 | `stages/order.ts` | `orderStages()` — producers before consumers, by output type; stable on ties. |
+| `stages/exclusive.ts` | `exclusiveStages()` — each exclusive group settled to the one member configuration named. |
 | `stages/filter.ts` | `matchedFiles()` — the files one stage's filter matched, extensions ∪ globs. |
 | `stages/plan.ts` | `planStages()` / `stagesToRun()` — the run's order, settled before anything runs. |
 | `stages/inputs.ts` | `noOutputs()` / `record()` / `consumedInputs()` — what a stage produced, and what the next one is given. |
 | `stages/key.ts` | `stageRunKey()` — the cache key of a whole stage: what it was handed, and nothing else. |
 | `stages/entry.ts` | `stageOk()` / `stageSkipped()` — a stage's slot in the report. |
 | `stages/run.ts` | `runStages()` — run the plan, collect the entries, the provenance and the outputs. |
-| `stages/errors.ts` | `UnorderableStagesError` — a stage graph with a knot in it. |
+| `stages/errors.ts` | `UnorderableStagesError` — a stage graph with a knot in it; `UnchosenStageGroupError` — an exclusive group nobody chose from. |
 | `legacy-kinds.ts` | `producedByKind()` — what each pre-stage kind produced, so a setting still names a plugin that migrated. |
 | `graph/fold.ts` | `crossLanguageGraph()` — every language's graph as the one graph, summary and ordered cycles a report carries. |
 | `graph/merge.ts` | `mergedGraph()` — the union of the per-language graphs, deduplicated. |
 | `graph/packages.ts` | `packageNodes()` — a node for each end of an edge that left the analysed file set. |
 | `graph/types.ts` | `CrossLanguageGraph`. |
-| `commits/analyse.ts` | `analyseCommits()` — the parsed log folded into `CommitAnalytics`. |
-| `commits/buckets.ts` | `bucketBy()` — counts per type / per scope, biggest first. |
-| `commits/weeks.ts` | `weeklyActivity()` — commits per Monday-started week (UTC). |
-| `commits/types.ts` | `CommitAnalytics`, `CommitBucket`, `CommitWeek`. |
+| `commits/folded.ts` | `foldedCommits()` — the commit fold's aggregate, for the report field that still carries it. |
+| `commits/types.ts` | `CommitAnalytics`, `CommitBucket`, `CommitWeek` — the shape of that field. The fold itself is `@strata/plugin-commit-fold`. |
 | `logger.ts` | `createConsoleLogger(scope)` — what `RepoContext.log` gets. |
 | `registry.ts` | `PluginRegistry` — load plugins, contain load failures, `byKind()` / `loadedByKind()` / `loadedFor()`. |
 | `manifest.ts` | `readManifest()` / `resolveEntry()` — validate a `strata.plugin.json` and its entry path. |
@@ -80,7 +79,8 @@ itself behaves.
 | `scope/extensions.ts` | `claimedFiles()` — the files one language plugin claims, by extension. |
 | `scope/plugins.ts` | `enabledPlugins()` — the plugins of one kind a run may call. |
 | `scope/stages.ts` | `enabledStages()` — the stages a run may call; unnamed means enabled. |
-| `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history. |
+| `scope/convention.ts` | `chosenConvention()` — which `commit-convention` plugin parses this history in the core. |
+| `scope/configured.ts` | `namedPlugins()` — every plugin id a setting named, which is what settles an exclusive group. |
 | `scope/named.ts` | `requireLoaded()` — hold what a setting names to what loaded; one rule for every setting that names a plugin. |
 | `scope/errors.ts` | `MissingPluginError`, `NamedBy` — the run a configuration cannot have, with the plugin and the setting that asked for it. |
 | `discover.ts` | `discoverPlugins(dir)` — the manifests installed in a plugins directory. |
@@ -137,9 +137,11 @@ itself behaves.
 4. Stream `history`; run the ordered **stages**, each over the files its filter
    matched and the outputs of the types it consumes; then the enabled
    `git-metric` plugins that have not migrated (same skip).
-5. Parse commits with the project's `commit-convention` plugin — the first
-   registered when it names none — then fold the log into `CommitAnalytics`
-   (per type, per scope, conformance, breaking changes, weekly activity).
+5. Take the parsed commit log off whichever convention **stage** produced one —
+   by output type, because exactly one is in the graph — and the
+   `CommitAnalytics` off the commit fold's stage entry. A `commit-convention`
+   plugin that has not migrated parses here instead, and only when no stage
+   produced a log.
 6. Collect every language module's result — from its stage entry, or from the
    legacy pass for one that has not migrated — into `report.languages`, keyed by
    manifest id, and fold their graphs into one `CrossLanguageGraph`:
@@ -149,8 +151,9 @@ itself behaves.
    branch, file count, duration, finished-at) beside the resolved `rev`, one
    **stage entry** per stage keyed by manifest id, and the run's **provenance**.
 
-The stage order and each stage's file set are settled between 1 and 2, off the
-manifests alone: a configuration that cannot be ordered fails there, before
+The stage order, each stage's file set and each exclusive group's one active
+member are settled between 1 and 2, off the manifests alone: a configuration
+that cannot be ordered, or that leaves a group of two open, fails there, before
 anything has been read on the strength of it.
 
 Each of those steps is announced to `onProgress`, if a caller passed one. The
@@ -224,11 +227,16 @@ section keeps its value — because each section is one settings screen.
   is recorded in
   `registry.failures()` rather than thrown: a broken third-party plugin must
   cost only itself, not the process.
-- **One active commit convention**, the project's choice, and the
-  first-registered one when it has made none — two conventions would parse the
-  same commits into two answers. A workbench with no convention plugin at all
-  leaves the history unparsed, which is what it can honestly say about it; a
-  project *naming* one that is not installed is the failure below.
+- **One active commit convention** — two would parse the same commits into two
+  answers. The conventions declare a shared **exclusive group** and the project
+  names its member; a group of one needs no naming, because installing a single
+  convention is unambiguous on its own, and a group of two that nothing chose
+  from ends the run rather than letting load order decide what a history
+  conforms to. (A convention that has not migrated to a stage is still picked
+  first-registered, which is what its kind always did and goes with it.) A
+  workbench with no convention at all leaves the history unparsed, which is what
+  it can honestly say about it; a project *naming* one that is not installed is
+  the failure below.
 - **A project's config is turned into behaviour in one place** (`scope/`), at
   the top of `analyze()`, and never inside a plugin. Scope narrows the file list
   before any plugin sees it, so the plugins, the report's file count and every
@@ -253,14 +261,14 @@ section keeps its value — because each section is one settings screen.
   without anyone having to know to write it as a wildcard. The lists are typed
   by hand into a chip list, and the forgiving reading is the one that matches
   what the writer meant.
-- **The aggregates are folded in the core, not by each reader.** A plugin says
-  what one commit means; how many `feat` commits there were is a question every
-  screen, card and gate asks, and three of them counting it three ways is three
-  quietly disagreeing definitions. A window no convention parsed still reports
-  its activity and claims nothing about conformance — "unjudged" is not the
-  same as "non-conforming". Weeks are bucketed Monday-to-Monday in **UTC**: an
-  author's timezone is whatever their laptop said at the time, so anything else
-  would move a commit between columns depending on who ran the analysis.
+- **The commit aggregates are folded once, by a stage, and not by each reader.**
+  A convention says what one commit means; how many `feat` commits there were is
+  a question every screen, card and gate asks, and three of them counting it
+  three ways is three quietly disagreeing definitions. The fold was a step in
+  here until the pipeline could hold it and is `@strata/plugin-commit-fold` now
+  — the first stage that consumes another stage's output rather than the
+  repository — so the core carries its numbers to `report.commitAnalytics` and
+  reads nothing inside them.
 - **What more than one language's output implies is folded here too.** The
   merged dependency graph, its summary and each cycle as an ordered path are in
   the report rather than in whoever reads it: a screen, a CI gate and a second
@@ -376,9 +384,9 @@ section keeps its value — because each section is one settings screen.
   revision that no longer exists. **Mitigation:** the API checks plugin ids
   against the registry as they are written; a stale one survives only until the
   next edit of that field, and an unknown revision fails the run it is used in
-  rather than the settings screen. In a run, a stale id in an allow-list simply
-  selects nothing — the plugin it names is not there to run — and a stale
-  convention warns, because there the whole commit analysis goes quiet.
+  rather than the settings screen. In a run, a stale id ends it wherever it was
+  named — an analysis missing the plugin that would have found the problem is
+  indistinguishable from one that found no problem.
 - **Risk:** a scope narrow enough to hide the interesting code makes a report
   look healthy. **Mitigation:** `run.files` is the count the run actually
   analysed rather than what the checkout holds, and *Analyze / run* prints who

@@ -23,13 +23,20 @@ export interface CommitWeek {
 }
 
 /**
- * What the *Commit analytics* screen prints, folded once by the core.
+ * What the *Commit analytics* screen prints, as the **commit fold** stage
+ * produced it and the report still carries it.
+ *
+ * Declared here rather than imported from the plugin, because it is the shape
+ * of a report field and a report is the core's: the fold is an `aggregate`,
+ * which the core carries and never reads inside, and only a consumer that means
+ * that one producer — this field, and the screen behind it — narrows it. Both
+ * go when the screens read stage entries instead (`docs/adr/0011`).
  *
  * `total` counts the analysed window; everything the convention decides is
- * counted over the commits it actually parsed, which is the same set whenever
- * a `commit-convention` plugin is registered and empty when none is — an
- * unparsed history then reports its activity and claims nothing about
- * conformance, rather than reporting every commit as non-conforming.
+ * counted over the commits it actually parsed, which is the same set whenever a
+ * convention took part and empty when none did — an unparsed history then
+ * reports its activity and claims nothing about conformance, rather than
+ * reporting every commit as non-conforming.
  */
 export interface CommitAnalytics {
   /** Commits in the analysed history window. */

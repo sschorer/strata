@@ -39,8 +39,13 @@ export interface ProjectConfig {
   /** Ids of the `git-metric` plugins that may run, or `null` for all of them. */
   metrics: string[] | null;
   /**
-   * Id of the `commit-convention` plugin to parse commits with, or `null` to
-   * take the first registered one (what the core does today).
+   * Id of the plugin that parses this repository's commits, or `null` to leave
+   * the choice open.
+   *
+   * Leaving it open is a run only while one convention is loaded: the
+   * conventions are an exclusive group, and a group of two that nothing chose
+   * from ends the run rather than letting load order say what this history
+   * conforms to.
    */
   convention: string | null;
   /** Architecture rules to check. */
