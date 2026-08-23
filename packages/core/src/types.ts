@@ -7,7 +7,7 @@ import type {
 import type { CacheOptions, CacheStats } from './cache/index.js';
 import type { CommitAnalytics } from './commits/index.js';
 import type { CrossLanguageGraph } from './graph/index.js';
-import type { StageProvenance } from './stages/index.js';
+import type { RunStatus, StageProvenance } from './stages/index.js';
 
 export interface AnalyzeOptions {
   /** Working-tree root of the repo to analyse. */
@@ -62,6 +62,18 @@ export interface CacheReport extends CacheStats {
  * read this. The resolved sha is `AnalysisReport.rev`, not repeated here.
  */
 export interface RunReport {
+  /**
+   * How the run ended: `ok` when every stage that had something to do did it,
+   * `partial` when one threw and the rest of the pipeline carried on without
+   * it, `failed` when nothing survived the failures
+   * ([ADR-15](../../../docs/adr/0015-partial-runs-and-per-stage-status.md)).
+   *
+   * On the run summary rather than beside the stage entries because it is what
+   * a reader holding only the summary needs: the project switcher shows a last
+   * run without its report, and a run that half worked must not read there as
+   * one that worked.
+   */
+  status: RunStatus;
   /** Branch the analysed revision names; null for a detached HEAD, sha or tag. */
   branch: string | null;
   /**

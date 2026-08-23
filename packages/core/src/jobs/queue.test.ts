@@ -15,6 +15,7 @@ function reportFor(rev: string): AnalysisReport {
   return {
     rev,
     run: {
+      status: 'ok',
       branch: 'main',
       files: 1,
       durationMs: 1,
@@ -94,6 +95,18 @@ function controllable() {
     /** Let whatever is running finish, then let the chain catch up. */
     async finish(rev = 'abc123'): Promise<void> {
       waiting.shift()?.report(reportFor(rev));
+      await settleMicrotasks();
+    },
+    /** Finish with a run whose stages did not all succeed. */
+    async finishPartly(
+      status: 'partial' | 'failed',
+      stages: AnalysisReport['stages'],
+    ): Promise<void> {
+      waiting.shift()?.report({
+        ...reportFor('abc123'),
+        run: { ...reportFor('abc123').run, status },
+        stages,
+      });
       await settleMicrotasks();
     },
   };
@@ -230,6 +243,44 @@ describe('AnalysisQueue', () => {
       error: 'not a git repository',
       report: null,
     });
+  });
+
+  it('settles a partial run as its own state, with the report it produced', async () => {
+    const backing = controllable();
+    const queue = new AnalysisQueue(backing.runner);
+    const job = queue.submit(options('/repo'));
+    await settleMicrotasks();
+
+    await backing.finishPartly('partial', {
+      broken: { status: 'failed', type: 'graph', reason: 'out of memory' },
+    });
+
+    // Not `succeeded`: a run with a hole in it must not read as one without,
+    // to a gate or to anyone else acting on the outcome (`docs/adr/0015`).
+    // There is still a report, and the hole is named in it.
+    expect(queue.get(job.id)).toMatchObject({
+      state: 'partial',
+      report: { rev: 'abc123' },
+      error: null,
+    });
+  });
+
+  it('settles a run that kept nothing as failed, and says what threw', async () => {
+    const backing = controllable();
+    const queue = new AnalysisQueue(backing.runner);
+    const job = queue.submit(options('/repo'));
+    await settleMicrotasks();
+
+    await backing.finishPartly('failed', {
+      broken: { status: 'failed', type: 'graph', reason: 'out of memory' },
+    });
+
+    expect(queue.get(job.id)).toMatchObject({
+      state: 'failed',
+      error: expect.stringContaining('"broken": out of memory'),
+    });
+    // The report is kept even so: it is where the reasons are, one per stage.
+    expect(queue.get(job.id)?.report).toMatchObject({ rev: 'abc123' });
   });
 
   it('carries on after a failed run', async () => {

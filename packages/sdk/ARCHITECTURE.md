@@ -103,6 +103,14 @@ runtime — it must be resolvable from the plugin (see
   decides which export nobody asks for. Splitting them across stages would parse
   a repository twice and key two caches on the same files. A consumer that means
   the graph reads `.graph` and never learns the rest is there.
+- **A skipped entry names what failed it, when something did.** `skipped` covers
+  both "the filter matched no file" and "an upstream threw", which read the same
+  to anyone rendering the slot — but only one of them is somebody's bug, so
+  `StageSkipped.blockedBy` carries the id of the stage that *failed*, however
+  many hops back it was
+  ([ADR-15](../../docs/adr/0015-partial-runs-and-per-stage-status.md)). A
+  consumer that only wants to say "nothing here" ignores it; one deciding
+  whether a run is worth trusting does not have to parse a sentence.
 - **`0.2.0`, deliberately not `1.0.0`** — the contract is real but not yet
   load-bearing for anyone outside this repo
   ([ADR-11](../../docs/adr/0011-sdk-0-2-0-single-break.md)).

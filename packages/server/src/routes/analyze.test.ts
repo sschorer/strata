@@ -46,6 +46,7 @@ import { analyzeRoute } from './analyze.js';
 const report = {
   rev: '4c1249e',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 42,
     durationMs: 1820,
@@ -77,8 +78,28 @@ const report = {
   },
 } satisfies AnalysisReport;
 
+/**
+ * The same run with a stage that threw in it: a **partial** run, which still
+ * has a report and still says what is missing from it, and the same run with
+ * nothing left standing (`docs/adr/0015`).
+ */
+const partial = {
+  ...report,
+  run: { ...report.run, status: 'partial' },
+  stages: {
+    'lang-ts': { status: 'failed', type: 'graph', reason: 'out of memory' },
+  },
+} satisfies AnalysisReport;
+
+const wholly = {
+  ...partial,
+  run: { ...report.run, status: 'failed' },
+} satisfies AnalysisReport;
+
 /** What the route asked the core for, so the defaults can be asserted. */
 let requested: AnalyzeOptions | undefined;
+/** What the next run comes back with; a clean report unless a test says else. */
+let produced: AnalysisReport = report;
 /** Set to fail the next run, so the endpoint's error path can be reached. */
 let failure = '';
 /** Set to hold a run open, so a second request meets one already in flight. */
@@ -90,7 +111,7 @@ const runner: AnalysisRunner = {
     requested = opts;
     if (gate) await gate;
     if (failure) throw new Error(failure);
-    return report;
+    return produced;
   },
   clearCache: async () => undefined,
   close: async () => undefined,
@@ -148,6 +169,7 @@ async function analyze(root: string, body: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   requested = undefined;
+  produced = report;
   failure = '';
   gate = null;
   analyses = new AnalysisQueue(runner);
@@ -378,6 +400,35 @@ describe('POST /analyze', () => {
     expect(response.statusCode).toBe(202);
     const { job } = response.json() as { job: { id: string } };
     expect((await analyses.settled(job.id))?.error).toBe('not a git repository');
+  });
+
+  it('answers a partial run with its report, and marks the summary partial', async () => {
+    const project = projects.add({ name: 'Strata', root: repo });
+    produced = partial;
+
+    const response = await analyze(repo);
+
+    // A stage failed and the rest of the pipeline ran: that is a run, and a
+    // caller who waited for it gets what it found rather than an error.
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(partial);
+    expect(projects.get(project.id)?.lastAnalysis).toMatchObject({
+      status: 'partial',
+      rev: partial.rev,
+    });
+  });
+
+  it('answers 500 for a run that kept nothing, and leaves the summary alone', async () => {
+    const project = projects.add({ name: 'Strata', root: repo });
+    produced = wholly;
+
+    const response = await analyze(repo);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json().message).toContain('"lang-ts": out of memory');
+    // Nothing was learned about the repository, so the switcher goes on
+    // showing whatever was learned last time — here, that nothing has run.
+    expect(projects.get(project.id)?.lastAnalysis).toBeNull();
   });
 
   it('still returns the report when the registry refuses the update', async () => {

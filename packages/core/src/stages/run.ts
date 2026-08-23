@@ -6,7 +6,8 @@ import type {
 } from '@strata/sdk';
 import type { AnalysisCache } from '../cache/index.js';
 import type { ProgressTracker } from '../progress/index.js';
-import { stageOk, stageSkipped } from './entry.js';
+import { stageBlocked, stageFailed, stageOk, stageSkipped } from './entry.js';
+import { blockedBy, lose, nothingLost } from './fallout.js';
 import {
   consumedInputs,
   noOutputs,
@@ -50,6 +51,14 @@ export interface StageResults {
  * A stage whose whole input digests to a stored result is not called at all;
  * one that runs writes its result back before the next stage starts, so a run
  * interrupted halfway keeps what it had already earned.
+ *
+ * **A stage that throws costs its own branch and no more.** It is recorded as
+ * failed, every stage consuming an output type it was going to produce is
+ * recorded as skipped naming it, and the rest of the order runs and reports as
+ * it always did — because once anyone can add a stage, one of them dividing by
+ * zero must not discard twenty minutes of analysis that had nothing to do with
+ * it (`docs/adr/0015`). It also writes no run entry, so a retry re-runs what
+ * failed and nothing else.
  */
 export async function runStages({
   plan,
@@ -61,6 +70,7 @@ export async function runStages({
 }: StageRunOptions): Promise<StageResults> {
   const entries: Record<string, StageEntry> = {};
   const outputs = noOutputs();
+  const lost = nothingLost();
 
   for (const { stage, files, skipped } of plan) {
     if (skipped !== undefined) {
@@ -68,19 +78,42 @@ export async function runStages({
       continue;
     }
 
+    // Nothing it consumes is going to arrive, so there is no run to make: it
+    // is not entered as a step either, and `progress.finish()` reports what the
+    // run actually did rather than the plan it was given.
+    const failure = blockedBy(lost, stage.consumes);
+    if (failure !== undefined) {
+      entries[stage.id] = stageBlocked(stage.produces, failure);
+      lose(lost, stage.produces, failure);
+      continue;
+    }
+
     progress.enter('stage', stage.id);
     const inputs = consumedInputs(outputs, stage.consumes);
     const runKey = stageRunKey(stage, files, inputs, window);
     const hit = cache.getRun<StageOutput>(stage.id, stage.version, runKey);
-    const output =
-      hit ??
-      (await stage.run({
-        ...repo,
-        files,
-        inputs,
-        history: stage.consumes.includes('commits') ? history : [],
-        cache: cache.scope(stage.id, stage.version),
-      }));
+
+    let output: StageOutput;
+    try {
+      output =
+        hit ??
+        (await stage.run({
+          ...repo,
+          files,
+          inputs,
+          history: stage.consumes.includes('commits') ? history : [],
+          cache: cache.scope(stage.id, stage.version),
+        }));
+    } catch (err) {
+      // Nothing is written back for it: the whole-stage entry is what a retry
+      // would be served, and serving a stored answer for a stage that threw
+      // would make the failure permanent. Whatever it cached per file on the
+      // way is keyed by blob and stays true, so the retry pays only for the
+      // work it has to redo.
+      entries[stage.id] = stageFailed(stage.produces, message(err));
+      lose(lost, stage.produces, stage.id);
+      continue;
+    }
 
     if (!hit) {
       cache.setRun(stage.id, stage.version, runKey, output);
@@ -99,4 +132,8 @@ export async function runStages({
     })),
     outputs,
   };
+}
+
+function message(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

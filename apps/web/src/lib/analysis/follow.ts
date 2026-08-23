@@ -3,9 +3,17 @@ import { ApiError, fetchJob, streamJob, type AnalysisJob } from '$lib/api';
 /** How long to wait between asks when the stream is not available. */
 const POLL_MS = 1000;
 
-/** A job that will not change again. */
+/**
+ * A job that will not change again. `partial` is one of them: a run whose
+ * stages did not all succeed is over, and a follower that kept waiting for it
+ * to reach `succeeded` would poll a finished run forever.
+ */
 function settled(job: AnalysisJob): boolean {
-  return job.state === 'succeeded' || job.state === 'failed';
+  return (
+    job.state === 'succeeded' ||
+    job.state === 'partial' ||
+    job.state === 'failed'
+  );
 }
 
 /**

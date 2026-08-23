@@ -19,6 +19,7 @@ const strata: Project = {
   addedAt: '2026-08-01T09:00:00.000Z',
   lastAnalysis: {
     rev: '7f80d51cafe',
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,

@@ -80,8 +80,8 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
       Broken into 17 tickets, sub-issues of the spec. The stage contract lands
       *beside* the existing plugin kinds and the old form is deleted only once
       nothing uses it, so every ticket keeps the local gate green on its own.
-      Ready to start: *a failing stage fails only its dependents*, and then the
-      consumers — *web reads stage entries* and the deletion of the old form.
+      Ready to start: the consumers — *web reads stage entries* and the
+      deletion of the old form.
 
   - [x] Retire the AI provider plugin contract
   - [x] Fold cross-language derivation into the report
@@ -159,7 +159,20 @@ Anything marked *(mockup)* exists as a design and needs an implementation.
         asked for.
         Every built-in is a stage now; the kinds run only what somebody else
         has not migrated.
-  - [ ] **P1** A failing stage fails only its dependents
+  - [x] A failing stage fails only its dependents
+        A stage that throws is recorded as failed with its reason, every stage
+        consuming an output type it was going to produce is recorded as skipped
+        naming it, and every other branch runs and reports as usual — so a
+        third-party stage dividing by zero costs its own branch instead of
+        twenty minutes of analysis that had nothing to do with it. A skipped
+        entry carries `blockedBy` when a failure is why it did not run, which is
+        what tells it from a stage whose filter matched no file. The run itself
+        ends `ok`, `partial` or `failed`, and a partial run is a job state of
+        its own: it has a report, it answers 200, and it refreshes the
+        project's last-run summary marked partial. Only a run in which nothing
+        survived the failures is a failed one, and that one leaves the last
+        summary standing. A failed stage writes no run cache entry, so a retry
+        re-runs what failed and nothing else.
   - [ ] **P1** Web reads stage entries
   - [ ] **P1** Delete the legacy plugin kinds and report fields
   - [ ] **P1** `strata.config.json` is authoritative

@@ -2,10 +2,23 @@ import type { AnalysisProgress, ProgressListener } from '../progress/index.js';
 import type { AnalysisReport, AnalyzeOptions } from '../types.js';
 
 /**
- * Where a job is. `queued` and `running` are live and will change again;
- * `succeeded` and `failed` are final and never do.
+ * Where a job is. `queued` and `running` are live and will change again; the
+ * other three are final and never do.
+ *
+ * `partial` is a run that produced a report with a hole in it: a stage threw,
+ * everything downstream of it was skipped, and the rest of the pipeline ran
+ * ([ADR-15](../../../../docs/adr/0015-partial-runs-and-per-stage-status.md)).
+ * It is a state of its own rather than a flavour of `succeeded` because the
+ * two must not be confused by anyone acting on the outcome — a partial run
+ * never passes a gate — nor by anyone reading it, since it did produce a
+ * report and `failed` says there is none to collect.
  */
-export type JobState = 'queued' | 'running' | 'succeeded' | 'failed';
+export type JobState =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'partial'
+  | 'failed';
 
 /** One analysis, from the moment it was asked for to whatever became of it. */
 export interface AnalysisJob {
@@ -23,7 +36,11 @@ export interface AnalysisJob {
   startedAt: string | null;
   /** When it reached a final state, ISO 8601; null while it has not. */
   finishedAt: string | null;
-  /** The report, once the run succeeded. */
+  /**
+   * The report, once the run produced one — which a `partial` run did, and so
+   * did a `failed` one whose stages all threw. A run that failed before it had
+   * anything to report has none.
+   */
   report: AnalysisReport | null;
   /** Why it failed, once it did. */
   error: string | null;

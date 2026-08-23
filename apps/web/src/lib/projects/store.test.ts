@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { analysis, ROOT_STORAGE_KEY } from '$lib/analysis';
-import type { Project } from '$lib/api';
+import type { AnalysisReport, Project } from '$lib/api';
 import { runRoutes, stubApi } from '$lib/test/api';
 import { noCommits } from '$lib/test/commits';
 import { dependenciesOf } from '$lib/test/graph';
@@ -19,6 +19,7 @@ const strata: Project = {
   addedAt: '2026-08-01T09:00:00.000Z',
   lastAnalysis: {
     rev: '7f80d51cafe',
+    status: 'ok',
     branch: 'main',
     files: 1240,
     durationMs: 2440,
@@ -36,9 +37,10 @@ const kernel: Project = {
 
 const registry = { projects: [strata, kernel] };
 
-const report = {
+const report: AnalysisReport = {
   rev: 'abc12345678',
   run: {
+    status: 'ok',
     branch: 'main',
     files: 12,
     durationMs: 300,

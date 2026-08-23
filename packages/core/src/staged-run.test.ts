@@ -117,6 +117,16 @@ const SERIES = (id: string) => `export default {
 };
 `;
 
+/** A stage that throws, the way any stage anyone adds eventually will. */
+const THROWS = (id: string, message: string) => `export default {
+  kind: 'stage',
+  async run() {
+    (globalThis.__strataStageRuns ??= []).push('${id}');
+    throw new Error('${message}');
+  },
+};
+`;
+
 /**
  * A commit convention: the run's history window, read into a parsed log that
  * stamps the convention's own name as the type, so a report says who parsed it.
@@ -567,6 +577,252 @@ describe('an exclusive group', () => {
     } finally {
       strata.close();
     }
+  });
+});
+
+/**
+ * A stage that throws costs its own branch and no more.
+ *
+ * The whole point of an open pipeline is that anyone can add a stage, and once
+ * anyone can, one of them dividing by zero must not discard twenty minutes of
+ * analysis that had nothing to do with it. What comes back is a **partial
+ * run** — still a run, still recorded, and honest about the hole in it
+ * (`docs/adr/0015`).
+ *
+ * The workbench under test:
+ *
+ *   breaks ──▶ reads-graph ──▶ reads-aggregate      (produces graph, throws)
+ *   unrelated                                       (produces metrics)
+ *   nothing-to-do                                   (filter matches no file)
+ */
+describe('a stage that throws', () => {
+  let strata: Strata;
+  let report: AnalysisReport;
+
+  beforeAll(async () => {
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'breaks',
+      { produces: 'graph', filter: { extensions: ['ts'] } },
+      THROWS('breaks', 'cannot parse src/a.ts'),
+    );
+    await install(
+      registry,
+      'reads-graph',
+      { produces: 'findings', consumes: ['graph'] },
+      WITNESS('reads-graph'),
+    );
+    await install(
+      registry,
+      'reads-aggregate',
+      { produces: 'aggregate', consumes: ['findings'] },
+      WITNESS('reads-aggregate'),
+    );
+    await install(
+      registry,
+      'unrelated',
+      { produces: 'metrics', filter: { extensions: ['ts'] } },
+      SERIES('unrelated'),
+    );
+    await install(
+      registry,
+      'nothing-to-do',
+      { produces: 'commits', filter: { extensions: ['py'] } },
+      WITNESS('nothing-to-do'),
+    );
+    strata = new Strata(registry, { cache: false });
+  });
+
+  afterAll(() => strata.close());
+
+  beforeEach(async () => {
+    report = await strata.analyze({ root: repo });
+  });
+
+  it('is recorded as failed, with what it threw', () => {
+    expect(report.stages.breaks).toEqual({
+      status: 'failed',
+      type: 'graph',
+      reason: 'cannot parse src/a.ts',
+    });
+    // Not an empty graph: what it would have said is not knowable, and a
+    // reader must not be able to mistake the one for the other.
+    expect(report.stages.breaks).not.toHaveProperty('output');
+  });
+
+  it('takes its dependents out of the run, naming what failed them', () => {
+    expect(report.stages['reads-graph']).toEqual({
+      status: 'skipped',
+      type: 'findings',
+      reason: expect.stringContaining('"breaks" failed'),
+      blockedBy: 'breaks',
+    });
+    expect(globalThis.__strataStageRuns).not.toContain('reads-graph');
+  });
+
+  it('names the stage that failed, not the nearest casualty', () => {
+    // `reads-aggregate` consumes findings, which `reads-graph` never produced.
+    // Following the chain back is the reader's job to do once, here, rather
+    // than every time somebody reads a report.
+    expect(report.stages['reads-aggregate']).toMatchObject({
+      status: 'skipped',
+      blockedBy: 'breaks',
+    });
+  });
+
+  it('leaves every branch the failure never reached alone', () => {
+    expect(globalThis.__strataStageRuns).toContain('unrelated');
+    expect(report.stages.unrelated).toMatchObject({
+      status: 'ok',
+      type: 'metrics',
+      output: { id: 'unrelated' },
+    });
+    // And it still reaches the field a metric series has always reached.
+    expect(report.metrics.map((series) => series.id)).toEqual(['unrelated']);
+  });
+
+  it('is distinguishable from a stage that simply had nothing to do', () => {
+    // Both are `skipped`, and only one of them is somebody's bug: an empty
+    // branch has no stage to name, and says why in its own words.
+    expect(report.stages['nothing-to-do']).toMatchObject({
+      status: 'skipped',
+      reason: expect.stringContaining('matched no file'),
+    });
+    expect(report.stages['nothing-to-do']).not.toHaveProperty('blockedBy');
+  });
+
+  it('makes the run partial rather than failed', () => {
+    expect(report.run.status).toBe('partial');
+  });
+
+  it('records how each stage ended, in the order they were ordered', () => {
+    // Everything that waits on nothing first, in declaration order, then the
+    // stages that wait — the order is the plan's, whatever became of them.
+    expect(report.provenance).toEqual([
+      { id: 'breaks', version: '1.0.0', status: 'failed' },
+      { id: 'unrelated', version: '1.0.0', status: 'ok' },
+      { id: 'nothing-to-do', version: '1.0.0', status: 'skipped' },
+      { id: 'reads-graph', version: '1.0.0', status: 'skipped' },
+      { id: 'reads-aggregate', version: '1.0.0', status: 'skipped' },
+    ]);
+  });
+
+  it('is not still counting the stages it took out as steps to wait for', async () => {
+    const steps: AnalysisProgress[] = [];
+    await strata.analyze({ root: repo }, (progress) => steps.push(progress));
+
+    const staged = steps.filter((step) => step.stage === 'stage');
+    expect(staged.map((step) => step.detail)).toEqual(['breaks', 'unrelated']);
+    // The plan counted the two the failure went on to cut, because nothing
+    // knew it was coming; the finished step reports what the run actually did
+    // rather than leaving a reader at 4 of 6.
+    expect(steps.at(-1)).toMatchObject({ stage: 'finished', completed: 5, total: 5 });
+  });
+});
+
+/**
+ * A run that kept nothing is not a run that partly worked. There is no half of
+ * it to read, so it is a **failed** run — the one thing a stage failure can
+ * still cost the whole job (`docs/adr/0015`).
+ */
+describe('a run in which every stage failed', () => {
+  it('is a failed run, not a partial one', async () => {
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'breaks',
+      { produces: 'graph', filter: { extensions: ['ts'] } },
+      THROWS('breaks', 'out of memory'),
+    );
+    await install(
+      registry,
+      'also-breaks',
+      { produces: 'metrics', filter: { extensions: ['ts'] } },
+      THROWS('also-breaks', 'no such column'),
+    );
+    const strata = new Strata(registry, { cache: false });
+
+    try {
+      const report = await strata.analyze({ root: repo });
+
+      expect(report.run.status).toBe('failed');
+      // Both of them ran and both of them threw: a failure is not contagious
+      // between stages that have nothing to do with each other.
+      expect(globalThis.__strataStageRuns).toEqual(['breaks', 'also-breaks']);
+      expect(report.stages['also-breaks']).toMatchObject({
+        status: 'failed',
+        reason: 'no such column',
+      });
+    } finally {
+      strata.close();
+    }
+  });
+});
+
+/**
+ * The point of caching per stage: a failure costs the next run only the work
+ * that failed. A stage that threw stored nothing, so it is asked again; the one
+ * beside it stored its result, so it is not.
+ */
+describe('a retry after a stage failed', () => {
+  let changing: string;
+  let cacheDir: string;
+  let strata: Strata;
+
+  beforeAll(async () => {
+    changing = mkdtempSync(join(tmpdir(), 'strata-staged-retry-repo-'));
+    cacheDir = mkdtempSync(join(tmpdir(), 'strata-staged-retry-cache-'));
+    await exec('git', ['init', '-q', '-b', 'main'], { cwd: changing });
+    writeFileSync(join(changing, 'src.ts'), 'export const a = 1;\n');
+    await exec('git', ['add', '-A'], { cwd: changing });
+    await exec('git', ['commit', '-q', '-m', 'feat: initial'], {
+      cwd: changing,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'Strata Test',
+        GIT_AUTHOR_EMAIL: 'test@example.com',
+        GIT_COMMITTER_NAME: 'Strata Test',
+        GIT_COMMITTER_EMAIL: 'test@example.com',
+      },
+    });
+
+    const registry = new PluginRegistry();
+    await install(
+      registry,
+      'works',
+      { produces: 'metrics', filter: { extensions: ['ts'] } },
+      SERIES('works'),
+    );
+    await install(
+      registry,
+      'breaks',
+      { produces: 'graph', filter: { extensions: ['ts'] } },
+      THROWS('breaks', 'still broken'),
+    );
+    strata = new Strata(registry, { cache: { dir: cacheDir } });
+  }, 30_000);
+
+  afterAll(() => {
+    strata.close();
+    for (const dir of [changing, cacheDir]) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('re-runs what failed and nothing else', async () => {
+    await strata.analyze({ root: changing });
+    expect(globalThis.__strataStageRuns).toEqual(['works', 'breaks']);
+
+    globalThis.__strataStageRuns = [];
+    const second = await strata.analyze({ root: changing });
+
+    // Nothing was written back for the stage that threw, so a stored answer
+    // cannot make its failure permanent.
+    expect(globalThis.__strataStageRuns).toEqual(['breaks']);
+    expect(second.cache.runHits).toBe(1);
+    expect(second.stages.works).toMatchObject({ status: 'ok' });
+    expect(second.stages.breaks).toMatchObject({ status: 'failed' });
   });
 });
 

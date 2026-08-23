@@ -18,7 +18,12 @@ import { jobsRoute } from './jobs.js';
  * thing to change, and that it ends when the run does.
  */
 
-const report = { rev: 'abc123' } as unknown as AnalysisReport;
+// Only the fields `/jobs` and the queue read: the run's own verdict is what
+// decides the state a job settles into.
+const report = {
+  rev: 'abc123',
+  run: { status: 'ok' },
+} as unknown as AnalysisReport;
 
 /** Runs are held open until the test finishes them, one at a time. */
 let finish: ((report: AnalysisReport) => void) | null = null;
@@ -190,6 +195,21 @@ describe('GET /jobs/:id/events', () => {
     const frames = events((await stream).body);
     expect(frames.at(-1)?.event).toBe('failed');
     expect(frames.at(-1)?.job).toMatchObject({ error: 'not a git repository' });
+  });
+
+  it('closes on a partial run rather than holding the stream open', async () => {
+    const job = analyses.submit({ root: '/repo' });
+    await settle();
+
+    const stream = app.inject({ url: `/jobs/${job.id}/events` });
+    await tick();
+    finish?.({ ...report, run: { status: 'partial' } } as AnalysisReport);
+
+    // A run with a hole in it is over, and a follower told otherwise waits on
+    // a run that finished (`docs/adr/0015`).
+    const frames = events((await stream).body);
+    expect(frames.at(-1)?.event).toBe('partial');
+    expect(frames.at(-1)?.job).toMatchObject({ report: { rev: 'abc123' } });
   });
 
   it('answers 404 for a job this workbench never had', async () => {

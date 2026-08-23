@@ -114,7 +114,10 @@ class AnalysisStore {
       });
       if (run !== this.#run) return;
       this.#progress = null;
-      if (finished.report) {
+      // A partial run is one to render: it has a report, and the stages that
+      // failed say so inside it. A run that kept nothing has a report too — of
+      // nothing but failures — so the state decides, not the presence of one.
+      if (finished.state !== 'failed' && finished.report) {
         this.#report = finished.report;
         this.#status = 'ready';
         return;

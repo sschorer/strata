@@ -18,6 +18,7 @@ import {
 
 const analysis: ProjectAnalysis = {
   rev: '4c1249e',
+  status: 'ok',
   branch: 'main',
   files: 42,
   durationMs: 1820,
