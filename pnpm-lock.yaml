@@ -190,7 +190,7 @@ importers:
         version: 0.3.1
       web-tree-sitter:
         specifier: ^0.26.12
-        version: 0.26.12
+        version: 0.26.13
     devDependencies:
       '@types/node':
         specifier: ^24.13.3
@@ -1878,8 +1878,8 @@ packages:
       jsdom:
         optional: true
 
-  web-tree-sitter@0.26.12:
-    resolution: {integrity: sha512-fvqTNZQBGUgUgfP0mHw+iHf9Yf6bRQrp0A3pSf2v/hSKxkT1beCoIWoLVmlPL7O6dmySfSb/t1aJoJvrgTRStw==}
+  web-tree-sitter@0.26.13:
+    resolution: {integrity: sha512-5bUZ7vbQ1kcondet96wzP974+JfCZDeQ7bTpacICm2nnvHpa5cO0ByRsoMcAhUP+743vpkb4m0BFlVSm+Ye9VA==}
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -3423,7 +3423,7 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  web-tree-sitter@0.26.12: {}
+  web-tree-sitter@0.26.13: {}
 
   whatwg-mimetype@3.0.0: {}
 
